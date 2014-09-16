@@ -155,12 +155,12 @@ typedef	struct
 typedef	struct
 		{
 			/* This part needs to be set up by the user */
-			word        mood,far *moods[sqMaxMoods];
+			word        mood, *moods[sqMaxMoods];
 
 			/* The rest is set up by the code */
 			Instrument	inst;
 			boolean		percussive;
-			word		far *seq;
+			word	    *seq;
 			longword	nextevent;
 		} ActiveTrack;
 
@@ -176,7 +176,7 @@ extern	boolean		AdLibPresent,
 					NeedsMusic;	// For Caching Mgr
 extern	SDMode		SoundMode;
 extern	SMMode		MusicMode;
-extern	longword	TimeCount;					// Global time in ticks
+//extern	longword	TimeCount;					// Global time in ticks *** replaced by a function in SDL_main.c ***
 
 // Function prototypes
 extern	void	SD_Startup(void),
@@ -185,20 +185,19 @@ extern	void	SD_Startup(void),
 				SD_PlaySound(soundnames sound),
 				SD_StopSound(void),
 				SD_WaitSoundDone(void),
-				SD_StartMusic(MusicGroup far *music),
+				SD_StartMusic(MusicGroup *music),
 				SD_MusicOn(void),
 				SD_MusicOff(void),
-				SD_FadeOutMusic(void),
-				SD_SetUserHook(void (*hook)(void));
+				SD_FadeOutMusic(void);
 extern	boolean	SD_MusicPlaying(void),
 				SD_SetSoundMode(SDMode mode),
 				SD_SetMusicMode(SMMode mode);
 extern	word	SD_SoundPlaying(void);
 
 #ifdef	_MUSE_	// MUSE Goes directly to the lower level routines
-extern	void	SDL_PCPlaySound(PCSound far *sound),
+extern	void	SDL_PCPlaySound(PCSound *sound),
 				SDL_PCStopSound(void),
-				SDL_ALPlaySound(AdLibSound far *sound),
+				SDL_ALPlaySound(AdLibSound *sound),
 				SDL_ALStopSound(void);
 #endif
 

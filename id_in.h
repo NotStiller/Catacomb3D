@@ -148,21 +148,19 @@ typedef	struct		{
 									downleft,	down,	downright;
 					} KeyboardDef;
 // Global variables
-extern	boolean		Keyboard[];
+//extern	boolean		Keyboard[]; // newly defined in back end
 extern	boolean		Paused;
-extern	char		LastASCII;
-extern	ScanCode	LastScan;
+//extern	char		LastASCII; // newly defined in back end
+//extern	ScanCode	LastScan; // newly defined in back end
 extern	KeyboardDef	KbdDefs[];
 extern	ControlType	Controls[MaxPlayers];
 
 extern	Demo		DemoMode;
-extern	byte _seg	*DemoBuffer;
+extern	byte		*DemoBuffer;
 extern	word		DemoOffset,DemoSize;
 
 // Function prototypes
-#define	IN_KeyDown(code)	(Keyboard[(code)])
-#define	IN_ClearKey(code)	{Keyboard[code] = false;\
-							if (code == LastScan) LastScan = sc_None;}
+#define	IN_KeyDown(code)	(Keyboard(code))
 
 // DEBUG - put names in prototypes
 extern	void		IN_Startup(void),IN_Shutdown(void),
@@ -172,14 +170,12 @@ extern	void		IN_Startup(void),IN_Shutdown(void),
 					IN_ReadCursor(CursorInfo *),
 					IN_ReadControl(int,ControlInfo *),
 					IN_SetControlType(int,ControlType),
-					IN_StartDemoPlayback(byte _seg *buffer,word bufsize),
+					IN_StartDemoPlayback(byte *buffer,word bufsize),
 					IN_StopDemo(void),IN_FreeDemoBuffer(void),
-					IN_Ack(void),IN_AckBack(void);
+					IN_Ack(void);
 extern	boolean		IN_UserInput(longword delay,boolean clear),
 					IN_IsUserInput(void),
 					IN_StartDemoRecord(word bufsize);
 extern	byte		*IN_GetScanName(ScanCode);
-extern	char		IN_WaitForASCII(void);
-extern	ScanCode	IN_WaitForKey(void);
 
 #endif

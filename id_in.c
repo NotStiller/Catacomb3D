@@ -39,22 +39,22 @@
 #pragma	hdrstop
 
 // 	Global variables
-		boolean		Keyboard[NumCodes],
+		boolean		//Keyboard[NumCodes],
 					MousePresent;
 		boolean		Paused;
-		char		LastASCII;
-		ScanCode	LastScan;
+//		char		LastASCII;
+//		ScanCode	LastScan;
 		KeyboardDef	KbdDefs[MaxKbds] = {{0x1d,0x38,0x47,0x48,0x49,0x4b,0x4d,0x4f,0x50,0x51}};
 		ControlType	Controls[MaxPlayers];
 
 		Demo		DemoMode = demo_Off;
-		byte _seg	*DemoBuffer;
+		byte 		*DemoBuffer;
 		word		DemoOffset,DemoSize;
 
 //	Internal variables
 static	boolean		IN_Started;
 static	boolean		CapsLock;
-static	byte        far ASCIINames[] =		// Unshifted ASCII for scan codes
+static	byte        ASCIINames[] =		// Unshifted ASCII for scan codes
 					{
 //	 0   1   2   3   4   5   6   7   8   9   A   B   C   D   E   F
 	0  ,27 ,'1','2','3','4','5','6','7','8','9','0','-','=',8  ,9  ,	// 0
@@ -66,7 +66,7 @@ static	byte        far ASCIINames[] =		// Unshifted ASCII for scan codes
 	0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,	// 6
 	0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0		// 7
 					},
-					far ShiftNames[] =		// Shifted ASCII for scan codes
+					ShiftNames[] =		// Shifted ASCII for scan codes
 					{
 //	 0   1   2   3   4   5   6   7   8   9   A   B   C   D   E   F
 	0  ,27 ,'!','@','#','$','%','^','&','*','(',')','_','+',8  ,9  ,	// 0
@@ -78,7 +78,7 @@ static	byte        far ASCIINames[] =		// Unshifted ASCII for scan codes
 	0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,	// 6
 	0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0   	// 7
 					},
-					far SpecialNames[] =	// ASCII for 0xe0 prefixed codes
+					SpecialNames[] =	// ASCII for 0xe0 prefixed codes
 					{
 //	 0   1   2   3   4   5   6   7   8   9   A   B   C   D   E   F
 	0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,	// 0
@@ -102,7 +102,7 @@ static	byte        far ASCIINames[] =		// Unshifted ASCII for scan codes
 	"?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?",
 	"?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?"
 					},	// DEBUG - consolidate these
-					far ExtScanCodes[] =	// Scan codes with >1 char names
+					ExtScanCodes[] =	// Scan codes with >1 char names
 					{
 	1,0xe,0xf,0x1d,0x2a,0x39,0x3a,0x3b,0x3c,0x3d,0x3e,
 	0x3f,0x40,0x41,0x42,0x43,0x44,0x57,0x59,0x46,0x1c,0x36,
@@ -218,22 +218,6 @@ IN_Shutdown(void)
 
 ///////////////////////////////////////////////////////////////////////////
 //
-//	IN_ClearKeyDown() - Clears the keyboard array
-//
-///////////////////////////////////////////////////////////////////////////
-void
-IN_ClearKeysDown(void)
-{
-	int	i;
-
-	LastScan = sc_None;
-	LastASCII = key_None;
-	for (i = 0;i < NumCodes;i++)
-		Keyboard[i] = false;
-}
-
-///////////////////////////////////////////////////////////////////////////
-//
 //	INL_AdjustCursor() - Internal routine of common code from IN_ReadCursor()
 //
 ///////////////////////////////////////////////////////////////////////////
@@ -320,28 +304,28 @@ register	KeyboardDef	*def;
 		case ctrl_Keyboard2:
 			def = &KbdDefs[type - ctrl_Keyboard];
 
-			if (Keyboard[def->upleft])
+			if (Keyboard(def->upleft))
 				mx = motion_Left,my = motion_Up;
-			else if (Keyboard[def->upright])
+			else if (Keyboard(def->upright))
 				mx = motion_Right,my = motion_Up;
-			else if (Keyboard[def->downleft])
+			else if (Keyboard(def->downleft))
 				mx = motion_Left,my = motion_Down;
-			else if (Keyboard[def->downright])
+			else if (Keyboard(def->downright))
 				mx = motion_Right,my = motion_Down;
 
-			if (Keyboard[def->up])
+			if (Keyboard(def->up))
 				my = motion_Up;
-			else if (Keyboard[def->down])
+			else if (Keyboard(def->down))
 				my = motion_Down;
 
-			if (Keyboard[def->left])
+			if (Keyboard(def->left))
 				mx = motion_Left;
-			else if (Keyboard[def->right])
+			else if (Keyboard(def->right))
 				mx = motion_Right;
 
-			if (Keyboard[def->button0])
+			if (Keyboard(def->button0))
 				buttons += 1 << 0;
-			if (Keyboard[def->button1])
+			if (Keyboard(def->button1))
 				buttons += 1 << 1;
 			realdelta = false;
 			break;
@@ -442,7 +426,7 @@ IN_StartDemoRecord(word bufsize)
 //
 ///////////////////////////////////////////////////////////////////////////
 void
-IN_StartDemoPlayback(byte _seg *buffer,word bufsize)
+IN_StartDemoPlayback(byte *buffer,word bufsize)
 {
 	DemoBuffer = buffer;
 	DemoMode = demo_Playback;
@@ -486,7 +470,7 @@ byte *
 IN_GetScanName(ScanCode scan)
 {
 	byte		**p;
-	ScanCode	far *s;
+	ScanCode	*s;
 
 	for (s = ExtScanCodes,p = ExtScanNames;*s;p++,s++)
 		if (*s == scan)
@@ -495,130 +479,3 @@ IN_GetScanName(ScanCode scan)
 	return(ScanNames[scan]);
 }
 
-///////////////////////////////////////////////////////////////////////////
-//
-//	IN_WaitForKey() - Waits for a scan code, then clears LastScan and
-//		returns the scan code
-//
-///////////////////////////////////////////////////////////////////////////
-ScanCode
-IN_WaitForKey(void)
-{
-	ScanCode	result;
-
-	while (!(result = LastScan))
-		;
-	LastScan = 0;
-	return(result);
-}
-
-///////////////////////////////////////////////////////////////////////////
-//
-//	IN_WaitForASCII() - Waits for an ASCII char, then clears LastASCII and
-//		returns the ASCII value
-//
-///////////////////////////////////////////////////////////////////////////
-char
-IN_WaitForASCII(void)
-{
-	char		result;
-
-	while (!(result = LastASCII))
-		;
-	LastASCII = '\0';
-	return(result);
-}
-
-///////////////////////////////////////////////////////////////////////////
-//
-//	IN_AckBack() - Waits for either an ASCII keypress or a button press
-//
-///////////////////////////////////////////////////////////////////////////
-void
-IN_AckBack(void)
-{
-	word	i;
-
-	while (!LastScan)
-	{
-		if (MousePresent)
-		{
-			if (INL_GetMouseButtons())
-			{
-				while (INL_GetMouseButtons())
-					;
-				return;
-			}
-		}
-	}
-
-	IN_ClearKey(LastScan);
-	LastScan = sc_None;
-}
-
-///////////////////////////////////////////////////////////////////////////
-//
-//	IN_Ack() - Clears user input & then calls IN_AckBack()
-//
-///////////////////////////////////////////////////////////////////////////
-void
-IN_Ack(void)
-{
-	word	i;
-
-	IN_ClearKey(LastScan);
-	LastScan = sc_None;
-
-	if (MousePresent)
-		while (INL_GetMouseButtons())
-					;
-
-	IN_AckBack();
-}
-
-///////////////////////////////////////////////////////////////////////////
-//
-//	IN_IsUserInput() - Returns true if a key has been pressed or a button
-//		is down
-//
-///////////////////////////////////////////////////////////////////////////
-boolean
-IN_IsUserInput(void)
-{
-	boolean	result;
-	word	i;
-
-	result = LastScan;
-
-	if (MousePresent)
-		if (INL_GetMouseButtons())
-			result = true;
-
-	return(result);
-}
-
-///////////////////////////////////////////////////////////////////////////
-//
-//	IN_UserInput() - Waits for the specified delay time (in ticks) or the
-//		user pressing a key or a mouse button. If the clear flag is set, it
-//		then either clears the key or waits for the user to let the mouse
-//		button up.
-//
-///////////////////////////////////////////////////////////////////////////
-boolean
-IN_UserInput(longword delay,boolean clear)
-{
-	longword	lasttime;
-
-	lasttime = TimeCount;
-	do
-	{
-		if (IN_IsUserInput())
-		{
-			if (clear)
-				IN_AckBack();
-			return(true);
-		}
-	} while (TimeCount - lasttime < delay);
-	return(false);
-}

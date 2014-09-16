@@ -104,7 +104,7 @@ boolean	SaveTheGame(FILE *file)
 	objtype	*o;
 	memptr	bigbuffer;
 
-	if (!CA_FarWrite(file,(void far *)&gamestate,sizeof(gamestate)))
+	if (!CA_FarWrite(file,(void*)&gamestate,sizeof(gamestate)))
 		return(false);
 
 	expanded = mapwidth * mapheight * 2;
@@ -115,12 +115,12 @@ boolean	SaveTheGame(FILE *file)
 //
 // leave a word at start of compressed data for compressed length
 //
-		compressed = (unsigned short)CA_RLEWCompress ((unsigned short *)mapsegs[i]
-			,expanded,((unsigned short*)bigbuffer)+1,RLETAG);
+		compressed = (unsigned short)CA_RLEWCompress ((uint16_t*)mapsegs[i]
+			,expanded,((uint16_t*)bigbuffer)+1,RLETAG);
 
-		*(unsigned short *)bigbuffer = compressed;
+		*(uint16_t*)bigbuffer = compressed;
 
-		if (!CA_FarWrite(file,(void far *)bigbuffer,compressed+2) )
+		if (!CA_FarWrite(file,(void*)bigbuffer,compressed+2) )
 		{
 			MM_FreePtr (&bigbuffer);
 			return(false);
@@ -128,7 +128,7 @@ boolean	SaveTheGame(FILE *file)
 	}
 
 	for (o = player;o;o = o->next)
-		if (!CA_FarWrite(file,(void far *)o,sizeof(objtype)))
+		if (!CA_FarWrite(file,(void*)o,sizeof(objtype)))
 		{
 			MM_FreePtr (&bigbuffer);
 			return(false);
@@ -154,10 +154,10 @@ boolean	LoadTheGame(FILE *file)
 	unsigned short	i,x,y;
 	objtype		*obj,*prev,*next,*followed;
 	unsigned short	compressed,expanded;
-	unsigned short	far *map,tile;
+	unsigned short	*map,tile;
 	memptr		bigbuffer;
 
-	if (!CA_FarRead(file,(void far *)&gamestate,sizeof(gamestate)))
+	if (!CA_FarRead(file,(void*)&gamestate,sizeof(gamestate)))
 		return(false);
 
 	SetupGameLevel ();		// load in and cache the base old level
@@ -167,20 +167,20 @@ boolean	LoadTheGame(FILE *file)
 
 	for (i = 0;i < 3;i+=2)	// Read planes 0 and 2
 	{
-		if (!CA_FarRead(file,(void *)&compressed,sizeof(compressed)) )
+		if (!CA_FarRead(file,(void*)&compressed,sizeof(compressed)) )
 		{
 			MM_FreePtr (&bigbuffer);
 			return(false);
 		}
 
-		if (!CA_FarRead(file,(void *)bigbuffer,compressed) )
+		if (!CA_FarRead(file,(void*)bigbuffer,compressed) )
 		{
 			MM_FreePtr (&bigbuffer);
 			return(false);
 		}
 
-		CA_RLEWexpand ((unsigned short *)bigbuffer,
-			(unsigned short*)mapsegs[i],expanded,RLETAG);
+		CA_RLEWexpand ((uint16_t*)bigbuffer,
+			(uint16_t*)mapsegs[i],expanded,RLETAG);
 	}
 
 	MM_FreePtr (&bigbuffer);
@@ -199,7 +199,7 @@ boolean	LoadTheGame(FILE *file)
 			{
 				tilemap[x][y] = tile;
 				if (tile>0)
-					*(unsigned*)&(actorat[x][y]) = tile;
+					CASTAT(intptr_t, actorat[x][y]) = tile;
 			}
 		}
 
@@ -212,7 +212,7 @@ boolean	LoadTheGame(FILE *file)
 	{
 		prev = new->prev;
 		next = new->next;
-		if (!CA_FarRead(file,(void far *)new,sizeof(objtype)))
+		if (!CA_FarRead(file,(void*)new,sizeof(objtype)))
 			return(false);
 		followed = new->next;
 		new->prev = prev;
@@ -241,12 +241,6 @@ boolean	LoadTheGame(FILE *file)
 void ResetGame(void)
 {
 	NewGame ();
-
-	ca_levelnum--;
-	ca_levelbit>>=1;
-	CA_ClearMarks();
-	ca_levelbit<<=1;
-	ca_levelnum++;
 }
 
 //===========================================================================
@@ -268,7 +262,6 @@ void ShutdownId (void)
   SD_Shutdown ();
   IN_Shutdown ();
   CA_Shutdown ();
-  MM_Shutdown ();
 }
 
 
@@ -292,7 +285,6 @@ void InitGame (void)
 
 //	US_TextScreen();
 
-	MM_Startup ();
 	VW_Startup ();
 	IN_Startup ();
 	SD_Startup ();
@@ -309,23 +301,12 @@ void InitGame (void)
 // load in and lock down some basic chunks
 //
 
-	CA_ClearMarks ();
-
-	CA_MarkGrChunk(STARTFONT);
-	CA_MarkGrChunk(STARTTILE8);
-	CA_MarkGrChunk(STARTTILE8M);
-	CA_MarkGrChunk(HAND1PICM);
-	CA_MarkGrChunk(HAND2PICM);
-	CA_MarkGrChunk(ENTERPLAQUEPIC);
-
-	CA_CacheMarks (NULL);
-
-	MM_SetLock (&grsegs[STARTFONT],true);
-	MM_SetLock (&grsegs[STARTTILE8],true);
-	MM_SetLock (&grsegs[STARTTILE8M],true);
-	MM_SetLock (&grsegs[HAND1PICM],true);
-	MM_SetLock (&grsegs[HAND2PICM],true);
-	MM_SetLock (&grsegs[ENTERPLAQUEPIC],true);
+	CA_CacheGrChunk(STARTFONT);
+	CA_CacheGrChunk(STARTTILE8);
+	CA_CacheGrChunk(STARTTILE8M);
+	CA_CacheGrChunk(HAND1PICM);
+	CA_CacheGrChunk(HAND2PICM);
+	CA_CacheGrChunk(ENTERPLAQUEPIC);
 
 	fontcolor = WHITE;
 
@@ -333,9 +314,6 @@ void InitGame (void)
 //
 // build some tables
 //
-	for (i=0;i<MAPSIZE;i++)
-		nearmapylookup[i] = &tilemap[0][0]+MAPSIZE*i;
-
 	for (i=0;i<PORTTILESHIGH;i++)
 		uwidthtable[i] = UPDATEWIDE*i;
 
@@ -348,7 +326,6 @@ void InitGame (void)
 
 	SetupScaling ();
 
-	VW_ColorBorder (3);
 	VW_ClearVideo (BLACK);
 
 //
@@ -374,14 +351,6 @@ void Quit (char *error)
 {
 	unsigned	finscreen;
 
-#if 0
-	if (!error)
-	{
-		CA_SetAllPurge ();
-		CA_CacheGrChunk (PIRACY);
-		finscreen = (unsigned)grsegs[PIRACY];
-	}
-#endif
 
 	ShutdownId ();
 	if (error && *error)
@@ -390,16 +359,7 @@ void Quit (char *error)
 	  exit(1);
 	}
 
-#if 0
-	if (!NoWait)
-	{
-		movedata (finscreen,0,0xb800,0,4000);
-		bioskey (0);
-		clrscr();
-	}
-#endif
-
-	BE_Exit();
+	SP_Exit();
 }
 
 //===========================================================================
@@ -426,16 +386,12 @@ void	DemoLoop (void)
 	{
 		CA_CacheGrChunk (TITLEPIC);
 		VWB_DrawPic (0,0,TITLEPIC);
-		MM_SetPurge (&grsegs[TITLEPIC],3);
-		UNMARKGRCHUNK(TITLEPIC);
 		FizzleFade (320,200,true);
 
 		if (!IN_UserInput(TickBase*3,false))
 		{
 			CA_CacheGrChunk (CREDITSPIC);
 			VWB_DrawPic (0,0,CREDITSPIC);
-			MM_SetPurge (&grsegs[CREDITSPIC],3);
-			UNMARKGRCHUNK(CREDITSPIC);
 			FizzleFade (320,200,true);
 
 		}
@@ -481,14 +437,12 @@ void SetupScalePic (unsigned short picnum)
 
 	if (shapedirectory[scnum])
 	{
-		MM_SetPurge ((memptr*)&shapedirectory[scnum],0);
 		return;					// allready in memory
 	}
 
 	CA_CacheGrChunk (picnum);
 	DeplanePic (picnum);
 	shapesize[scnum] = BuildCompShape (&shapedirectory[scnum]);
-	grneeded[picnum]&= ~ca_levelbit;
 	MM_FreePtr (&grsegs[picnum]);
 }
 
@@ -506,13 +460,12 @@ void SetupScaleWall (unsigned short picnum)
 {
 	int		x,y;
 	unsigned	scnum;
-	byte	far *dest;
+	byte	*dest;
 
 	scnum = picnum-FIRSTWALLPIC;
 
 	if (walldirectory[scnum])
 	{
-		MM_SetPurge (&walldirectory[scnum],0);
 		return;					// allready in memory
 	}
 
@@ -523,7 +476,6 @@ void SetupScaleWall (unsigned short picnum)
 	for (x=0;x<64;x++)
 		for (y=0;y<64;y++)
 			*dest++ = spotvis[y][x];
-	grneeded[picnum]&= ~ca_levelbit;
 	MM_FreePtr (&grsegs[picnum]);
 }
 
@@ -540,7 +492,7 @@ void SetupScaleWall (unsigned short picnum)
 void SetupScaling (void)
 {
 	int		i,x,y;
-	byte	far *dest;
+	byte	*dest;
 
 //
 // build the compiled scalers
@@ -571,73 +523,7 @@ void HelpScreens (void)
 ==================
 */
 
-#define MINMEMORY	335000l
-
 void	CheckMemory(void)
 {
-}
-
-//===========================================================================
-
-
-/*
-==========================
-=
-= main
-=
-==========================
-*/
-
-int cata3dmain (int argc, char **argv)
-{
-	short i;
-
-	_argc = argc;
-	_argv = argv;
-	if (strcmp(_argv[1], "/VER") == 0)
-	{
-		printf("Catacomb 3-D version 1.22  (Rev 1)\n");
-		printf("Copyright 1991-93 Softdisk Publishing\n");
-		printf("Developed for use with 100%% IBM compatibles\n");
-		printf("that have 640K memory and DOS version 3.3 or later\n");
-		printf("and EGA graphics or better.\n");
-		exit(0);
-	}
-
-	if (strcmp(_argv[1], "/?") == 0)
-	{
-		printf("Catacomb 3-D version 1.22\n");
-		printf("Copyright 1991-93 Softdisk Publishing\n\n");
-		printf("Syntax:\n");
-		printf("CAT3D [/<switch>]\n\n");
-		printf("Switch       What it does\n");
-		printf("/?           This Information\n");
-		printf("/VER         Display Program Version Information\n");
-		printf("/COMP        Fix problems with SVGA screens\n");
-		printf("/NOAL        No AdLib or SoundBlaster detection\n");
-		printf("/NOJOYS      Tell program to ignore joystick\n");
-		printf("/NOMOUSE     Tell program to ignore mouse\n");
-		printf("/HIDDENCARD  Overrides video detection\n\n");
-		printf("Each switch must include a '/' and multiple switches\n");
-		printf("must be seperated by at least one space.\n\n");
-
-		exit(0);
-	}
-
-	InitGame ();
-
-	CheckMemory ();
-
-	LoadLatchMem ();
-
-	DemoLoop();
-	Quit("Demo loop exited???");
-}
-
-
-/* HACKS and STUFF
-*/
-int _AX=0, _BX=0, _CX=0, _DX=0;
-void geninterrupt(int i) {
 }
 

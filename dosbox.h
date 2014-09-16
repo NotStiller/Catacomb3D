@@ -1,3 +1,8 @@
+/******************************************************************
+   This is not the real dosbox.h from DOSBox, but simply a stub,
+   so that I don't have to change opl.h and opl.cpp.
+*******************************************************************/
+
 
 /*
 	define Bits, Bitu, Bit32s, Bit32u, Bit16s, Bit16u, Bit8s, Bit8u here
@@ -17,7 +22,7 @@ typedef int8_t		Bit8s;
 
 #define INLINE inline
 
-#ifdef EYESOPEN
+#ifdef INCLUDED_FROM_SOURCEPORT
 typedef int bool;
 
 void AdLibInit(Bit32u samplerate);

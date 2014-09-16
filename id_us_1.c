@@ -53,12 +53,7 @@
 
 //      Special imports
 extern  boolean         showscorebox;
-#ifdef  KEEN
-extern  boolean         oldshooting;
-extern  ScanCode        firescan;
-#else
 		ScanCode        firescan;
-#endif
 
 //      Global variables
 		char            *abortprogram;
@@ -75,10 +70,9 @@ static  boolean         US_Started;
 
 		boolean         Button0,Button1,
 					CursorBad;
-		int                     CursorX,CursorY;
 
-		void            (*USL_MeasureString)(char far *,word *,word *) = VW_MeasurePropString,
-					(*USL_DrawString)(char far *) = VWB_DrawPropString;
+		void            (*USL_MeasureString)(char *,word *,word *) = VW_MeasurePropString,
+					(*USL_DrawString)(char *) = VWB_DrawPropString;
 
 		boolean         (*USL_SaveGame)(FILE*),(*USL_LoadGame)(FILE*);
 		void            (*USL_ResetGame)(void);
@@ -140,32 +134,28 @@ USL_ReadConfig(void)
 	boolean         gotit;
 	char            sig[sizeof(EXTENSION)];
 	word            version;
-	int                     file;
+	FILE *file;
 	SDMode          sd;
 	SMMode          sm;
 	ControlType     ctl;
 
-	if ((file = open("CONFIG."EXTENSION,O_BINARY | O_RDONLY)) != -1)
+	if (file = fopen("CONFIG."EXTENSION,"rb"))
 	{
-		read(file,sig,sizeof(EXTENSION));
-		read(file,&version,sizeof(version));
+		fread(sig,1,sizeof(EXTENSION),file);
+		fread(&version,1,sizeof(version),file);
 		if (strcmp(sig,EXTENSION) || (version != ConfigVersion))
 		{
-			close(file);
+			fclose(file);
 			goto rcfailed;
 		}
-		read(file,Scores,sizeof(HighScore) * MaxScores);
-		read(file,&sd,sizeof(sd));
-		read(file,&sm,sizeof(sm));
-		read(file,&ctl,sizeof(ctl));
-		read(file,&(KbdDefs[0]),sizeof(KbdDefs[0]));
-		read(file,&showscorebox,sizeof(showscorebox));
-		read(file,&compatability,sizeof(compatability));
-#ifdef KEEN
-		read(file,&oldshooting,sizeof(oldshooting));
-		read(file,&firescan,sizeof(firescan));
-#endif
-		close(file);
+		fread(Scores,1,sizeof(HighScore) * MaxScores,file);
+		fread(&sd,1,sizeof(sd),file);
+		fread(&sm,1,sizeof(sm),file);
+		fread(&ctl,1,sizeof(ctl),file);
+		fread(&(KbdDefs[0]),1,sizeof(KbdDefs[0]),file);
+		fread(&showscorebox,1,sizeof(showscorebox),file);
+		fread(&compatability,1,sizeof(compatability),file);
+		fclose(file);
 
 		HighScoresDirty = false;
 		gotit = true;
@@ -177,9 +167,6 @@ rcfailed:
 		sm = smm_Off;
 		ctl = ctrl_Keyboard;
 		showscorebox = true;
-#ifdef KEEN
-		oldshooting = false;
-#endif
 
 		gotit = false;
 		HighScoresDirty = true;
@@ -199,30 +186,25 @@ static void
 USL_WriteConfig(void)
 {
 	word    version;
-	int             file;
+	FILE *file;
 
 
 
 	version = ConfigVersion;
-	file = open("CONFIG."EXTENSION,O_CREAT | O_BINARY | O_WRONLY,
-				S_IREAD | S_IWRITE | S_IFREG);
-	if (file != -1)
+	file = fopen("CONFIG."EXTENSION,"wb");
+	if (file != NULL)
 	{
-		write(file,EXTENSION,sizeof(EXTENSION));
-		write(file,&version,sizeof(version));
-		write(file,Scores,sizeof(HighScore) * MaxScores);
-		write(file,&SoundMode,sizeof(SoundMode));
-		write(file,&MusicMode,sizeof(MusicMode));
+		fwrite(EXTENSION,1,sizeof(EXTENSION),file);
+		fwrite(&version,1,sizeof(version),file);
+		fwrite(Scores,1,sizeof(HighScore) * MaxScores,file);
+		fwrite(&SoundMode,1,sizeof(SoundMode),file);
+		fwrite(&MusicMode,1,sizeof(MusicMode),file);
 		Controls[0] = ctrl_Keyboard;
-		write(file,&(Controls[0]),sizeof(Controls[0]));
-		write(file,&(KbdDefs[0]),sizeof(KbdDefs[0]));
-		write(file,&showscorebox,sizeof(showscorebox));
-		write(file,&compatability,sizeof(compatability));
-#ifdef KEEN
-		write(file,&oldshooting,sizeof(oldshooting));
-		write(file,&firescan,sizeof(firescan));
-#endif
-		close(file);
+		fwrite(&(Controls[0]),1,sizeof(Controls[0]),file);
+		fwrite(&(KbdDefs[0]),1,sizeof(KbdDefs[0]),file);
+		fwrite(&showscorebox,1,sizeof(showscorebox),file);
+		fwrite(&compatability,1,sizeof(compatability),file);
+		fclose(file);
 	}
 }
 
@@ -238,7 +220,7 @@ USL_CheckSavedGames(void)
 	boolean         ok;
 	char            *filename;
 	word            i;
-	int                     file;
+	FILE			*file;
 	SaveGame        *game;
 
 	USL_SaveGame = 0;
@@ -248,17 +230,17 @@ USL_CheckSavedGames(void)
 	{
 		filename = USL_GiveSaveName(i);
 		ok = false;
-		if ((file = open(filename,O_BINARY | O_RDONLY)) != -1)
+		if (file = fopen(filename,"rb"))
 		{
 			if
 			(
-				(read(file,game,sizeof(*game)) == sizeof(*game))
+				(fread(game,1,sizeof(*game),file) == sizeof(*game))
 			&&      (!strcmp(game->signature,EXTENSION))
-			&&      (game->oldtest == &PrintX)
+//			&&      (game->oldtest == &PrintX)
 			)
 				ok = true;
 
-			close(file);
+			fclose(file);
 		}
 
 		if (ok)
@@ -366,7 +348,7 @@ US_CheckParm(char *parm,char **strings)
 //
 ///////////////////////////////////////////////////////////////////////////
 void
-US_SetPrintRoutines(void (*measure)(char far *,word *,word *),void (*print)(char far *))
+US_SetPrintRoutines(void (*measure)(char*,word *,word *),void (*print)(char*))
 {
 	USL_MeasureString = measure;
 	USL_DrawString = print;
@@ -675,8 +657,6 @@ US_LineInput(int x,int y,char *buf,char *def,boolean escok,
 				len;
 	longword        lasttime;
 
-	VW_HideCursor();
-
 	if (def)
 		strcpy(s,def);
 	else
@@ -686,9 +666,8 @@ US_LineInput(int x,int y,char *buf,char *def,boolean escok,
 	cursormoved = redraw = true;
 
 	cursorvis = done = false;
-	lasttime = TimeCount;
-	LastASCII = key_None;
-	LastScan = sc_None;
+	lasttime = SP_TimeCount();
+	IN_ClearKeysDown();
 
 	while (!done)
 	{
@@ -697,10 +676,9 @@ US_LineInput(int x,int y,char *buf,char *def,boolean escok,
 //	asm     pushf
 //	asm     cli
 
-		sc = LastScan;
-		LastScan = sc_None;
-		c = LastASCII;
-		LastASCII = key_None;
+		sc = LastScan();
+		c = LastASCII();
+		IN_ClearKeysDown();
 
 //	asm     popf
 
@@ -811,13 +789,13 @@ US_LineInput(int x,int y,char *buf,char *def,boolean escok,
 		if (cursormoved)
 		{
 			cursorvis = false;
-			lasttime = TimeCount - TickBase;
+			lasttime = SP_TimeCount() - TickBase;
 
 			cursormoved = false;
 		}
-		if (TimeCount - lasttime > TickBase / 2)
+		if (SP_TimeCount() - lasttime > TickBase / 2)
 		{
-			lasttime = TimeCount;
+			lasttime = SP_TimeCount();
 
 			cursorvis ^= true;
 		}
@@ -835,7 +813,6 @@ US_LineInput(int x,int y,char *buf,char *def,boolean escok,
 		py = y;
 		USL_DrawString(olds);
 	}
-	VW_ShowCursor();
 	VW_UpdateScreen();
 
 	IN_ClearKeysDown();

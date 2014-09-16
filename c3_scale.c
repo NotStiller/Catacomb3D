@@ -26,8 +26,8 @@ const	unsigned	screenbwide = 40;
 const	byte		BACKGROUNDPIX	=   5;
 
 unsigned short		shapesize[MAXSCALE+1];
-t_compscale _seg *scaledirectory[MAXSCALE+1];
-t_compshape _seg *shapedirectory[NUMSCALEPICS];
+t_compscale *scaledirectory[MAXSCALE+1];
+t_compshape *shapedirectory[NUMSCALEPICS];
 memptr			walldirectory[NUMSCALEWALLS];
 
 /*
@@ -46,7 +46,7 @@ memptr			walldirectory[NUMSCALEWALLS];
 
 void DeplanePic (int picnum)
 {
-	byte		far *plane0,far *plane1,far *plane2,far *plane3;
+	byte		*plane0,*plane1,*plane2,*plane3;
 	byte		by0,by1,by2,by3;
 	unsigned	x,y,b,color,shift,width,height;
 	byte		*dest;
@@ -62,7 +62,7 @@ void DeplanePic (int picnum)
 
 	memset (spotvis,BACKGROUNDPIX,sizeof(spotvis));
 
-	plane0 = (byte _seg *)grsegs[picnum];
+	plane0 = (byte *)grsegs[picnum];
 	plane1 = plane0 + width*height;
 	plane2 = plane1 + width*height;
 	plane3 = plane2 + width*height;
@@ -117,7 +117,7 @@ void DeplanePic (int picnum)
 
 unsigned BuildCompScale (int height, memptr *finalspot)
 {
-	t_compscale 	_seg *work;
+	t_compscale 	*work;
 
 	short int			i;
 	long		fix,step;
@@ -167,7 +167,7 @@ unsigned BuildCompScale (int height, memptr *finalspot)
 
 	totalsize = sizeof(t_compscale);
 	MM_GetPtr (finalspot,totalsize);
-	memcpy ((byte _seg *)(*finalspot),(byte _seg *)work,totalsize);
+	memcpy ((byte *)(*finalspot),(byte*)work,totalsize);
 	MM_FreePtr ((memptr*)&work);
 
 	return totalsize;
@@ -243,10 +243,10 @@ unsigned BuildCompScale (int height, memptr *finalspot)
 ========================
 */
 
-unsigned BuildCompShape (t_compshape _seg **finalspot)
+unsigned BuildCompShape (t_compshape **finalspot)
 {
-	t_compshape 	_seg *work;
-	byte		far *code;
+	t_compshape *work;
+	byte		*code;
 	int			firstline,lastline,x,y;
 	unsigned	firstpix,lastpix,width;
 	unsigned	totalsize;
@@ -356,9 +356,9 @@ unsigned BuildCompShape (t_compshape _seg **finalspot)
 
 static	long		longtemp;
 
-void ScaleShape (int xcenter, t_compshape _seg *compshape, unsigned height)
+void ScaleShape (int xcenter, t_compshape *compshape, unsigned height)
 {
-	t_compscale _seg *comptable;
+	t_compscale *comptable;
 	unsigned short	width,scalewidth;
 	short int		x,pixel,lastpixel,pixwidth,min;
 	unsigned short	*widthptr;

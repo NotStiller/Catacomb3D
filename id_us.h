@@ -92,8 +92,8 @@ extern	boolean		Button0,Button1,
 					CursorBad;
 extern	int			CursorX,CursorY;
 
-extern	void		(*USL_MeasureString)(char far *,word *,word *),
-					(*USL_DrawString)(char far *);
+extern	void		(*USL_MeasureString)(char *,word *,word *),
+					(*USL_DrawString)(char *);
 
 extern	boolean		(*USL_SaveGame)(FILE*),(*USL_LoadGame)(FILE*);
 extern	void		(*USL_ResetGame)(void);
@@ -118,8 +118,8 @@ extern	void	US_Startup(void),
 				US_SaveWindow(WindowRec *win),
 				US_RestoreWindow(WindowRec *win),
 				US_ClearWindow(void),
-				US_SetPrintRoutines(void (*measure)(char far *,word *,word *),
-									void (*print)(char far *)),
+				US_SetPrintRoutines(void (*measure)(char *,word *,word *),
+									void (*print)(char *)),
 				US_PrintCentered(char *s),
 				US_CPrint(char *s),
 				US_CPrintLine(char *s),

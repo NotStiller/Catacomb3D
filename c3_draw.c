@@ -78,7 +78,7 @@ long	scaletablecall;
 long 	bytecount,endcount;		// for profiling
 int		animframe;
 int		pixelangle[VIEWWIDTH];
-int		far finetangent[FINEANGLES+1];
+int		finetangent[FINEANGLES+1];
 int		fineviewangle;
 unsigned	viewxpix,viewypix;
 
@@ -139,13 +139,11 @@ int	zbuffer[VIEWXH+1];	// holds the height of the wall at that point
 
 //==========================================================================
 
-void	DrawLine (int xl, int xh, int y,int color);
 void	DrawWall (walltype *wallptr);
 void	TraceRay (unsigned angle);
 fixed	FixedByFrac (fixed a, fixed b);
 fixed	FixedAdd (void);
 fixed	TransformX (fixed gx, fixed gy);
-int		FollowTrace (fixed tracex, fixed tracey, long deltax, long deltay, int max);
 int		BackTrace (int finish);
 void	ForwardTrace (void);
 int		TurnClockwise (void);
@@ -157,217 +155,6 @@ void	BuildTables (void);
 
 //==========================================================================
 
-
-/*
-==================
-=
-= DrawLine
-=
-= Must be in write mode 2 with all planes enabled
-= The bit mask is left set to the end value, so clear it after all lines are
-= drawn
-=
-= draws a black dot at the left edge of the line
-=
-==================
-*/
-
-unsigned static	char dotmask[8] = {0x80,0x40,0x20,0x10,8,4,2,1};
-unsigned static	char leftmask[8] = {0xff,0x7f,0x3f,0x1f,0xf,7,3,1};
-unsigned static	char rightmask[8] = {0x80,0xc0,0xe0,0xf0,0xf8,0xfc,0xfe,0xff};
-
-void DrawLine (int xl, int xh, int y,int color)
-{
-  unsigned dest,xlp,xlb,xhb,maskleft,maskright,maskdot,mid;
-
-  xlb=xl/8;
-  xhb=xh/8;
-
-  if (xh<xl)
-	Quit("DrawLine: xh<xl");
-  if (y<VIEWY)
-	Quit("DrawLine: y<VIEWY");
-  if (y>VIEWYH)
-	Quit("DrawLine: y>VIEWYH");
-
-	xlp = xl&7;
-	maskleft = leftmask[xlp];
-	maskright = rightmask[xh&7];
-
-  mid = xhb-xlb-1;
-  NYI("DrawLine");
-/*  dest = bufferofs+ylookup[y]+xlb;
-
-	//
-	// set the GC index register to point to the bit mask register
-	//
-	asm	mov	al,GC_BITMASK
-	asm	mov	dx,GC_INDEX
-	asm	out	dx,al
-
-  if (xlb==xhb)
-  {
-  //
-  // entire line is in one byte
-  //
-
-	maskleft&=maskright;
-
-	asm	mov	es,[screenseg]
-	asm	mov	di,[dest]
-	asm	mov	dx,GC_INDEX+1
-
-	asm	mov	al,[BYTE PTR maskleft]
-	asm	out	dx,al		// mask off pixels
-
-	asm	mov	al,[BYTE PTR color]
-	asm	xchg	al,[es:di]	// load latches and write pixels
-
-	return;
-  }
-
-asm	mov	es,[screenseg]
-asm	mov	di,[dest]
-asm	mov	dx,GC_INDEX+1
-asm	mov	bh,[BYTE PTR color]
-
-//
-// draw left side
-//
-asm	mov	al,[BYTE PTR maskleft]
-asm	out	dx,al		// mask off pixels
-
-asm	mov	al,bh
-asm	xchg	al,[es:di]	// load latches and write pixels
-asm	inc	di
-
-//
-// draw middle
-//
-asm	mov	al,255
-asm	out	dx,al		// no masking
-
-asm	mov	al,bh
-asm	mov	cx,[mid]
-asm	rep	stosb
-
-//
-// draw right side
-//
-asm	mov	al,[BYTE PTR maskright]
-asm	out	dx,al		// mask off pixels
-asm	xchg	bh,[es:di]	// load latches and write pixels
-*/
-}
-
-//==========================================================================
-
-void DrawLineDot (int xl, int xh, int y,int color)
-{
-  unsigned dest,xlp,xlb,xhb,maskleft,maskright,maskdot,mid;
-
-  xlb=xl/8;
-  xhb=xh/8;
-
-  if (xh<xl)
-	Quit("DrawLine: xh<xl");
-  if (y<VIEWY)
-	Quit("DrawLine: y<VIEWY");
-  if (y>VIEWYH)
-	Quit("DrawLine: y>VIEWYH");
-
-	xlp = xl&7;
-	maskdot = dotmask[xlp];
-	maskleft = leftmask[xlp];
-	maskright = rightmask[xh&7];
-
-  mid = xhb-xlb-1;
-  NYI("DrawLineDot");
-/*
-  dest = bufferofs+ylookup[y]+xlb;
-
-	//
-	// set the GC index register to point to the bit mask register
-	//
-	asm	mov	al,GC_BITMASK
-	asm	mov	dx,GC_INDEX
-	asm	out	dx,al
-
-  if (xlb==xhb)
-  {
-  //
-  // entire line is in one byte
-  //
-
-	maskleft&=maskright;
-
-	asm	mov	es,[screenseg]
-	asm	mov	di,[dest]
-	asm	mov	dx,GC_INDEX+1
-
-	asm	mov	al,[BYTE PTR maskleft]
-	asm	out	dx,al		// mask off pixels
-
-	asm	mov	al,[BYTE PTR color]
-	asm	xchg	al,[es:di]	// load latches and write pixels
-
-
-	//
-	// write the black dot at the start
-	//
-	asm	mov	al,[BYTE PTR maskdot]
-	asm	out	dx,al		// mask off pixels
-
-	asm	xor	al,al
-	asm	xchg	al,[es:di]	// load latches and write pixels
-
-
-	return;
-  }
-
-asm	mov	es,[screenseg]
-asm	mov	di,[dest]
-asm	mov	dx,GC_INDEX+1
-asm	mov	bh,[BYTE PTR color]
-
-//
-// draw left side
-//
-asm	mov	al,[BYTE PTR maskleft]
-asm	out	dx,al		// mask off pixels
-
-asm	mov	al,bh
-asm	xchg	al,[es:di]	// load latches and write pixels
-
-//
-// write the black dot at the start
-//
-asm	mov	al,[BYTE PTR maskdot]
-asm	out	dx,al		// mask off pixels
-asm	xor	al,al
-asm	xchg	al,[es:di]	// load latches and write pixels
-asm	inc	di
-
-//
-// draw middle
-//
-asm	mov	al,255
-asm	out	dx,al		// no masking
-
-asm	mov	al,bh
-asm	mov	cx,[mid]
-asm	rep	stosb
-
-//
-// draw right side
-//
-asm	mov	al,[BYTE PTR maskright]
-asm	out	dx,al		// mask off pixels
-asm	xchg	bh,[es:di]	// load latches and write pixels
-*/
-}
-
-//==========================================================================
 
 
 long		wallscalesource;
@@ -459,10 +246,6 @@ void DrawVWall (walltype *wallptr)
 		}
 		assert(heightchange == 0 || longheightchange != 0);
 		assert(heightchange != 0 || longheightchange == 0);
-/*		see above
-		asm	mov	ax,[heightchange]
-		asm	mov	WORD PTR [longheightchange+2],ax
-		asm	mov	WORD PTR [longheightchange],0	// avoid long shift by 16*/
 		fracstep = longheightchange/(long)width;
 	}
 
@@ -550,23 +333,6 @@ void DrawVWall (walltype *wallptr)
 			height = MAXSCALEHEIGHT;
 		wallheight[x] = zbuffer[x] = height;
 
-/*		see above
-		asm	mov	ax,WORD PTR [fracheight]
-		asm	mov	dx,WORD PTR [fracheight+2]
-		asm	mov	cx,dx
-		asm	add	ax,WORD PTR [fracstep]
-		asm	adc	dx,WORD PTR [fracstep+2]
-		asm	mov	WORD PTR [fracheight],ax
-		asm	mov	WORD PTR [fracheight+2],dx
-		asm	mov	bx,[x]
-		asm	shl	bx,1
-		asm	cmp	cx,MAXSCALEHEIGHT
-		asm	jbe	storeheight
-		asm	mov	cx,MAXSCALEHEIGHT
-storeheight:
-		asm	mov WORD PTR [wallheight+bx],cx
-		asm	mov WORD PTR [zbuffer+bx],cx
-*/
 
 		//
 		// texture map
@@ -583,38 +349,12 @@ storeheight:
 // result is a signed 11.16 bit number
 //
 
-#if 0
-		source = distance*slope;
-		source >>=20;
-
-		source += mapadd;
-		source &= 63;				// mask off the unused units
-		source = 63-source;
-		source <<= 6;				// multiply by 64 for offset into pic
-#else
 		// the above c code is different, so translate this assembly code here
 		unsigned short int a = distance*slope;
 		unsigned short int b = (a&0xFF00)+((unsigned short)a>>10);
 		unsigned short int c = (b+mapadd)&63;
 		unsigned short int d = (63-c)<<6;
 		source = d;
-/*		asm	mov	ax,[distance]
-		asm	imul	[slope]			// ax is the source pixel
-		asm	mov	al,ah
-		asm	shr	al,1
-		asm	shr	al,1				// low 6 bits is now pixel number
-		asm	add	ax,[mapadd]
-		asm	and ax,63
-		asm	mov	dx,63
-		asm	sub	dx,ax				// otherwise it is backwards
-		asm	shl	dx,1
-		asm	shl	dx,1
-		asm	shl	dx,1
-		asm	shl	dx,1
-		asm	shl	dx,1
-		asm	shl	dx,1				// *64 to index into shape
-		asm	mov	[source],dx*/
-#endif
 
 		if (source != lastsource)
 		{
@@ -659,110 +399,108 @@ int tilecolor;
 
 void TraceRay (unsigned angle)
 {
-  long tracex,tracey,tracexstep,traceystep,searchx,searchy;
-  fixed fixtemp;
-  int otx,oty,searchsteps;
+	long tracex,tracey,tracexstep,traceystep,searchx,searchy;
+	fixed fixtemp;
+	int otx,oty,searchsteps;
 
-  tracexstep = costable[angle];
-  traceystep = sintable[angle];
-
-//
-// advance point so it is even with the view plane before we start checking
-//
-  fixtemp = FixedByFrac(prestep,tracexstep);
-  tracex = viewx+fixtemp;
-  fixtemp = FixedByFrac(prestep,traceystep);
-  tracey = viewy-fixtemp;
-
-  tile.x = tracex>>TILESHIFT;	// starting point in tiles
-  tile.y = tracey>>TILESHIFT;
-
-
-  if (tracexstep<0)			// use 2's complement, not signed magnitude
-	tracexstep = -(tracexstep&0x7fffffff);
-
-  if (traceystep<0)			// use 2's complement, not signed magnitude
-	traceystep = -(traceystep&0x7fffffff);
-
-//
-// we assume viewx,viewy is not inside a solid tile, so go ahead one step
-//
-
-  do	// until a solid tile is hit
-  {
-    otx = tile.x;
-	oty = tile.y;
-	spotvis[otx][oty] = true;
-	tracex += tracexstep;
-    tracey -= traceystep;
-    tile.x = tracex>>TILESHIFT;
-	tile.y = tracey>>TILESHIFT;
-
-	if (tile.x!=otx && tile.y!=oty && (tilemap[otx][tile.y] || tilemap[tile.x][oty]) )
-    {
-      //
-	  // trace crossed two solid tiles, so do a binary search along the line
-	  // to find a spot where only one tile edge is crossed
-      //
-      searchsteps = 0;
-      searchx = tracexstep;
-      searchy = traceystep;
-      do
-      {
-	searchx/=2;
-	searchy/=2;
-	if (tile.x!=otx && tile.y!=oty)
-	{
-	 // still too far
-	  tracex -= searchx;
-	  tracey += searchy;
-	}
-	else
-	{
-	 // not far enough, no tiles crossed
-	  tracex += searchx;
-	  tracey -= searchy;
-	}
+	tracexstep = costable[angle];
+	traceystep = sintable[angle];
 
 	//
-	// if it is REAL close, go for the most clockwise intersection
+	// advance point so it is even with the view plane before we start checking
 	//
-	if (++searchsteps == 16)
-	{
-	  tracex = (long)otx<<TILESHIFT;
-	  tracey = (long)oty<<TILESHIFT;
-	  if (tracexstep>0)
-	  {
-		if (traceystep<0)
-		{
-		  tracex += TILEGLOBAL-1;
-		  tracey += TILEGLOBAL;
-		}
-		else
-		{
-		  tracex += TILEGLOBAL;
-		}
-	  }
-	  else
-	  {
-		if (traceystep<0)
-		{
-		  tracex --;
-		  tracey += TILEGLOBAL-1;
-		}
-		else
-		{
-		  tracey --;
-		}
-	  }
-	}
+	fixtemp = FixedByFrac(prestep,tracexstep);
+	tracex = viewx+fixtemp;
+	fixtemp = FixedByFrac(prestep,traceystep);
+	tracey = viewy-fixtemp;
 
-	tile.x = tracex>>TILESHIFT;
+	tile.x = tracex>>TILESHIFT;	// starting point in tiles
 	tile.y = tracey>>TILESHIFT;
 
-	  } while (( tile.x!=otx && tile.y!=oty) || (tile.x==otx && tile.y==oty) );
-	}
-  } while (!(tilecolor = tilemap[tile.x][tile.y]) );
+	if (tracexstep<0)			// use 2's complement, not signed magnitude
+		tracexstep = -(tracexstep&0x7fffffff);
+
+	if (traceystep<0)			// use 2's complement, not signed magnitude
+		traceystep = -(traceystep&0x7fffffff);
+
+	//
+	// we assume viewx,viewy is not inside a solid tile, so go ahead one step
+	//
+	do	// until a solid tile is hit
+	{
+		otx = tile.x;
+		oty = tile.y;
+		spotvis[otx][oty] = true;
+		tracex += tracexstep;
+		tracey -= traceystep;
+		tile.x = tracex>>TILESHIFT;
+		tile.y = tracey>>TILESHIFT;
+
+		if (tile.x!=otx && tile.y!=oty && (tilemap[otx][tile.y] || tilemap[tile.x][oty]) )
+		{
+			//
+			// trace crossed two solid tiles, so do a binary search along the line
+			// to find a spot where only one tile edge is crossed
+			//
+			searchsteps = 0;
+			searchx = tracexstep;
+			searchy = traceystep;
+			do
+			{
+				searchx/=2;
+				searchy/=2;
+				if (tile.x!=otx && tile.y!=oty)
+				{
+					// still too far
+					tracex -= searchx;
+					tracey += searchy;
+				}
+				else
+				{
+					// not far enough, no tiles crossed
+					tracex += searchx;
+					tracey -= searchy;
+				}
+
+				//
+				// if it is REAL close, go for the most clockwise intersection
+				//
+				if (++searchsteps == 16)
+				{
+					tracex = (long)otx<<TILESHIFT;
+					tracey = (long)oty<<TILESHIFT;
+					if (tracexstep>0)
+					{
+						if (traceystep<0)
+						{
+							tracex += TILEGLOBAL-1;
+							tracey += TILEGLOBAL;
+						}
+						else
+						{
+							tracex += TILEGLOBAL;
+						}
+					}
+					else
+					{
+						if (traceystep<0)
+						{
+							tracex --;
+							tracey += TILEGLOBAL-1;
+						}
+						else
+						{
+							tracey --;
+						}
+					}
+				}
+
+				tile.x = tracex>>TILESHIFT;
+				tile.y = tracey>>TILESHIFT;
+
+			} while (( tile.x!=otx && tile.y!=oty) || (tile.x==otx && tile.y==oty) );
+		}
+	} while (!(tilecolor = tilemap[tile.x][tile.y]) );
 
 }
 
@@ -796,50 +534,6 @@ fixed FixedByFrac (fixed a, fixed b)
 	}
 	long l = sign*(long)((double)a * (double)b / 65536.0);
 	return l;
-//NYI("FixedByFrac");
-/*
-  fixed value;
-
-//
-// setup
-//
-asm	mov	si,[WORD PTR b+2]	// sign of result = sign of fraction
-
-asm	mov	ax,[WORD PTR a]
-asm	mov	cx,[WORD PTR a+2]
-
-asm	or	cx,cx
-asm	jns	aok:				// negative?
-asm	not	ax
-asm	not	cx
-asm	add	ax,1
-asm	adc	cx,0
-asm	xor	si,0x8000			// toggle sign of result
-aok:
-
-//
-// multiply  cx:ax by bx
-//
-asm	mov	bx,[WORD PTR b]
-asm	mul	bx					// fraction*fraction
-asm	mov	di,dx				// di is low word of result
-asm	mov	ax,cx				//
-asm	mul	bx					// units*fraction
-asm add	ax,di
-asm	adc	dx,0
-
-//
-// put result dx:ax in 2's complement
-//
-asm	test	si,0x8000		// is the result negative?
-asm	jz	ansok:
-asm	not	ax
-asm	not	dx
-asm	add	ax,1
-asm	adc	dx,0
-
-ansok:;
-*/
 }
 
 //#pragma warn +rvl
@@ -1104,53 +798,8 @@ void BuildTables (void)
 
 void ClearScreen (void)
 {
-//NYI("ClearScreen");
 	VW_Bar(0,0,VIEWWIDTH, CENTERY+1, 0);
 	VW_Bar(0,CENTERY+1,VIEWWIDTH, CENTERY+1, 8);
-/*
-  //
-  // clear the screen
-  //
-asm	mov	dx,GC_INDEX
-asm	mov	ax,GC_MODE + 256*2		// read mode 0, write mode 2
-asm	out	dx,ax
-asm	mov	ax,GC_BITMASK + 255*256
-asm	out	dx,ax
-
-asm	mov	dx,40-VIEWWIDTH/8
-asm	mov	bl,VIEWWIDTH/16
-asm	mov	bh,CENTERY+1
-
-asm	xor	ax,ax
-asm	mov	es,[screenseg]
-asm	mov	di,[bufferofs]
-
-toploop:
-asm	mov	cl,bl
-asm	rep	stosw
-asm	stosb
-asm	add	di,dx
-asm	dec	bh
-asm	jnz	toploop
-
-asm	mov	bh,CENTERY+1
-asm	mov	ax,0x0808
-
-bottomloop:
-asm	mov	cl,bl
-asm	rep	stosw
-asm	stosb
-asm	add	di,dx
-asm	dec	bh
-asm	jnz	bottomloop
-
-
-asm	mov	dx,GC_INDEX
-asm	mov	ax,GC_MODE + 256*10		// read mode 1, write mode 2
-asm	out	dx,ax
-asm	mov	al,GC_BITMASK
-asm	out	dx,al
-*/
 }
 
 //==========================================================================
@@ -1317,16 +966,11 @@ void CalcTics (void)
 	long	newtime,oldtimecount;
 
 
-#ifdef PROFILE
-	tics = 1;
-	return;
-#endif
-
 //
 // calculate tics since last refresh for adaptive timing
 //
-	if (lasttimecount > TimeCount)
-		TimeCount = lasttimecount;		// if the game was paused a LONG time
+	if (lasttimecount > SP_TimeCount())
+		SP_SetTimeCount(lasttimecount);		// if the game was paused a LONG time
 
 	if (DemoMode)					// demo recording and playback needs
 	{								// to be constant
@@ -1334,10 +978,10 @@ void CalcTics (void)
 // take DEMOTICS or more tics, and modify Timecount to reflect time taken
 //
 		oldtimecount = lasttimecount;
-		while (TimeCount<oldtimecount+DEMOTICS*2)
+		while (SP_TimeCount()<oldtimecount+DEMOTICS*2)
 		;
 		lasttimecount = oldtimecount + DEMOTICS;
-		TimeCount = lasttimecount + DEMOTICS;
+		SP_SetTimeCount(lasttimecount+DEMOTICS);
 		tics = DEMOTICS;
 	}
 	else
@@ -1345,21 +989,13 @@ void CalcTics (void)
 //
 // non demo, so report actual time
 //
-		newtime = TimeCount;
+		newtime = SP_TimeCount();
 		tics = newtime-lasttimecount;
 		lasttimecount = newtime;
 
-#ifdef FILEPROFILE
-			strcpy (scratch,"\tTics:");
-			itoa (tics,str,10);
-			strcat (scratch,str);
-			strcat (scratch,"\n");
-			write (profilehandle,scratch,strlen(scratch));
-#endif
-
 		if (tics>MAXTICS)
 		{
-			TimeCount -= (tics-MAXTICS);
+			SP_SetTimeCount(tics-MAXTICS);
 			tics = MAXTICS;
 		}
 	}
@@ -1385,10 +1021,9 @@ void	DrawHand (void)
 
 	picnum = HAND1PICM;
 	if (gamestate.shotpower || boltsleft)
-		picnum += (((unsigned)TimeCount>>3)&1);
+		picnum += (((unsigned)SP_TimeCount()>>3)&1);
 
 	source = grsegs[picnum];
-//	dest = ylookup[VIEWHEIGHT-handheight]+12+bufferofs;
 	width = picmtable[picnum-STARTPICM].width;
 	height = picmtable[picnum-STARTPICM].height;
 
@@ -1433,6 +1068,7 @@ restart:
 	viewy &= 0xfffffc00;
 	viewx += 0x180;
 	viewy += 0x180;
+//viewx = 886144;	viewy = 104832; // there be an error here !
 	viewxpix = viewx>>10;
 	viewypix = viewy>>10;
 
@@ -1450,6 +1086,7 @@ restart:
 	TraceRay( tracedir );
 	right.x = tile.x;
 	right.y = tile.y;
+	assert(tile.x < 64);
 
 //
 // find the leftmost visable tile in view
@@ -1460,6 +1097,7 @@ restart:
 	else if (tracedir>=ANGLES)
 	  tracedir-=ANGLES;
 	TraceRay( tracedir );
+	assert(tile.x < 64);
 
 //
 // follow the walls from there to the right
@@ -1478,31 +1116,14 @@ restart:
 //
 // draw the wall list saved be FollowWalls ()
 //
-	animframe = (TimeCount&8)>>3;
+	animframe = (SP_TimeCount()&8)>>3;
 
 //
 // draw all the scaled images
 //
-/*
-	asm	mov	dx,GC_INDEX
-
-	asm	mov	ax,GC_COLORDONTCARE
-	asm	out	dx,ax						// don't look at any of the planes
-
-	asm	mov	ax,GC_MODE + 256*(10)		// read mode 1, write mode 2
-	asm	out	dx,ax
-
-	asm	mov	al,GC_BITMASK
-	asm	out	dx,al
-*/
 
 	DrawWallList();
 	DrawScaleds();
-
-/*
-	EGAWRITEMODE(0);
-	EGABITMASK(0xff);
-*/
 
 //
 // draw hand
@@ -1517,30 +1138,29 @@ restart:
 	{
 		fizzlein = false;
 		FizzleFade(VIEWWIDTH,VIEWHEIGHT,true);
-		lasttimecount = TimeCount;
+		lasttimecount = SP_TimeCount();
 		MouseDelta(NULL, NULL);	// Clear accumulated mouse movement
 	}
-/*
-asm	cli
-asm	mov	cx,[bufferofs]
-asm	mov	dx,3d4h		// CRTC address register
-asm	mov	al,0ch		// start address high register
-asm	out	dx,al
-asm	inc	dx
-asm	mov	al,ch
-asm	out	dx,al   	// set the high byte
-asm	dec	dx
-asm	mov	al,0dh		// start address low register
-asm	out	dx,al
-asm	inc	dx
-asm	mov	al,cl
-asm	out	dx,al		// set the low byte
-asm	sti
-	displayofs = bufferofs;
-*/
-	VW_UpdateScreen();
-	
 
+	if (0) // draw 16x16 tiles
+	{
+		int i;
+		for (i = 0; i < NUMTILE16; i++) {
+			if (grsegs[STARTTILE16+i] != NULL) {
+				VW_MemToScreen(grsegs[STARTTILE16+i],16*(i%20),16*(i/20),2,16);
+			}
+		}
+	}
+	if (0) // draw masked 16x16 tiles
+	{
+		int i;
+		for (i = 0; i < NUMTILE16M; i++) {
+			if (grsegs[STARTTILE16M+i] != NULL) {
+				VW_MaskBlock((byte*)grsegs[STARTTILE16M+i],16*(i%20),16*(i/20),2,16,32);
+			}
+		}
+	}
+	VW_UpdateScreen();
 	CalcTics ();
 
 

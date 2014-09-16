@@ -1,51 +1,48 @@
 Catacomb 3-D: The Descent SDL port
-----------------------------------
+==================================
 
 License
 -------
-This repository contains the source code for the SDL port of Catacomb 3-D (also known as
-Catacombs 3 or Catacomb 3-D: A New Dimension). 
 
-It is released under the GNU GPLv2. Please see COPYING for license details.
+This repository contains the source code for the SDL port of Catacomb 3-D (also 
+known as Catacombs 3 or Catacomb 3-D: A New Dimension). 
+
+It is released under the GNU GPLv2, please see gpl-2.0.txt for license details.
+Also note, that opl.cpp and opl.h were taken from the DOSBox 0.74 sources and
+were released under the GNU LGPLv2.1. See lgpl-2.1.txt for license details.
 
 This release does not affect the licensing for the game data files. You will
-need to legally acquire the game data in order to use the exe built from this
+need to legally acquire the game data (http://www.gog.com/game/catacombs_pack)
+in order to use the exe built from this
 source code.
 
 
 Compilation and running
 -------------------------
 
-I compiled the game for a x86 system with gcc version 4.7.2 (Debian 4.7.2-5) and SDL 1.2.15. There is an exemplary makefile that should do the trick.
+I compiled the game for a x86 system with gcc version 4.7.2 (Debian 4.7.2-5) and
+ SDL 1.2.15. There is an exemplary makefile that should do the trick.
 
-The source port SHOULD work for all platforms, but frankly, I haven't tested it with 64bit or any other compiler. Packing issues in other parts than the sound system might emerge. If it does, please contact me at @NotStiller.
+The source port SHOULD work for all platforms, but frankly, I haven't tested it
+with 64bit or any other compiler. Packing issues in other parts than the sound
+system might emerge. If it does, please contact me at @NotStiller.
 
-If you want sound output, you have to download the following two files:
-http://sourceforge.net/p/dosbox/code-0/3812/tree/dosbox/trunk/src/hardware/opl.cpp
-http://sourceforge.net/p/dosbox/code-0/3812/tree/dosbox/trunk/src/hardware/opl.h
-
-After you download them, get rid of opl.c and compile the new files with gcc -c opl.cpp -o opl.o.
-I did not include them here, because I was unsure of how to combine LGPL and GPL licensed software. 
-
-The game works great with the GOG release (http://www.gog.com/game/catacombs_pack).
-
-
-Gameplay instructions
----------------------
-
-Pressing 'm' will grab the mouse, pressing 'm' again will release it. While mouse grab is active strafing is always on and vertical mouse movement is ignored. The rest is well documented in the game/manual.
-
-Overall the game is surprisingly fun !
+The game works great with the GOG release
+(http://www.gog.com/game/catacombs_pack).
 
 
 General notes
 -----------
 
-There is a lot to be done. Provided that there is any demand for it, I will also convert the later Catacombs games. But for now, I just want to get this thing out.
+There is a lot to be done. Provided that there is any demand for it, I will also
+ convert the later Catacombs games. But for now, I just want to get this thing
+ out.
 
-I have not fixed the aspect ratio. That was never on my radar, before @fabynou did it with Wolfenstein.
+I have not fixed the aspect ratio. That was never on my radar, before @fabynou
+did it with Wolfenstein.
 
-If you have any comments or bugs to report, please do so via @NotStiller (twitter.com/NotStiller) or github.com/NotStiller. I'd love to hear from you !
+If you have any comments or bugs to report, please do so via @NotStiller
+(twitter.com/NotStiller) or github.com/NotStiller. I'd love to hear from you !
 
 
 Porting issues (aka the fun part)
@@ -74,8 +71,7 @@ Bugs
 
 - Rendering bug in Skull and Bones. Just make the ball touch the right side.
 
-- Crash at exit. I don't know why.
-
-- Sometimes ray tracing goes out of map, I don't know if I introduced that or if it always was there. I put an assert there.
+- Sometimes ray tracing goes out of map, I don't know if I introduced that or 
+  if it always was there. I put an assert there.
 
 

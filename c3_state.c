@@ -246,10 +246,6 @@ boolean Walk (objtype *ob)
 		return false;
 	}
 
-	void ungrab();
-	ungrab();
-	printf("Walk: Bad dir ! ob = 0x%08x #%i dir=%i\n", ob, ob-objlist, ob->dir);
-assert(0);
 	Quit ("Walk: Bad dir");
 	return false;
 }
@@ -358,7 +354,6 @@ void ChaseThink (objtype *obj, boolean diagonal)
 	}
 	else
 	{
-	printf("THE MEAN CASE!\n");
 		for (tdir=west;tdir>=north;tdir--)
 		{
 			if (tdir!=turnaround)

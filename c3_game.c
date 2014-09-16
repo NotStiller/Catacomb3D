@@ -21,11 +21,6 @@
 #include "c3_def.h"
 #pragma hdrstop
 
-#ifdef PROFILE
-#include "time.h"
-#endif
-
-
 /*
 =============================================================================
 
@@ -121,8 +116,6 @@ NEMESISPIC
 =============================================================================
 */
 
-memptr        latchpics[NUMLATCHPICS];
-memptr        tileoffsets[NUMTILE16];
 memptr  textstarts[27];
 
 /*
@@ -151,9 +144,9 @@ boolean lumpneeded[NUMLUMPS];
 
 void ScanInfoPlane (void)
 {
-	unsigned short        x,y,i,j;
-	int                     tile;
-	unsigned short        far     *start;
+	uint16_t        x,y,i,j;
+	int             tile;
+	uint16_t        *start;
 
 	InitObjList();                  // start spawning things with a clean slate
 
@@ -161,6 +154,7 @@ void ScanInfoPlane (void)
 
 	start = mapsegs[2];
 	for (y=0;y<mapheight;y++)
+	{
 		for (x=0;x<mapwidth;x++)
 		{
 			tile = *start++;
@@ -292,7 +286,7 @@ void ScanInfoPlane (void)
 				break;
 			}
 		}
-
+	}
 }
 
 //==========================================================================
@@ -308,9 +302,9 @@ void ScanInfoPlane (void)
 void ScanText (void)
 {
 	int     i;
-	char far *text;
+	char *text;
 
-	text = (char _seg *)grsegs[LEVEL1TEXT+mapon];
+	text = (char*)grsegs[LEVEL1TEXT+loadedmap];
 
 	textstarts[0] = 0;
 
@@ -395,8 +389,7 @@ void CacheScaleds (void)
 	int     i,j;
 	unsigned        source,dest;
 
-	FreeUpMemory ();
-	CA_CacheGrChunk(LEVEL1TEXT+mapon);
+	CA_CacheGrChunk(LEVEL1TEXT+loadedmap);
 	ScanText ();
 
 //
@@ -434,8 +427,8 @@ void CacheScaleds (void)
 
 void SetupGameLevel (void)
 {
-	int     x,y,i;
-	unsigned short        far *map,tile,spot;
+	int      x,y,i;
+	uint16_t *map,tile,spot;
 
 	memset (tileneeded,0,sizeof(tileneeded));
 //
@@ -454,18 +447,8 @@ void SetupGameLevel (void)
 //
 	CA_CacheMap (gamestate.mapon);
 
-	mapwidth = mapheaderseg[mapon]->width;
-	mapheight = mapheaderseg[mapon]->height;
-
-//
-// make a lookup table for the maps left edge
-//
-	spot = 0;
-	for (y=0;y<mapheight;y++)
-	{
-	  farmapylookup[y] = spot;
-	  spot += mapwidth;
-	}
+	mapwidth = mapheaderseg[loadedmap]->width;
+	mapheight = mapheaderseg[loadedmap]->height;
 
 //
 // copy the wall data to a data segment array
@@ -480,6 +463,7 @@ void SetupGameLevel (void)
 			tile = *map++;
 			if (tile<NUMFLOORS)
 			{
+				printf("%c", 'a'+tile);
 				tileneeded[tile] = true;
 				tilemap[x][y] = tile;
 				if (tile>=EXPWALLSTART && tile<EXPWALLSTART+NUMEXPWALLS)
@@ -488,10 +472,14 @@ void SetupGameLevel (void)
 				}
 
 				if (tile>0)
-					CASTAT(unsigned long,actorat[x][y]) = tile; // actorat stores pointers, so long enough
-			} else { // effectively like writing a 0
+					CASTAT(intptr_t,actorat[x][y]) = tile;
+			} else if (tile >= NAMESTART) {
+				printf(" ");
+			} else {
+				printf(" ");
 			}
 		}
+		printf("\n");
 	}
 
 //
@@ -520,44 +508,10 @@ void SetupGameLevel (void)
 
 void LatchDrawPic (unsigned x, unsigned y, unsigned picnum)
 {
-	int i=picnum-STARTPICS;
-	assert(grsegs[picnum] != NULL);
-	VW_MemToScreen (grsegs[picnum],8*x,y,pictable[i].width,pictable[i].height);
+	VW_DrawPic(x, y, picnum);
 /*
-	unsigned wide, height, source, dest;
-
-	wide = pictable[picnum-STARTPICS].width;
-	height = pictable[picnum-STARTPICS].height;
-	dest = bufferofs + ylookup[y]+x;
-	source = latchpics[picnum-FIRSTLATCHPIC];
-
 	EGAWRITEMODE(1);
 	EGAMAPMASK(15);
-
-asm     mov     bx,[linewidth]
-asm     sub     bx,[wide]
-
-asm     mov     ax,[screenseg]
-asm     mov     es,ax
-asm     mov     ds,ax
-
-asm     mov     si,[source]
-asm     mov     di,[dest]
-asm     mov     dx,[height]                             // scan lines to draw
-asm     mov     ax,[wide]
-
-lineloop:
-asm     mov     cx,ax
-asm     rep     movsb
-asm     add     di,bx
-
-asm     dec     dx
-asm     jnz     lineloop
-
-asm     mov     ax,ss
-asm     mov     ds,ax                                   // restore turbo's data segment
-
-	EGAWRITEMODE(0);
 */
 }
 
@@ -574,11 +528,9 @@ asm     mov     ds,ax                                   // restore turbo's data 
 
 void Victory (void)
 {
-	FreeUpMemory ();
 	NormalScreen ();
 	CA_CacheGrChunk (FINALEPIC);
 	VWB_DrawPic (0,0,FINALEPIC);
-	UNMARKGRCHUNK(FINALEPIC);
 	VW_UpdateScreen ();
 	SD_PlaySound (GETBOLTSND);
 	SD_WaitSoundDone ();
@@ -612,7 +564,6 @@ void Died (void)
 //
 // fizzle fade screen to grey
 //
-	FreeUpMemory ();
 	SD_PlaySound (GAMEOVERSND);
 	LatchDrawPic(0,0,DEADPIC);
 	FizzleFade(VIEWWIDTH,VIEWHEIGHT,false);
@@ -632,10 +583,6 @@ void Died (void)
 
 void NormalScreen (void)
 {
-	 VW_SetSplitScreen (200);
-//	 bufferofs = displayofs = SCREEN1START;
-//	 VW_Bar(0,0,320,200,0);
-//	 bufferofs = SCREEN2START;
 	 VW_Bar(0,0,320,200,0);
 }
 
@@ -655,18 +602,8 @@ void DrawPlayScreen (void)
 
 	screenpage = 0;
 
-//	bufferofs = 0;
 	VW_Bar (0,SPLITSCREENOFFSET+0,320,STATUSLINES,7);
 	VW_Bar (0,0,320,VIEWHEIGHT,7);
-/*	for (i=0;i<3;i++)
-	{
-		bufferofs = screenloc[i];
-		VW_Bar (0,SPLITSCREENOFFSET+0,320,VIEWHEIGHT,7);
-	}*/
-
-
-	VW_SetSplitScreen(144);
-//	bufferofs = 0;
 
 	CA_CacheGrChunk (STATUSPIC);
 	CA_CacheGrChunk (SIDEBARSPIC);
@@ -675,17 +612,10 @@ void DrawPlayScreen (void)
 
 	for (i=0;i<3;i++)
 	{
-//		bufferofs = screenloc[i];
 		VW_DrawPic (33,0,SIDEBARSPIC);
 	}
 
-	grneeded[STATUSPIC]&= ~ca_levelbit;
-	grneeded[SIDEBARSPIC]&= ~ca_levelbit;
-	MM_SetPurge(&grsegs[STATUSPIC],3);
-	MM_SetPurge(&grsegs[SIDEBARSPIC],3);
-
 	RedrawStatusWindow ();
-//	bufferofs = displayofs = screenloc[0];
 }
 
 
@@ -701,280 +631,17 @@ void DrawPlayScreen (void)
 
 void LoadLatchMem (void)
 {
-	int     i,j,p,m;
-	byte    far *src;
-
-//
-// draw some pics into latch memory
-//
-
-//
-// tile 8s
-//
-
-//	nothing to do here
-
-//
-// tile 16s
-//
-	src = (byte _seg *)grsegs[STARTTILE16];
-
-
+	int     i;
 	for (i=0;i<NUMTILE16;i++)
 	{
 		CA_CacheGrChunk (STARTTILE16+i);
-//		src = (byte _seg *)grsegs[STARTTILE16+i];
-//		assert(src != NULL);
 	}
-//
-// pics
-//
 	for (i=FIRSTLATCHPIC+1;i<FIRSTSCALEPIC;i++)
 	{
 		CA_CacheGrChunk (i);
 	}
-#if 0
-	int     i,j,p,m;
-	byte    far *src, far *dest;
-	unsigned        destoff;
-
-	EGAWRITEMODE(0);
-
-//
-// draw some pics into latch memory
-//
-
-//
-// tile 8s
-//
-	latchpics[0] = freelatch;
-	src = (byte _seg *)grsegs[STARTTILE8];
-	dest = MK_FP(0xa000,freelatch);
-
-	for (i=0;i<NUMTILE8;i++)
-	{
-		for (p=0;p<4;p++)
-		{
-			m = 1<<p;
-			asm     mov     dx,SC_INDEX
-			asm     mov     al,SC_MAPMASK
-			asm     mov     ah,[BYTE PTR m]
-			asm     out     dx,ax
-			for (j=0;j<8;j++)
-				*(dest+j)=*src++;
-		}
-		dest+=8;
-	}
-
-//
-// tile 16s
-//
-	src = (byte _seg *)grsegs[STARTTILE16];
-
-	for (i=0;i<NUMTILE16;i++)
-	{
-		CA_CacheGrChunk (STARTTILE16+i);
-		src = (byte _seg *)grsegs[STARTTILE16+i];
-		if (src)
-		{
-			tileoffsets[i] = FP_OFF(dest);
-			for (p=0;p<4;p++)
-			{
-				m = 1<<p;
-				asm     mov     dx,SC_INDEX
-				asm     mov     al,SC_MAPMASK
-				asm     mov     ah,[BYTE PTR m]
-				asm     out     dx,ax
-				for (j=0;j<32;j++)
-					*(dest+j)=*src++;
-			}
-			dest+=32;
-			MM_FreePtr (&grsegs[STARTTILE16+i]);
-			UNMARKGRCHUNK(STARTTILE16+i);
-		}
-		else
-			tileoffsets[i] = 0;
-	}
-
-
-//
-// pics
-//
-	destoff = FP_OFF(dest);
-	for (i=FIRSTLATCHPIC+1;i<FIRSTSCALEPIC;i++)
-	{
-		latchpics[i-FIRSTLATCHPIC] = destoff;
-		CA_CacheGrChunk (i);
-		j = pictable[i-STARTPICS].width * pictable[i-STARTPICS].height;
-		VW_MemToScreen (grsegs[i],destoff,j,1);
-		destoff+=j;
-		MM_FreePtr (&grsegs[i]);
-		UNMARKGRCHUNK(i);
-	}
-
-	EGAMAPMASK(15);
-#endif
 }
 
-//==========================================================================
-
-/*
-===================
-=
-= FizzleFade
-=
-===================
-*/
-
-#define PIXPERFRAME     1600
-#if 0
-
-void FizzleFade (unsigned width, unsigned height, boolean abortable)
-{
-NYI(FizzleFade)
-	unsigned        drawofs,pagedelta;
-	unsigned        char maskb[8] = {1,2,4,8,16,32,64,128};
-	unsigned        x,y,p,frame;
-	long            rndval;
-
-	pagedelta = dest-source;
-	VW_SetScreen (dest,0);
-	rndval = 1;
-	y = 0;
-
-asm     mov     es,[screenseg]
-asm     mov     dx,SC_INDEX
-asm     mov     al,SC_MAPMASK
-asm     out     dx,al
-
-	TimeCount=frame=0;
-	do      // while (1)
-	{
-		if (abortable)
-		{
-			IN_ReadControl(0,&c);
-			if (c.button0 || c.button1 || Keyboard[sc_Space]
-			|| Keyboard[sc_Enter])
-			{
-				VW_ScreenToScreen (source,dest,width/8,height);
-				return;
-			}
-		}
-
-		for (p=0;p<PIXPERFRAME;p++)
-		{
-			//
-			// seperate random value into x/y pair
-			//
-			asm     mov     ax,[WORD PTR rndval]
-			asm     mov     dx,[WORD PTR rndval+2]
-			asm     mov     bx,ax
-			asm     dec     bl
-			asm     mov     [BYTE PTR y],bl                 // low 8 bits - 1 = y xoordinate
-			asm     mov     bx,ax
-			asm     mov     cx,dx
-			asm     shr     cx,1
-			asm     rcr     bx,1
-			asm     shr     bx,1
-			asm     shr     bx,1
-			asm     shr     bx,1
-			asm     shr     bx,1
-			asm     shr     bx,1
-			asm     shr     bx,1
-			asm     shr     bx,1
-			asm     mov     [x],bx                                  // next 9 bits = x xoordinate
-			//
-			// advance to next random element
-			//
-			asm     shr     dx,1
-			asm     rcr     ax,1
-			asm     jnc     noxor
-			asm     xor     dx,0x0001
-			asm     xor     ax,0x2000
-noxor:
-			asm     mov     [WORD PTR rndval],ax
-			asm     mov     [WORD PTR rndval+2],dx
-
-			if (x>width || y>height)
-				continue;
-			drawofs = source+ylookup[y];
-
-			asm     mov     cx,[x]
-			asm     mov     si,cx
-			asm     and     si,7
-			asm     mov dx,GC_INDEX
-			asm     mov al,GC_BITMASK
-			asm     mov     ah,BYTE PTR [maskb+si]
-			asm     out dx,ax
-
-			asm     mov     si,[drawofs]
-			asm     shr     cx,1
-			asm     shr     cx,1
-			asm     shr     cx,1
-			asm     add     si,cx
-			asm     mov     di,si
-			asm     add     di,[pagedelta]
-
-			asm     mov     dx,GC_INDEX
-			asm     mov     al,GC_READMAP                   // leave GC_INDEX set to READMAP
-			asm     out     dx,al
-
-			asm     mov     dx,SC_INDEX+1
-			asm     mov     al,1
-			asm     out     dx,al
-			asm     mov     dx,GC_INDEX+1
-			asm     mov     al,0
-			asm     out     dx,al
-
-			asm     mov     bl,[es:si]
-			asm     xchg [es:di],bl
-
-			asm     mov     dx,SC_INDEX+1
-			asm     mov     al,2
-			asm     out     dx,al
-			asm     mov     dx,GC_INDEX+1
-			asm     mov     al,1
-			asm     out     dx,al
-
-			asm     mov     bl,[es:si]
-			asm     xchg [es:di],bl
-
-			asm     mov     dx,SC_INDEX+1
-			asm     mov     al,4
-			asm     out     dx,al
-			asm     mov     dx,GC_INDEX+1
-			asm     mov     al,2
-			asm     out     dx,al
-
-			asm     mov     bl,[es:si]
-			asm     xchg [es:di],bl
-
-			asm     mov     dx,SC_INDEX+1
-			asm     mov     al,8
-			asm     out     dx,al
-			asm     mov     dx,GC_INDEX+1
-			asm     mov     al,3
-			asm     out     dx,al
-
-			asm     mov     bl,[es:si]
-			asm     xchg [es:di],bl
-
-			if (rndval == 1)                // entire sequence has been completed
-			{
-				EGABITMASK(255);
-				EGAMAPMASK(15);
-				return;
-			};
-		}
-		frame++;
-		while (TimeCount<frame)         // don't go too fast
-		;
-	} while (1);
-
-}
-#endif
-
-//==========================================================================
 
 /*
 ===================
@@ -995,28 +662,6 @@ void FizzleOut (int showlevel)
 	FizzleFade(VIEWWIDTH,VIEWHEIGHT,false);
 }
 
-//==========================================================================
-
-/*
-====================
-=
-= FreeUpMemory
-=
-====================
-*/
-
-void FreeUpMemory (void)
-{
-	int     i;
-
-	for (i=0;i<NUMSCALEPICS;i++)
-		if (shapedirectory[i])
-			MM_SetPurge ((memptr*)&shapedirectory[i],3);
-
-	for (i=0;i<NUMSCALEWALLS;i++)
-		if (walldirectory[i])
-			MM_SetPurge ((memptr*)&walldirectory[i],3);
-}
 
 //==========================================================================
 
@@ -1039,8 +684,6 @@ void    DrawHighScores(void)
 
 	CA_CacheGrChunk (HIGHSCORESPIC);
 	VWB_DrawPic (0,0,HIGHSCORESPIC);
-	MM_SetPurge (&grsegs[HIGHSCORESPIC],3);
-	UNMARKGRCHUNK(HIGHSCORESPIC);
 
 	for (i = 0,s = Scores;i < MaxScores;i++,s++)
 	{
@@ -1164,14 +807,15 @@ restart:
 
 		CacheScaleds ();
 
+		SP_GameEnter();
 		PlayLoop ();
+		SP_GameLeave();
 
 		switch (playstate)
 		{
 		case ex_died:
 			Died ();
 			NormalScreen ();
-			FreeUpMemory ();
 			CheckHighScore (gamestate.score,gamestate.mapon+1);
 			return;
 		case ex_warped:
@@ -1179,20 +823,17 @@ restart:
 			if (gamestate.mapon >= NUMLEVELS)
 			{
 				Victory ();
-				FreeUpMemory ();
 				CheckHighScore(gamestate.score,gamestate.mapon+1);
 				return;
 			}
 			break;
 		case ex_abort:
-			FreeUpMemory ();
 			return;
 		case ex_resetgame:
 		case ex_loadedgame:
 			goto restart;
 		case ex_victorious:
 			Victory ();
-			FreeUpMemory();
 			CheckHighScore(gamestate.score,gamestate.mapon+1);
 			return;
 		}

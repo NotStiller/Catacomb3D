@@ -19,7 +19,8 @@
 // C3_PLAY.C
 
 #include "c3_def.h"
-#pragma hdrstop
+
+
 
 /*
 =============================================================================
@@ -45,9 +46,6 @@ boolean		running,slowturn;
 
 int			bordertime;
 objtype objlist[MAXACTORS],*new,*obj,*player,*lastobj,*objfreelist;
-
-unsigned short	farmapylookup[MAPSIZE];
-byte		*nearmapylookup[MAPSIZE];
 
 boolean		singlestep,godmode;
 int			extravbls;
@@ -127,14 +125,12 @@ void	CenterWindow(word w,word h)
 
 void CheckKeys (void)
 {
-	if (screenfaded)			// don't do anything with a faded screen
-		return;
-
 //
 // pause key wierdness can't be checked as a scan code
 //
 	if (Paused)
 	{
+		SP_GameLeave();
 		CenterWindow (8,3);
 		US_PrintCentered ("PAUSED");
 		VW_UpdateScreen ();
@@ -143,16 +139,17 @@ void CheckKeys (void)
 		SD_MusicOn();
 		Paused = false;
 		MouseDelta(NULL, NULL);	// Clear accumulated mouse movement
+		SP_GameEnter();
 	}
 
 //
 // F1-F7/ESC to enter control panel
 //
-	if ( (LastScan >= sc_F1 && LastScan <= sc_F7) || LastScan == sc_Escape)
+	if ( (LastScan() >= sc_F1 && LastScan() <= sc_F7) || LastScan() == sc_Escape)
 	{
+		SP_GameLeave();
 		StopMusic ();
 		NormalScreen ();
-		FreeUpMemory ();
 		US_CenterWindow (20,8);
 		US_CPrint ("Loading");
 		VW_UpdateScreen ();
@@ -170,18 +167,19 @@ void CheckKeys (void)
 			playstate = ex_loadedgame;
 		DrawPlayScreen ();
 		CacheScaleds ();
-		lasttimecount = TimeCount;
+		lasttimecount = SP_TimeCount();
 		MouseDelta(NULL, NULL);	// Clear accumulated mouse movement
+		SP_GameEnter();
 	}
 
 //
 // F10-? debug keys
 //
-	if (Keyboard[sc_F10])
+	if (Keyboard(sc_F10))
 	{
 //		DebugKeys();
 		MouseDelta(NULL, NULL);	// Clear accumulated mouse movement
-		lasttimecount = TimeCount;
+		lasttimecount = SP_TimeCount();
 	}
 
 }
@@ -357,7 +355,7 @@ void PollControls (void)
 		c.button1 = 1;
 
 	{
-		if (Keyboard[sc_RShift]||Keyboard[sc_LShift])
+		if (Keyboard(sc_RShift)||Keyboard(sc_LShift))
 			running = true;
 		else
 			running = false;
@@ -383,12 +381,6 @@ void StopMusic(void)
 	int	i;
 
 	SD_MusicOff();
-	for (i = 0;i < LASTMUSIC;i++)
-		if (audiosegs[STARTMUSIC + i])
-		{
-			MM_SetPurge(((memptr*)&audiosegs[STARTMUSIC + i]),3);
-			MM_SetLock(((memptr*)&audiosegs[STARTMUSIC + i]),false);
-		}
 }
 
 //==========================================================================
@@ -412,16 +404,8 @@ void StartMusic(void)
 //	if ((chunk == -1) || (MusicMode != smm_AdLib))
 //DEBUG control panel		return;
 
-	MM_BombOnError (false);
 	CA_CacheAudioChunk(STARTMUSIC + chunk);
-	MM_BombOnError (true);
-	if (mmerror)
-		mmerror = false;
-	else
-	{
-		MM_SetLock(((memptr*)&audiosegs[STARTMUSIC + chunk]),true);
-		SD_StartMusic((MusicGroup far *)audiosegs[STARTMUSIC + chunk]);
-	}
+	SD_StartMusic((MusicGroup*)audiosegs[STARTMUSIC + chunk]);
 }
 
 //==========================================================================
@@ -442,29 +426,22 @@ void PlayLoop (void)
 	void (*think)();
 
 	ingame = true;
-	playstate = TimeCount = 0;
+	SP_SetTimeCount(0);
+	playstate = 0;
 	gamestate.shotpower = handheight = 0;
 	pointcount = pointsleft = 0;
 
 	DrawLevelNumber (gamestate.mapon);
 	DrawBars ();
 
-#ifndef PROFILE
-	fizzlein = true;				// fizzle fade in the first refresh
-#endif
-	TimeCount = lasttimecount = lastnuke = 0;
+	lasttimecount = lastnuke = 0;
+	SP_SetTimeCount(0);
 
 	PollControls ();				// center mouse
 	StartMusic ();
 	do
 	{
-#ifndef PROFILE
 		PollControls();
-#else
-		c.xaxis = 1;
-		if (++TimeCount == 300)
-			return;
-#endif
 
 		for (obj = player;obj;obj = obj->next) {
 			if (obj->active)
@@ -517,7 +494,6 @@ nextactor:;
 			if (bordertime<=0)
 			{
 				bordertime = 0;
-				VW_ColorBorder (3);
 			}
 		}
 		if (pointcount)
@@ -544,7 +520,7 @@ nextactor:;
 		if (singlestep)
 		{
 			VW_WaitVBL(14);
-			lasttimecount = TimeCount;
+			lasttimecount = SP_TimeCount();
 		}
 		if (extravbls)
 			VW_WaitVBL(extravbls);
@@ -556,7 +532,6 @@ nextactor:;
 	if (bordertime)
 	{
 		bordertime = 0;
-		VW_ColorBorder (3);
 	}
 
 	if (!abortgame)

@@ -486,13 +486,13 @@ void DrawText (void)
 {
 	unsigned	number;
 	char		str[80];
-	char 		far *text;
+	char 		*text;
 	unsigned	temp;
 
 	//
 	// draw a new text description if needed
 	//
-	number = *(byte*)(mapsegs[0]+farmapylookup[player->tiley]+player->tilex)-NAMESTART;
+	number = *(byte*)(mapsegs[0]+player->tiley*mapwidth+player->tilex)-NAMESTART;
 
 	if ( number>26 )
 		number = 0;
@@ -904,7 +904,7 @@ void CastNuke (void)
 	}
 
 	TakeNuke ();
-	lastnuke = TimeCount;
+	lastnuke = SP_TimeCount();
 
 	for (angle = 0; angle < ANGLES; angle+= ANGLES/16)
 	{
@@ -968,16 +968,10 @@ void ReadScroll (int scroll)
 //
 // make wall pictures purgable
 //
-	for (i=0;i<NUMSCALEWALLS;i++)
-		if (walldirectory[i])
-			MM_SetPurge (*(memptr*)&(walldirectory[i]),3);
-
 	CA_CacheGrChunk (SCROLLTOPPIC);
 	CA_CacheGrChunk (SCROLL1PIC + scroll);
 	VW_DrawPic (0,0,SCROLLTOPPIC);
 	VW_DrawPic (0,32,SCROLL1PIC + scroll);
-	UNMARKGRCHUNK(SCROLL1PIC + scroll);
-	UNMARKGRCHUNK(SCROLLTOPPIC);
 	MM_FreePtr (&grsegs[SCROLL1PIC + scroll]);
 	MM_FreePtr (&grsegs[SCROLLTOPPIC]);
 
@@ -1025,7 +1019,6 @@ void TakeDamage (int points)
 	}
 
 	bordertime = points*FLASHTICS;
-	VW_ColorBorder (FLASHCOLOR);
 
 	if (gamestate.body<MAXBODY/3)
 		SD_PlaySound (TAKEDMGHURTSND);
@@ -1059,42 +1052,42 @@ void TakeDamage (int points)
 ==================
 */
 
-void OpenDoor (unsigned bx, unsigned by, unsigned doorbase)
+void OpenDoor (uint16_t bx, uint16_t by, uint16_t doorbase)
 {
 	int x,y;
-	unsigned short	far *map;
+	uint16_t *map;
 
 	x=bx;
 	y=by;
-	map = mapsegs[0]+farmapylookup[y]+x;
-	while (tilemap[x][y]-doorbase<4)
+	map = mapsegs[0]+mapwidth*y+x;
+	while (tilemap[x][y]-doorbase>=0 && tilemap[x][y]-doorbase<4)
 	{
-		tilemap[x][y] = CASTAT(unsigned, actorat[x][y]) = *map = 0;
+		tilemap[x][y] = CASTAT(intptr_t, actorat[x][y]) = *map = 0;
 		map--;
 		x--;
 	}
 	x=bx+1;
-	map = mapsegs[0]+farmapylookup[y]+x;
-	while (tilemap[x][y]-doorbase<4)
+	map = mapsegs[0]+mapwidth*y+x;
+	while (tilemap[x][y]-doorbase>=0 && tilemap[x][y]-doorbase<4)
 	{
-		tilemap[x][y] = CASTAT(unsigned,actorat[x][y]) = *map = 0;
+		tilemap[x][y] = CASTAT(intptr_t,actorat[x][y]) = *map = 0;
 		map++;
 		x++;
 	}
 	x=bx;
 	y=by-1;
-	map = mapsegs[0]+farmapylookup[y]+x;
-	while (tilemap[x][y]-doorbase<4)
+	map = mapsegs[0]+mapwidth*y+x;
+	while (tilemap[x][y]-doorbase>=0 && tilemap[x][y]-doorbase<4)
 	{
-		tilemap[x][y] = CASTAT(unsigned,actorat[x][y]) = *map = 0;
+		tilemap[x][y] = CASTAT(intptr_t,actorat[x][y]) = *map = 0;
 		map-=mapwidth;
 		y--;
 	}
 	y=by+1;
-	map = mapsegs[0]+farmapylookup[y]+x;
-	while (tilemap[x][y]-doorbase<4)
+	map = mapsegs[0]+mapwidth*y+x;
+	while (tilemap[x][y]-doorbase>=0 && tilemap[x][y]-doorbase<4)
 	{
-		tilemap[x][y] = CASTAT(unsigned,actorat[x][y]) = *map = 0;
+		tilemap[x][y] = CASTAT(intptr_t,actorat[x][y]) = *map = 0;
 		map+=mapwidth;
 		y++;
 	}
@@ -1195,7 +1188,7 @@ boolean TouchActor (objtype *ob, objtype *check)
 			GiveChest ();
 		else if (check->temp1 == B_GOAL)
 			GiveGoal ();
-		CASTAT(unsigned,actorat[check->tilex][check->tiley]) = 0;
+		CASTAT(intptr_t,actorat[check->tilex][check->tiley]) = 0;
 		RemoveObj (check);
 
 		return false;
@@ -1248,7 +1241,7 @@ boolean LocationInActor (objtype *ob)
 	for (x=xmin;x<xmax;x++)
 		for (y=ymin;y<ymax;y++)
 		{
-			if (CASTAT(unsigned, actorat[x][y])>LASTSPECIALTILE) {
+			if (CASTAT(intptr_t, actorat[x][y])>LASTSPECIALTILE) {
 				check = actorat[x][y];
 				if (check->shootable && ob->xl <= check->xh
 									 && ob->xh >= check->xl
@@ -1562,11 +1555,15 @@ void Thrust (int angle, unsigned speed)
 
 void ControlMovement (objtype *ob)
 {
-	int	angle;
-	long	speed;
+	int	angle=0;
+	long	speed=0;
 
+	static int mouseAngleRem=0;
+	int mouseAngle = mousexmove+mouseAngleRem;
+	mouseAngleRem = mouseAngle%10;
+	mouseAngle = mouseAngle/10;
 
-	if (c.button1 || BE_StrafeOn)
+	if (c.button1 || SP_StrafeOn())
 	{
 	//
 	// strafing
@@ -1574,8 +1571,8 @@ void ControlMovement (objtype *ob)
 		//
 		// side to side move
 		//
-		if (BE_StrafeOn) {
-			ob->angle -= (mousexmove/10);
+		if (SP_StrafeOn()) { // keyboard is used for strafing, mouse changes angle
+			ob->angle -= mouseAngle;
 
 			if (ob->angle >= ANGLES)
 				ob->angle -= ANGLES;
@@ -1602,7 +1599,6 @@ void ControlMovement (objtype *ob)
 			else
 				speed -= PLAYERSPEED*tics;
 		}
-
 		if (speed > 0)
 		{
 			if (speed >= TILEGLOBAL)
@@ -1644,7 +1640,7 @@ void ControlMovement (objtype *ob)
 				ob->angle += tics;
 		}
 
-		ob->angle -= (mousexmove/10);
+		ob->angle -= mouseAngle;
 
 		if (ob->angle >= ANGLES)
 			ob->angle -= ANGLES;
@@ -1656,7 +1652,7 @@ void ControlMovement (objtype *ob)
 	//
 	// forward/backwards move
 	//
-	if (!mouseymove || BE_StrafeOn)
+	if (!mouseymove || SP_StrafeOn())
 		speed = 0;
 	else if (mouseymove<0)
 		speed = -(long)mouseymove*500;
@@ -1734,7 +1730,7 @@ void	T_Player (objtype *ob)
 			if (handheight>MAXHANDHEIGHT)
 				handheight = MAXHANDHEIGHT;
 
-			if ((unsigned)TimeCount/FIRETIME != lastfiretime)
+			if ((unsigned)SP_TimeCount()/FIRETIME != lastfiretime)
 				BuildShotPower ();
 			lasthand = lasttimecount;
 		}
@@ -1749,12 +1745,12 @@ void	T_Player (objtype *ob)
 
 			if (gamestate.shotpower == MAXSHOTPOWER)
 			{
-				lastfiretime = (unsigned)TimeCount/FIRETIME;
+				lastfiretime = (unsigned)SP_TimeCount()/FIRETIME;
 				BigShoot ();
 			}
 			else if (gamestate.shotpower)
 			{
-				lastfiretime = (unsigned)TimeCount/FIRETIME;
+				lastfiretime = (unsigned)SP_TimeCount()/FIRETIME;
 				Shoot ();
 			}
 		}
@@ -1764,16 +1760,16 @@ void	T_Player (objtype *ob)
 	// special actions
 	//
 
-	if ( (Keyboard[sc_Space] || Keyboard[sc_H]) && gamestate.body != MAXBODY)
+	if ( (Keyboard(sc_Space) || Keyboard(sc_H)) && gamestate.body != MAXBODY)
 		DrinkPotion ();
 
-	if (Keyboard[sc_B] && !boltsleft)
+	if (Keyboard(sc_B) && !boltsleft)
 		CastBolt ();
 
-	if ( (Keyboard[sc_Enter] || Keyboard[sc_N]) && TimeCount-lastnuke > NUKETIME)
+	if ( (Keyboard(sc_Enter) || Keyboard(sc_N)) && SP_TimeCount()-lastnuke > NUKETIME)
 		CastNuke ();
 
-	scroll = LastScan-2;
+	scroll = LastScan()-2;
 	if ( scroll>=0 && scroll<NUMSCROLLS && gamestate.scrolls[scroll])
 		ReadScroll (scroll);
 

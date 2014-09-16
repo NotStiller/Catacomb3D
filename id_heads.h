@@ -18,7 +18,6 @@
 
 // ID_GLOB.H
 
-
 #include "srcport.h"
 
 #include <ctype.h>
@@ -44,8 +43,6 @@ extern	unsigned char introscn[];
 #define CAT3D
 
 #define GREXT	"EGA"
-
-//#define PROFILE
 
 //
 //	ID Engine
@@ -78,7 +75,6 @@ typedef	struct
 
 #endif
 
-#include "id_mm.h"
 #include "id_ca.h"
 #include "id_vw.h"
 #include "id_in.h"

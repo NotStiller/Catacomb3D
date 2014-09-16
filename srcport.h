@@ -1,42 +1,43 @@
 #ifndef COMPAT_H
 #define COMPAT_H
 
-// defines to make this work
+// defines to make this source port work
 #define CASTAT(type, where) (*(type*)&(where))
-#define NYI(FuncName) printf("NYI: %s in %s:%i\n", (#FuncName), __FILE__, __LINE__);
-//#define MK_FP(Segment, Offset) (void*)((unsigned long)MEMORY+(unsigned long)(Segment)*16+(unsigned long)(Offset))
-//#define FP_SEG(Ptr)  ((((unsigned long)(Ptr)-(unsigned long)MEMORY)>>16)<<12)
-//#define FP_OFF(Ptr)  (((unsigned long)(Ptr)-(unsigned long)MEMORY)&0xFFFFul)
-#define inportb(a) (0)
-#define outportb(a,b) (0)
-#define movedata(source,dest,len) (memmove((dest), (source), (len)))
-#define interrupt
-#define far
-#define _seg
-#define huge 
-#define ASM(a)
-#define O_BINARY 0
-#define O_TEXT 0
-#define S_IREAD S_IRUSR
-#define S_IWRITE S_IWUSR
 #define SPLITSCREENOFFSET 144
-#include <signal.h>
+
+typedef void* memptr;
+
+
 #include <stdint.h>
-
-void BE_FlipBuffer();
-
-void BE_StartMusic(void *Music);
-void BE_MusicOff();
-void BE_MusicOn();
-void BE_PlaySound(void *Sound);
-void BE_Exit();
-
-extern int BE_StrafeOn;
-
-extern int _argc;
-extern char **_argv;
-
 #include <assert.h>
+void SP_Exit();
+void SP_FlipBuffer();
+void SP_GameEnter();
+void SP_GameLeave();
+void SP_MusicOff();
+void SP_MusicOn();
+void SP_PlaySound(void *Sound);
+void SP_StartMusic(void *Music);
+int  SP_StrafeOn();
+void SP_SetTimeCount(long Ticks);
+long SP_TimeCount();
+
+int LastScan();
+char LastASCII();
+int Keyboard(int Key);
+
+uint8_t GetTilemap(int x, int y);
+
+typedef struct
+{
+  uint16_t bit0,bit1;	// 0-255 is a character, > is a pointer to a node
+} huffnode;
+
+
+extern int32_t GrChunksNum, GrChunksPos[], GrChunksSize[];
+extern int32_t AudioChunksNum, AudioChunksPos[], AudioChunksSize[];
+extern huffnode audiohuffman[], grhuffman[];
+
  
 #endif
 

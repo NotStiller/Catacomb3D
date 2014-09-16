@@ -19,7 +19,22 @@
 // C3_TRACE.C
 
 #include "c3_def.h"
-#pragma hdrstop
+
+boolean ErrorOutOfBounds=false;
+
+boolean CheckBounds(int x, int y) {
+	if (x < 0 || y < 0 || x >= 64 || y >= 64) {
+		ErrorOutOfBounds = true;
+		return false;
+	}
+	return true;
+}
+
+byte SafeTilemap(int x, int y) {
+	assert(!(x < 0 || y < 0 || x >= 64 || y >= 64));
+	return tilemap[x][y];
+}
+
 
 /*
 =============================================================================
@@ -33,6 +48,8 @@
 //
 // TESTWALLVISABLE will set the global variable wallvisable to 1 or 0
 // depending on if tile.x,tile.y,wallon is visable from focal point
+//
+// effectively a crude test to see if a wall is backfacing or not
 //
 #define TESTWALLVISABLE {						\
 	if (tile.y<focal.y)                         \
@@ -111,6 +128,9 @@ int turnwall[4] = {EAST,SOUTH,WEST,NORTH};
 
 //
 // wall visabilities in reletive locations
+//   -,- means western and southern wall are visible
+//   +,0 means eastern but neither northern nor southern wall is visible
+//
 // -,- 0,- +,-
 // -,0 0,0 +,0
 // -,+ 0,+ +,+
@@ -152,6 +172,8 @@ int FollowTrace (fixed tracex, fixed tracey, long deltax, long deltay, int max)
 	tx = tracex>>TILESHIFT;
 	ty = tracey>>TILESHIFT;
 
+	if (!CheckBounds(tx,ty)) { return 0; }
+
 	spotvis[tx][ty] = true;
 
 	absdx=LABS(deltax);
@@ -175,14 +197,15 @@ int FollowTrace (fixed tracex, fixed tracey, long deltax, long deltay, int max)
 			do
 			{
 				tx++;
-				assert(!(tx < 0 || ty < 0 || tx >= 64 || ty >= 64));
+				if (!CheckBounds(tx,ty)) { return 0; }
 				spotvis[tx][ty] = true;
 				tracey+=ystep;
 				ty = tracey>>TILESHIFT;
+				if (!CheckBounds(tx,ty)) { return 0; }
 
 				if (ty!=oty)
 				{
-					if (tilemap[tx-1][ty])
+					if (SafeTilemap(tx-1,ty))
 					{
 						tile.x = tx-1;
 						tile.y = ty;
@@ -190,7 +213,7 @@ int FollowTrace (fixed tracex, fixed tracey, long deltax, long deltay, int max)
 					}
 					oty = ty;
 				}
-				if (tilemap[tx][ty])
+				if (SafeTilemap(tx,ty))
 				{
 					tile.x = tx;
 					tile.y = ty;
@@ -209,13 +232,15 @@ int FollowTrace (fixed tracex, fixed tracey, long deltax, long deltay, int max)
 			do
 			{
 				tx--;
+				if (!CheckBounds(tx,ty)) { return 0; }
 				spotvis[tx][ty] = true;
 				tracey+=ystep;
 				ty = tracey>>TILESHIFT;
+				if (!CheckBounds(tx,ty)) { return 0; }
 
 				if (ty!=oty)
 				{
-					if (tilemap[tx][oty])
+					if (SafeTilemap(tx,oty))
 					{
 						tile.x = tx;
 						tile.y = oty;
@@ -223,7 +248,7 @@ int FollowTrace (fixed tracex, fixed tracey, long deltax, long deltay, int max)
 					}
 					oty = ty;
 				}
-				if (tilemap[tx][ty])
+				if (SafeTilemap(tx,ty))
 				{
 					tile.x = tx;
 					tile.y = ty;
@@ -252,13 +277,15 @@ int FollowTrace (fixed tracex, fixed tracey, long deltax, long deltay, int max)
 			do
 			{
 				ty++;
+				if (!CheckBounds(tx,ty)) { return 0; }
 				spotvis[tx][ty] = true;
 				tracex+=xstep;
 				tx = tracex>>TILESHIFT;
+				if (!CheckBounds(tx,ty)) { return 0; }
 
 				if (tx!=otx)
 				{
-					if (tilemap[tx][ty-1])
+					if (SafeTilemap(tx,ty-1))
 					{
 						tile.x = tx;
 						tile.y = ty-1;
@@ -266,7 +293,7 @@ int FollowTrace (fixed tracex, fixed tracey, long deltax, long deltay, int max)
 					}
 					otx = tx;
 				}
-				if (tilemap[tx][ty])
+				if (SafeTilemap(tx,ty))
 				{
 					tile.x = tx;
 					tile.y = ty;
@@ -285,13 +312,15 @@ int FollowTrace (fixed tracex, fixed tracey, long deltax, long deltay, int max)
 			do
 			{
 				ty--;
+				if (!CheckBounds(tx,ty)) { return 0; }
 				spotvis[tx][ty] = true;
 				tracex+=xstep;
 				tx = tracex>>TILESHIFT;
+				if (!CheckBounds(tx,ty)) { return 0; }
 
 				if (tx!=otx)
 				{
-					if (tilemap[otx][ty])
+					if (SafeTilemap(otx,ty))
 					{
 						tile.x = otx;
 						tile.y = ty;
@@ -299,7 +328,7 @@ int FollowTrace (fixed tracex, fixed tracey, long deltax, long deltay, int max)
 					}
 					otx = tx;
 				}
-				if (tilemap[tx][ty])
+				if (SafeTilemap(tx,ty))
 				{
 					tile.x = tx;
 					tile.y = ty;
@@ -333,126 +362,124 @@ int FollowTrace (fixed tracex, fixed tracey, long deltax, long deltay, int max)
 
 int BackTrace (int finish)
 {
-  fixed tracex,tracey;
-  long deltax,deltay,absdx,absdy;
-  int steps,otx,oty,testx,testheight,offset,wall;
+	fixed tracex,tracey;
+	long deltax,deltay,absdx,absdy;
+	int steps,otx,oty,testx,testheight,offset,wall;
 
-  deltax = viewx-edgex;
-  deltay = viewy-edgey;
+	deltax = viewx-edgex;
+	deltay = viewy-edgey;
 
-  absdx = LABS(deltax);
-  absdy = LABS(deltay);
+	absdx = LABS(deltax);
+	absdy = LABS(deltay);
 
-  if (absdx>absdy)
-    steps = ABS(focal.x-(edgex>>TILESHIFT))-1;
-  else
-    steps = ABS(focal.y-(edgey>>TILESHIFT))-1;
+	if (absdx>absdy)
+		steps = ABS(focal.x-(edgex>>TILESHIFT))-1;
+	else
+		steps = ABS(focal.y-(edgey>>TILESHIFT))-1;
 
-  if (steps<=0)
-    return 0;
+	if (steps<=0)
+		return 0;
 
-  otx = tile.x;
-  oty = tile.y;
-  if (!FollowTrace(edgex,edgey,deltax,deltay,steps))
-    return 0;
+	otx = tile.x;
+	oty = tile.y;
+	if (!FollowTrace(edgex,edgey,deltax,deltay,steps))
+		return 0;
 
-//
-// if the start wall is behind the focal point, the trace went too far back
-//
-  if (ABS(tile.x-focal.x)<2 && ABS(tile.y-focal.y)<2)	// too close
-  {
-    if (tile.x == focal.x && tile.y == focal.y)
-    {
-      tile.x = otx;
-      tile.y = oty;
-      return 0;
-    }
-
-    if (tile.x<focal.x)
-    {
-      if (tile.y<focal.y)
-	wall = SOUTH;
-      else
-	wall = EAST;
-    }
-    else if (tile.x==focal.x)
-    {
-	  if (tile.y<focal.y)
-	wall = SOUTH;
-      else
-	wall = NORTH;
-    }
-    else
+	//
+	// if the start wall is behind the focal point, the trace went too far back
+	//
+	if (ABS(tile.x-focal.x)<2 && ABS(tile.y-focal.y)<2)	// too close
 	{
-      if (tile.y<=focal.y)
-	wall = WEST;
-      else
-	wall = NORTH;
-    }
+		if (tile.x == focal.x && tile.y == focal.y)
+		{
+			tile.x = otx;
+			tile.y = oty;
+			return 0;
+		}
 
-    //
-    // rotate the X value to see if it is behind the view plane
-    //
-    if (TransformX (((long)tile.x<<16)+point1x[wall],
-		    ((long)tile.y<<16)+point1y[wall]) < FOCALLENGTH)
-    {
-      tile.x = otx;
-      tile.y = oty;
-      return 0;
-    }
-  }
+		if (tile.x<focal.x)
+		{
+			if (tile.y<focal.y)
+				wall = SOUTH;
+			else
+				wall = EAST;
+		}
+		else if (tile.x==focal.x)
+		{
+			if (tile.y<focal.y)
+				wall = SOUTH;
+			else
+				wall = NORTH;
+		}
+		else
+		{
+			if (tile.y<=focal.y)
+				wall = WEST;
+			else
+				wall = NORTH;
+		}
+
+//
+// rotate the X value to see if it is behind the view plane
+//
+		if (TransformX (((long)tile.x<<16)+point1x[wall],((long)tile.y<<16)+point1y[wall]) < FOCALLENGTH)
+		{
+			tile.x = otx;
+			tile.y = oty;
+			return 0;
+		}
+	}
 
 //
 // if the old wall is still behind a closer wall, ignore the back trace
 // and continue on (dealing with limited precision...)
 //
-  if (finish && !FinishWall ())	// the wall is still behind a forward wall
-  {
-    tile.x = otx;
-    tile.y = oty;
-    rightwall->x1 = oldwall->x2;		// common edge with last wall
-    rightwall->height1 = oldwall->height2;
-    return 0;
-  }
+	if (finish && !FinishWall ())	// the wall is still behind a forward wall
+	{
+		tile.x = otx;
+		tile.y = oty;
+		rightwall->x1 = oldwall->x2;		// common edge with last wall
+		rightwall->height1 = oldwall->height2;
+		return 0;
+	}
 
 
-//
-// back up along the intersecting face to find the rightmost wall
-//
+	//
+	// back up along the intersecting face to find the rightmost wall
+	//
 
-  if (tile.y<focal.y)
-    offset = 0;
-  else if (tile.y==focal.y)
-    offset = 3;
-  else
-    offset = 6;
-  if (tile.x==focal.x)
-    offset ++;
-  else if (tile.x>focal.x)
-    offset += 2;
+	if (tile.y<focal.y)
+		offset = 0;
+	else if (tile.y==focal.y)
+		offset = 3;
+	else
+		offset = 6;
+	if (tile.x==focal.x)
+		offset ++;
+	else if (tile.x>focal.x)
+		offset += 2;
 
-  wallon = backupwall[offset];
+	wallon = backupwall[offset];
 
-  while (tilemap[tile.x][tile.y])
-  {
-    tile.x += followx[wallon];
-    tile.y += followy[wallon];
-  };
+	while (SafeTilemap(tile.x,tile.y))
+	{
+		tile.x += followx[wallon];
+		tile.y += followy[wallon];
+	};
 
-  tile.x -= followx[wallon];
-  tile.y -= followy[wallon];
+	tile.x -= followx[wallon];
+	tile.y -= followy[wallon];
 
-  wallon = cornerwall[wallon];	// turn to first visable face
+	wallon = cornerwall[wallon];	// turn to first visable face
 
-  edgex = ((long)tile.x<<16);
-  edgey = ((long)tile.y<<16);
+	edgex = ((long)tile.x<<16);
+	edgey = ((long)tile.y<<16);
 
-  TransformPoint (edgex+point1x[wallon],edgey+point1y[wallon],
-    &rightwall->x1,&rightwall->height1);
+	TransformPoint (edgex+point1x[wallon],edgey+point1y[wallon],&rightwall->x1,&rightwall->height1);
 
-  basecolor = tilemap[tile.x][tile.y];
+	basecolor = SafeTilemap(tile.x,tile.y);
 
-  return 1;
+	return 1;
 }
 
 //===========================================================================
@@ -471,52 +498,55 @@ int BackTrace (int finish)
 
 void ForwardTrace (void)
 {
-  int offset;
-  fixed tracex,tracey;
-  long deltax,deltay;
+	int offset;
+	fixed tracex,tracey;
+	long deltax,deltay;
 
-  deltax = edgex-viewx;
-  deltay = edgey-viewy;
+	deltax = edgex-viewx;
+	deltay = edgey-viewy;
 
-  FollowTrace(edgex,edgey,deltax,deltay,0);
+	FollowTrace(edgex,edgey,deltax,deltay,0);
 
-  if (tile.y<focal.y)
-    offset = 0;
-  else if (tile.y==focal.y)
-    offset = 3;
-  else
-    offset = 6;
-  if (tile.x==focal.x)
-    offset ++;
-  else if (tile.x>focal.x)
-    offset += 2;
+	if (tile.y<focal.y)
+		offset = 0;
+	else if (tile.y==focal.y)
+		offset = 3;
+	else
+		offset = 6;
+	if (tile.x==focal.x)
+		offset ++;
+	else if (tile.x>focal.x)
+		offset += 2;
 
-  wallon = startwall[offset];
+	wallon = startwall[offset];
 
 //
 // start the new wall
 //
-  edgex = ((long)tile.x<<16);
-  edgey = ((long)tile.y<<16);
+	edgex = ((long)tile.x<<16);
+	edgey = ((long)tile.y<<16);
 
 //
 // if entire first wall is invisable, corner
 //
-  TransformPoint (edgex+point2x[wallon],edgey+point2y[wallon],
-    &rightwall->x2,&rightwall->height2);
+	TransformPoint (edgex+point2x[wallon],edgey+point2y[wallon],&rightwall->x2,&rightwall->height2);
 
-  if (tilemap [tile.x+sharex[wallon]] [tile.y+sharey[wallon]]
-  || rightwall->x2 < (rightwall-1)->x2 )
-    wallon = cornerwall [wallon];
+	if (SafeTilemap(tile.x+sharex[wallon],tile.y+sharey[wallon]))
+	{
+		wallon = cornerwall [wallon];
+	} else if (rightwall->x2 < (rightwall-1)->x2)
+	{
+		printf("DANGER, POTENTIAL CRASH AHEAD !\n");
+		wallon = cornerwall [wallon];
+	}
 
 //
 // transform first point
 //
 
-  TransformPoint (edgex+point1x[wallon],edgey+point1y[wallon],
-    &rightwall->x1,&rightwall->height1);
+	TransformPoint (edgex+point1x[wallon],edgey+point1y[wallon],&rightwall->x1,&rightwall->height1);
 
-  basecolor = tilemap[tile.x][tile.y];
+	basecolor = SafeTilemap(tile.x,tile.y);
 }
 
 
@@ -611,10 +641,9 @@ void InsideCorner (void)
   //
     rightwall->x1 = oldwall->x2;		// common edge with last wall
     rightwall->height1 = oldwall->height2;
-    basecolor = tilemap[tile.x][tile.y];
+    basecolor = SafeTilemap(tile.x,tile.y);
     return;			// continue from here
   }
-
   //
   // back follow the invisable wall until it turns, then follow that
   //
@@ -622,7 +651,8 @@ void InsideCorner (void)
   {
 	tile.x += followx[wallon];
     tile.y += followy[wallon];
-  } while (tilemap[tile.x][tile.y]);
+    assert(tile.x >= 0 && tile.y >= 0 && tile.x < 64 && tile.y < 64);
+  } while (SafeTilemap(tile.x,tile.y));
 
   tile.x -= followx[wallon];
   tile.y -= followy[wallon];
@@ -635,7 +665,7 @@ void InsideCorner (void)
   if (!BackTrace(0))		// backtrace without finishing a wall
   {
     TransformPoint (edgex,edgey,&rightwall->x1,&rightwall->height1);
-    basecolor = tilemap[tile.x][tile.y];
+    basecolor = SafeTilemap(tile.x,tile.y);
   }
 }
 
@@ -685,7 +715,6 @@ void OutsideCorner (void)
 // start from a new tile further away
 //
   ForwardTrace();		// find the next wall further back
-
 }
 
 
@@ -705,7 +734,7 @@ void OutsideCorner (void)
 
 void FollowWalls (void)
 {
-  int height,newcolor,offset,wall;
+	int height,newcolor,offset,wall;
 
 //####################
 //
@@ -713,39 +742,38 @@ void FollowWalls (void)
 //
 //####################
 
-restart:
+	restart:
 
-  walllength = 1;
+	walllength = 1;
 
-  if (tile.y<focal.y)
-	offset = 0;
-  else if (tile.y==focal.y)
-	offset = 3;
-  else
-	offset = 6;
-  if (tile.x==focal.x)
-	offset ++;
-  else if (tile.x>focal.x)
-	offset += 2;
+	if (tile.y<focal.y)
+		offset = 0;
+	else if (tile.y==focal.y)
+		offset = 3;
+	else
+		offset = 6;
+	if (tile.x==focal.x)
+		offset ++;
+	else if (tile.x>focal.x)
+		offset += 2;
 
-  wallon = startwall[offset];
+	wallon = startwall[offset];
 
 //
 // if the start wall is inside a block, skip it by cornering to the second wall
 //
-  if ( tilemap [tile.x+sharex[wallon]] [tile.y+sharey[wallon]])
-	wallon = cornerwall [wallon];
+	if ( SafeTilemap(tile.x+sharex[wallon],tile.y+sharey[wallon]))
+		wallon = cornerwall [wallon];
 
 //
 // transform first edge to screen coordinates
 //
-  edgex = ((long)tile.x<<16);
-  edgey = ((long)tile.y<<16);
+	edgex = ((long)tile.x<<16);
+	edgey = ((long)tile.y<<16);
 
-  TransformPoint (edgex+point1x[wallon],edgey+point1y[wallon],
-	&rightwall->x1,&rightwall->height1);
+	TransformPoint (edgex+point1x[wallon],edgey+point1y[wallon],&rightwall->x1,&rightwall->height1);
 
-  basecolor = tilemap[tile.x][tile.y];
+	basecolor = SafeTilemap(tile.x,tile.y);
 
 //##################
 //
@@ -755,90 +783,74 @@ restart:
 
 advance:
 
-  do	// while ( tile.x != right.x || tile.y != right.y)
-  {
+	do	// while ( tile.x != right.x || tile.y != right.y)
+	{
 //
 // check for conditions that shouldn't happed...
 //
-	if (rightwall->x1 > VIEWXH)	// somehow missed right tile...
-	  return;
+		if (rightwall->x1 > VIEWXH)	// somehow missed right tile...
+			return;
 
-	if (rightwall == &walls[DANGERHIGH])
-	{
-  //
-  // somethiing got messed up!  Correct by thrusting ahead...
-  //
-		VW_ColorBorder(6);
-		bordertime = 60;
-		Thrust(player->angle,TILEGLOBAL/4);
-		player->angle+=5;
-		if (player->angle>ANGLES)
-			player->angle-=ANGLES;
-		aborttrace = true;
-		return;
-
-#if 0
-	  strcpy (str,"Wall list overflow at LE:");
-	  itoa(mapon+1,str2,10);
-	  strcat (str,str2);
-	  strcat (str," X:");
-	  ltoa(objlist[0].x,str2,10);
-	  strcat (str,str2);
-	  strcat (str," Y:");
-	  ltoa(objlist[0].y,str2,10);
-	  strcat (str,str2);
-	  strcat (str," AN:");
-	  itoa(objlist[0].angle,str2,10);
-	  strcat (str,str2);
-
-	  Quit (str);
-#endif
-	}
-
+		if (rightwall == &walls[DANGERHIGH])
+		{
+			assert(false);
 //
-// proceed along wall
+// somethiing got messed up!  Correct by thrusting ahead...
 //
+			bordertime = 60;
+			Thrust(player->angle,TILEGLOBAL/4);
+			player->angle+=5;
+			if (player->angle>ANGLES)
+				player->angle-=ANGLES;
+			aborttrace = true;
+			return;
+		}
 
-	edgex = ((long)tile.x<<16)+point2x[wallon];
-	edgey = ((long)tile.y<<16)+point2y[wallon];
+		//
+		// proceed along wall
+		//
 
-	if (BackTrace(1))		// went behind a closer wall
-	  continue;
+		edgex = ((long)tile.x<<16)+point2x[wallon];
+		edgey = ((long)tile.y<<16)+point2y[wallon];
 
-	//
-	// advance to next tile along wall
-	//
-	tile.x += followx[wallon];
-	tile.y += followy[wallon];
+		if (BackTrace(1)) {		// went behind a closer wall
+			continue;
+		}
 
-	if (tilemap [tile.x+sharex[wallon]] [tile.y+sharey[wallon]])
-	{
-	  InsideCorner ();		// turn at a corner
-	  continue;
-	}
+		//
+		// advance to next tile along wall
+		//
+		tile.x += followx[wallon];
+		tile.y += followy[wallon];
 
-	newcolor = tilemap[tile.x][tile.y];
+		if (SafeTilemap(tile.x+sharex[wallon],tile.y+sharey[wallon]))
+		{
+			InsideCorner ();		// turn at a corner
+			continue;
+		}
 
-	if (!newcolor)		// turn around an edge
-	{
-	  OutsideCorner ();
-	  continue;
-	}
+		newcolor = SafeTilemap(tile.x,tile.y);
 
-	if (newcolor != basecolor)
-	{
-	  //
-	  // wall changed color, so draw what we have and continue following
-	  //
-	  FinishWall ();
-	  rightwall->x1 = oldwall->x2;	// new wall shares this edge
-	  rightwall->height1 = oldwall->height2;
-	  basecolor = newcolor;
+		if (!newcolor)		// turn around an edge
+		{
+			OutsideCorner ();
+			continue;
+		}
 
-	  continue;
-	}
-	walllength++;
-  } while (tile.x != right.x || tile.y != right.y);
+		if (newcolor != basecolor)
+		{
+//
+// wall changed color, so draw what we have and continue following
+//
+			FinishWall ();
+			rightwall->x1 = oldwall->x2;	// new wall shares this edge
+			rightwall->height1 = oldwall->height2;
+			basecolor = newcolor;
+
+			continue;
+		}
+		walllength++;
+	} while (tile.x != right.x || tile.y != right.y);
 
 
 //######################
@@ -847,25 +859,25 @@ advance:
 //
 //######################
 
-  edgex = ((long)tile.x<<16)+point2x[wallon];
-  edgey = ((long)tile.y<<16)+point2y[wallon];
-  FinishWall();
+	edgex = ((long)tile.x<<16)+point2x[wallon];
+	edgey = ((long)tile.y<<16)+point2y[wallon];
+	FinishWall();
 
-  wallon = cornerwall[wallon];
+	wallon = cornerwall[wallon];
 
-  //
-  // if the corner wall is visable, draw it
-  //
-  TESTWALLVISABLE;
+//
+// if the corner wall is visable, draw it
+//
+	TESTWALLVISABLE;
 
-  if (wallvisable)
-  {
-    rightwall->x1 = oldwall->x2;		// common edge with last wall
-    rightwall->height1 = oldwall->height2;
-    edgex = ((long)tile.x<<16)+point2x[wallon];
-    edgey = ((long)tile.y<<16)+point2y[wallon];
-    FinishWall();
-  }
+	if (wallvisable)
+	{
+		rightwall->x1 = oldwall->x2;		// common edge with last wall
+		rightwall->height1 = oldwall->height2;
+		edgex = ((long)tile.x<<16)+point2x[wallon];
+		edgey = ((long)tile.y<<16)+point2y[wallon];
+		FinishWall();
+	}
 
 }
 

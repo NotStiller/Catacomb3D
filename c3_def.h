@@ -20,8 +20,6 @@
 #include <math.h>
 #include <values.h>
 
-//#define PROFILE
-
 /*
 =============================================================================
 
@@ -32,8 +30,6 @@
 
 #define NAMESTART	180
 
-
-#define UNMARKGRCHUNK(chunk)	(grneeded[chunk]&=~ca_levelbit)
 
 #define MOUSEINT	0x33
 
@@ -272,8 +268,6 @@ extern	byte		spotvis[MAPSIZE][MAPSIZE];
 
 extern	objtype 	objlist[MAXACTORS],*new,*obj,*player;
 
-extern	unsigned short	farmapylookup[MAPSIZE];
-extern	byte		*nearmapylookup[MAPSIZE];
 extern	byte		update[];
 
 extern	boolean		godmode,singlestep;
@@ -445,14 +439,14 @@ extern	byte	bitmasks1[8][8];
 extern	byte	bitmasks2[8][8];
 
 
-extern	t_compscale _seg *scaledirectory[MAXSCALE+1];
-extern	t_compshape _seg *shapedirectory[NUMSCALEPICS];
+extern	t_compscale *scaledirectory[MAXSCALE+1];
+extern	t_compshape *shapedirectory[NUMSCALEPICS];
 extern	memptr			walldirectory[NUMSCALEWALLS];
 extern	unsigned short	shapesize[MAXSCALE+1];
 
 void 		DeplanePic (int picnum);
-void ScaleShape (int xcenter, t_compshape _seg *compshape, unsigned scale);
-unsigned	BuildCompShape (t_compshape _seg **finalspot);
+void ScaleShape (int xcenter, t_compshape *compshape, unsigned scale);
+unsigned	BuildCompShape (t_compshape **finalspot);
 
 
 /*

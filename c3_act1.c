@@ -159,8 +159,8 @@ void ExplodeWall (int tilex, int tiley)
 	SpawnNewObj (tilex,tiley,&s_walldie1,0);
 	new->obclass = inertobj;
 	new->active = true;
-	CASTAT(unsigned,actorat[new->tilex][new->tiley]) = tilemap[new->tilex][new->tiley] =
-	*(mapsegs[0]+farmapylookup[new->tiley]+new->tilex) = WALLEXP;
+	CASTAT(intptr_t,actorat[new->tilex][new->tiley]) = tilemap[new->tilex][new->tiley] =
+	*(mapsegs[0]+new->tiley*mapwidth+new->tilex) = WALLEXP;
 }
 
 
@@ -181,8 +181,8 @@ void T_WallDie (objtype *ob)
 	else
 		tile = WALLEXP-1 + ob->temp1;
 
-	CASTAT(unsigned,actorat[ob->tilex][ob->tiley]) = tilemap[ob->tilex][ob->tiley] =
-	*(mapsegs[0]+farmapylookup[ob->tiley]+ob->tilex) = tile;
+	CASTAT(intptr_t,actorat[ob->tilex][ob->tiley]) = tilemap[ob->tilex][ob->tiley] =
+	*(mapsegs[0]+ob->tiley*mapwidth+ob->tilex) = tile;
 
 	if (ob->temp1 == 1)
 	{
@@ -300,7 +300,7 @@ void T_Gate (objtype *ob)
 		// teleport out of level
 		//
 			playstate = ex_warped;
-			spot = *(mapsegs[0]+farmapylookup[ob->tiley]+ob->tilex)-NAMESTART;
+			spot = (int)*(mapsegs[0]+ob->tiley*mapwidth+ob->tilex)-NAMESTART;
 			if (spot<1)
 				gamestate.mapon++;
 			else

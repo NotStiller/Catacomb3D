@@ -1,43 +1,33 @@
 #include <stdlib.h>
 #include <SDL/SDL.h>
 #include "c3_def.h"
-#include <pthread.h>
 #include "id_sd.h"
 
-void ungrab() {
-	SDL_WM_GrabInput(SDL_GRAB_OFF);
-	SDL_ShowCursor(SDL_ENABLE);
-}
 
 // including opl.h is necessary for AdLibWrite and AdLibGetSample
 // opl.h in turn needs dosbox.h and a definition of bool, as this is compiled as a c source
-#define EYESOPEN
+#define INCLUDED_FROM_SOURCEPORT
 #include "dosbox.h" 
-
-#define U8(BUFFER) ((unsigned int)*(unsigned char*)(BUFFER))
-#define U16(BUFFER) (U8(BUFFER)+256*U8(BUFFER+1))
 
 
 // Some constants, should be okay to change them !
 static const int sampleRate = 44100;	// the audio output sample rate
-int screenScaleUp=2; 					// 2 means 640x400 window etc.
-#define GRABKEY SDLK_m					// the button that is used to grab the mouse
+static const int screenScaleUp=2; 		// 2 means 640x400 window etc.
 
 // Some constants, don't change them !
 static const int gameTimerRate=70;		// I think 70 is correct, but maybe it should read 35 ?
-static const int screenWidth = 320;		// don't change these 2, otherwise the game might crash !
+static const int screenWidth = 320;		// don't change these 2, otherwise the game will crash !
 static const int screenHeight = 200;
 
-// some state for input handling
+// some states for input handling
 static int mouseDX=0, mouseDY=0;
 static unsigned int mouseButtons=0;
-int BE_StrafeOn=0;
-
-// stuff used by the backend
-pthread_mutex_t SDLMutex;
-static SDL_Surface* screen = NULL;
-static unsigned char *screenBuffer = NULL;
+int	keyboard[128];
+char lastASCII;
+int lastScan;
 static int pleaseExit=false;
+static int mouseGrabEnabled=true;
+static int inGame=false;
 
 // stuff used by the backend for sound prerendering and playing
 #define MAXRENDEREDSOUNDS 128
@@ -49,13 +39,17 @@ int curSndLength, curSndHead=0, musicOn=0;
 signed short *curMusic = NULL;
 int curMusicLength, curMusicHead=0;
 
+// other stuff used by the backend
+static SDL_Surface* screen = NULL;
+static unsigned char *screenBuffer = NULL;
+static long timeCountStart=0;
 
-// some prototypes that are needed by main
-void* GameThread(void *Arg);
+// some prototypes for the internal functions
 static void audioCallback(void *userdata, Uint8 *stream, int len);
-int loadObjHack(const char *Filename, void **DataPtr);
 static void setPalette();
 int translateKey(int Sym);
+void toggleMouseGrab();
+void pollEvents();
 
 int main(int argc, char **argv) {
 	SDL_Init(SDL_INIT_EVERYTHING);
@@ -89,9 +83,7 @@ int main(int argc, char **argv) {
 	rect.y = 0;
 	rect.w = screenScaleUp*screenWidth;
 	rect.h = screenScaleUp*screenHeight;
-	pthread_mutex_lock(&SDLMutex);
 	assert(SDL_FillRect(screen, &rect, 0) == 0);
-	pthread_mutex_unlock(&SDLMutex);
 
 // allocate and clear buffer
 	screenBuffer = malloc(320*200);
@@ -99,105 +91,15 @@ int main(int argc, char **argv) {
 
 	setPalette();
 
-	pthread_t thread;
-	assert(!pthread_mutex_init(&SDLMutex, NULL));
-	assert(!pthread_create(&thread, NULL, &GameThread, NULL));
-
-	boolean grab=false;
-	boolean done=false;
-	while (!done) {
-		SDL_Event event;
-		pthread_mutex_lock(&SDLMutex);
-		if (pleaseExit) {
-			done = true;
-		}
-		while(SDL_PollEvent(&event)) {
-			if (event.type == SDL_QUIT) {
-				done = true;
-			} else if (event.type == SDL_KEYDOWN) {
-				switch (event.key.keysym.sym) {
-				case SDLK_ESCAPE:
-//					done = true;
-					break;
-				case GRABKEY:
-					grab = !grab;
-					if (grab) {
-						if (SDL_WM_GrabInput(SDL_GRAB_ON) != SDL_GRAB_ON) {
-							grab = false;
-						} else {
-							SDL_ShowCursor(SDL_DISABLE);
-							BE_StrafeOn = 1;
-						}
-					} else {
-						if (SDL_WM_GrabInput(SDL_GRAB_OFF) != SDL_GRAB_OFF) {
-							grab = true;
-						} else {
-							SDL_ShowCursor(SDL_ENABLE);
-							BE_StrafeOn = 0;
-						}
-					}
-					break;
-				}
-			}
-			
-			if (event.type == SDL_KEYDOWN || event.type == SDL_KEYUP) {
-				boolean down = event.type == SDL_KEYDOWN;
-				int idKey = translateKey(event.key.keysym.sym);
-				if (idKey != 0) {
-					Keyboard[idKey] = down;
-					if (down) {
-						LastScan = idKey;
-					}
-				}
-				char c=0;
-				if ((event.key.keysym.unicode&0xFF80) == 0) {
-					c = event.key.keysym.unicode&0x7F;
-				}
-				if (down && c != 0) {
-					LastASCII = c;
-				}
-			} else if (event.type == SDL_MOUSEMOTION) {
-				mouseDX += event.motion.xrel;
-				mouseDY += event.motion.yrel;
-			} else if (event.type == SDL_MOUSEBUTTONDOWN) {
-				if (event.button.button == SDL_BUTTON_LEFT) {
-					mouseButtons |= 1;
-				} else if (event.button.button == SDL_BUTTON_RIGHT) {
-					mouseButtons |= 2;
-				}
-			} else if (event.type == SDL_MOUSEBUTTONUP) {
-				if (event.button.button == SDL_BUTTON_LEFT) {
-					mouseButtons &= ~1;
-				} else if (event.button.button == SDL_BUTTON_RIGHT) {
-					mouseButtons &= ~2;
-				}
-			}
-		}
-		pthread_mutex_unlock(&SDLMutex);
-	}
-
-	SDL_Quit();
-	return 0;
-}
-
-
-void* GameThread(void *Arg) {
 	InitGame ();
 	CheckMemory ();
 	LoadLatchMem ();
 
-// prototype for the function defined below
-	Uint32 gameTimer(Uint32 Interval, void *Param);
-
-	SDL_AddTimer(1000/gameTimerRate, gameTimer, NULL);
 	SDL_PauseAudio(0);
 	DemoLoop();
-}
 
-
-Uint32 gameTimer(Uint32 Interval, void *Param) {
-	SDL_t0Service();
-	return 1000/gameTimerRate;
+	SDL_Quit();
+	return 0;
 }
 
 // this function does the sampling
@@ -242,6 +144,47 @@ static void audioCallback(void *userdata, Uint8 *stream, int len) {
 	}
 }
 
+void pollEvents() {
+// changes globals: keyboard, lastScan, lastASCII, mouseDX, mouseDY, mouseButtons
+
+	SDL_Event event;
+	while(SDL_PollEvent(&event)) {
+		if (event.type == SDL_QUIT) {
+			pleaseExit = true;
+		} else if (event.type == SDL_KEYDOWN || event.type == SDL_KEYUP) {
+			boolean down = event.type == SDL_KEYDOWN;
+			int idKey = translateKey(event.key.keysym.sym);
+			if (idKey != 0) {
+				keyboard[idKey] = down;
+				if (down) {
+					lastScan = idKey;
+				}
+			}
+			char c=0;
+			if ((event.key.keysym.unicode&0xFF80) == 0) {
+				c = event.key.keysym.unicode&0x7F;
+			}
+			if (down && c != 0) {
+				lastASCII = c;
+			}
+		} else if (event.type == SDL_MOUSEMOTION) {
+			mouseDX += event.motion.xrel;
+			mouseDY += event.motion.yrel;
+		} else if (event.type == SDL_MOUSEBUTTONDOWN) {
+			if (event.button.button == SDL_BUTTON_LEFT) {
+				mouseButtons |= 1;
+			} else if (event.button.button == SDL_BUTTON_RIGHT) {
+				mouseButtons |= 2;
+			}
+		} else if (event.type == SDL_MOUSEBUTTONUP) {
+			if (event.button.button == SDL_BUTTON_LEFT) {
+				mouseButtons &= ~1;
+			} else if (event.button.button == SDL_BUTTON_RIGHT) {
+				mouseButtons &= ~2;
+			}
+		}
+	}
+}
 
 static signed short *renderMusic(MusicGroup *Music, int *NumSamples) {
 	int	i;
@@ -396,84 +339,45 @@ int translateKey(int Sym) {
 	}
 }
 
+void toggleMouseGrab() {
+	mouseGrabEnabled = !mouseGrabEnabled;
+	if (inGame) {
+		if (mouseGrabEnabled) {
+			assert(SDL_WM_GrabInput(SDL_GRAB_ON) == SDL_GRAB_ON);
+			SDL_ShowCursor(SDL_DISABLE);
+		} else {
+			assert(SDL_WM_GrabInput(SDL_GRAB_OFF) == SDL_GRAB_OFF);
+			SDL_ShowCursor(SDL_ENABLE);
+		}
+	}
+}
+
+
 
 /* Source for the following is
 http://commons.wikimedia.org/w/index.php?title=File:EGA_Table.PNG&oldid=39767054
 */
 static unsigned long EGAPalette[64] = {
-	0x000000, //  0
-	0x0000AA, //  1
-	0x00AA00, //  2
-	0x00AAAA, //  3
-	0xAA0000, //  4
-	0xAA00AA, //  5
-	0xAAAA00, //  6
-	0xAAAAAA, //  7
-	
-	0x000055, //  8
-	0x0000FF, //  9
-	0x00AA55, // 10
-	0x00AAFF, // 11
-	0xAA0055, // 12
-	0xAA00FF, // 13
-	0xAAAA55, // 14
-	0xAAAAFF, // 15
+	0x000000, 0x0000AA, 0x00AA00, 0x00AAAA, //  0- 3
+	0xAA0000, 0xAA00AA, 0xAAAA00, 0xAAAAAA, //  4- 7
+	0x000055, 0x0000FF, 0x00AA55, 0x00AAFF, //  8-11
+	0xAA0055, 0xAA00FF, 0xAAAA55, 0xAAAAFF, // 12-15
 
-	0x005500, // 16
-	0x0055AA, // 17
-	0x00FF00, // 18
-	0x00FFAA, // 19
-	0xAA5500, // 20
-	0xAA55AA, // 21
-	0xAAFF00, // 22
-	0xAAFFAA, // 23
+	0x005500, 0x0055AA, 0x00FF00, 0x00FFAA, // 16-19
+	0xAA5500, 0xAA55AA, 0xAAFF00, 0xAAFFAA, // 20-23
+	0x005555, 0x0055FF, 0x00FF55, 0x00FFFF, // 24-27
+	0xAA5555, 0xAA55FF, 0xAAFF55, 0xAAFFFF, // 28-31
 
-	0x005555, // 24
-	0x0055FF, // 25
-	0x00FF55, // 26
-	0x00FFFF, // 27
-	0xAA5555, // 28
-	0xAA55FF, // 29
-	0xAAFF55, // 30
-	0xAAFFFF, // 31
+	0x550000, 0x5500AA, 0x55AA00, 0x55AAAA, // 32-35
+	0xFF0000, 0xFF00AA, 0xFFAA00, 0xFFAAAA, // 36-39
+	0x550055, 0x5500FF, 0x55AA55, 0x55AAFF, // 40-43
+	0xFF0055, 0xFF00FF, 0xFFAA55, 0xFFAAFF, // 44-47
 
-	0x550000, // 32
-	0x5500AA, // 33
-	0x55AA00, // 34
-	0x55AAAA, // 35
-	0xFF0000, // 36
-	0xFF00AA, // 37
-	0xFFAA00, // 38
-	0xFFAAAA, // 39
-
-	0x550055, // 40
-	0x5500FF, // 41
-	0x55AA55, // 42
-	0x55AAFF, // 43
-	0xFF0055, // 44
-	0xFF00FF, // 45
-	0xFFAA55, // 46
-	0xFFAAFF, // 47
-
-	0x555500, // 48
-	0x5555AA, // 49
-	0x55FF00, // 50
-	0x55FFAA, // 51
-	0xFF5500, // 52
-	0xFF55AA, // 53
-	0xFFFF00, // 54
-	0xFFFFAA, // 55
-
-	0x555555, // 56
-	0x5555FF, // 57
-	0x55FF55, // 58
-	0x55FFFF, // 59
-	0xFF5555, // 60
-	0xFF55FF, // 61
-	0xFFFF55, // 62
-	0xFFFFFF, // 63
+	0x555500, 0x5555AA, 0x55FF00, 0x55FFAA, // 48-51
+	0xFF5500, 0xFF55AA, 0xFFFF00, 0xFFFFAA, // 52-55
+	0x555555, 0x5555FF, 0x55FF55, 0x55FFFF, // 56-59
+	0xFF5555, 0xFF55FF, 0xFFFF55, 0xFFFFFF, // 60-63
 };
-
 
 static int EGADefaultColors[] = {0, 1, 2, 3, 4, 5, 20, 7, 56, 57, 58, 59, 60, 61, 62, 63};
 
@@ -491,30 +395,25 @@ static void setPalette() {
 
 
 
-
-
 static void flipPixel(unsigned x, unsigned y) { // this is a mean hack to make FizzleFade work, but whatever...
 	SDL_Rect rect;
 	rect.y = screenScaleUp*y;
 	rect.x = screenScaleUp*x;
 	rect.w = screenScaleUp;
 	rect.h = screenScaleUp;
-	pthread_mutex_lock(&SDLMutex);
 	assert(SDL_FillRect(screen, &rect, screenBuffer[x+y*screenWidth]) == 0);
-	pthread_mutex_unlock(&SDLMutex);
-}
-
-void plotXOR(unsigned x, unsigned y, unsigned color) {
-	if (x < 0 || y < 0 || x >= screenWidth || y >= screenHeight) {
-		return;
-	}
-	screenBuffer[y*screenWidth+x] ^= color;
 }
 
 static void putPixel(unsigned x, unsigned y, unsigned color) {
 	screenBuffer[y*screenWidth+x] = color;
 }
 
+static void putPixelXOR(unsigned x, unsigned y, unsigned color) {
+	if (x < 0 || y < 0 || x >= screenWidth || y >= screenHeight) {
+		return;
+	}
+	screenBuffer[y*screenWidth+x] ^= color;
+}
 
 int drawPropChar(int X, int Y, int FontNumber, int Char) {
 	fontstruct *font = (fontstruct*)grsegs[STARTFONT+FontNumber];
@@ -528,7 +427,7 @@ int drawPropChar(int X, int Y, int FontNumber, int Char) {
 			unsigned short b = *c++;
 			for (i = 0; i < 8; i++) {
 				if (b&0x80) {
-					plotXOR(X+x, Y+y, fontcolor);
+					putPixelXOR(X+x, Y+y, fontcolor);
 				}
 				x++;
 				b <<= 1;
@@ -538,39 +437,13 @@ int drawPropChar(int X, int Y, int FontNumber, int Char) {
 	return width;
 }
 
-// MouseButtons and MouseDelta were originally macros in id_heads.h or so.
 
-void MouseButtons(unsigned int *B) {
-	pthread_mutex_lock(&SDLMutex);
-	if (B != NULL) {
-		*B = mouseButtons;
-	}
-	pthread_mutex_unlock(&SDLMutex);
-}
-
-void MouseDelta(int *X, int *Y) {
-	pthread_mutex_lock(&SDLMutex);
-	if (X != NULL) {
-		*X = mouseDX;
-	}
-	if (Y != NULL) {
-		*Y = mouseDY;
-	}
-	mouseDX = 0;
-	mouseDY = 0;
-	pthread_mutex_unlock(&SDLMutex);
-}
-
-
-void BE_Exit() {
-	pthread_mutex_lock(&SDLMutex);
+void SP_Exit() {
 	pleaseExit = true;
-	pthread_mutex_unlock(&SDLMutex);
-	pthread_exit(NULL);
+	exit(0);
 }
 
-void BE_FlipBuffer (void) {
-	pthread_mutex_lock(&SDLMutex);
+void SP_FlipBuffer (void) {
 	SDL_LockSurface(screen);
 	assert(screen->h == screenScaleUp*screenHeight);
 	assert(screen->w == screenScaleUp*screenWidth);
@@ -593,31 +466,38 @@ void BE_FlipBuffer (void) {
 	}	
 	SDL_UnlockSurface(screen);
 	assert(SDL_Flip(screen) == 0);
-	pthread_mutex_unlock(&SDLMutex);
+	pollEvents(false);
 }
 
-long BE_GetTics(void) {
-	static long start=0;
-	long t = SDL_GetTicks();
-	if (!start) {
-		start = t;
+void SP_GameEnter() {
+	if (mouseGrabEnabled && !inGame) {
+		assert(SDL_WM_GrabInput(SDL_GRAB_ON) == SDL_GRAB_ON);
+		SDL_ShowCursor(SDL_DISABLE);
 	}
-	return 50*(t-start)/1000;
+	inGame = true;
 }
 
-void BE_MusicOff(void) {
+void SP_GameLeave() {
+	if (mouseGrabEnabled && inGame) {
+		assert(SDL_WM_GrabInput(SDL_GRAB_OFF) == SDL_GRAB_OFF);
+		SDL_ShowCursor(SDL_ENABLE);
+	}
+	inGame = false;
+}
+
+void SP_MusicOff(void) {
 	SDL_LockAudio();
 	musicOn = 0;
 	SDL_UnlockAudio();
 }
 
-void BE_MusicOn(void) {
+void SP_MusicOn(void) {
 	SDL_LockAudio();
 	musicOn = 1;
 	SDL_UnlockAudio();
 }
 
-void BE_PlaySound(void *Sound) {
+void SP_PlaySound(void *Sound) {
 	SDL_LockAudio();
 	int i;
 	for (i = 0; i < MAXRENDEREDSOUNDS; i++) {
@@ -638,7 +518,7 @@ void BE_PlaySound(void *Sound) {
 	SDL_UnlockAudio();
 }
 
-void BE_StartMusic(void *Music) {
+void SP_StartMusic(void *Music) {
 	SDL_LockAudio();
 	int i;
 	for (i = 0; i < MAXRENDEREDSOUNDS; i++) {
@@ -657,6 +537,178 @@ void BE_StartMusic(void *Music) {
 	assert(curMusic != NULL);
 	curMusicHead = 0;
 	SDL_UnlockAudio();
+}
+
+int SP_StrafeOn() {
+	return mouseGrabEnabled;
+}
+
+void SP_SetTimeCount(long Ticks) { // set timeCountStart such that SP_TimeCount == Ticks
+	timeCountStart = SDL_GetTicks()*70/1000-Ticks;
+}
+
+long SP_TimeCount() { // Global time in 70Hz ticks
+	return SDL_GetTicks()*70/1000-timeCountStart;
+}
+
+
+// input handling was done in id_in.h, id_heads.h and id_sd.h (timer).
+
+void MouseButtons(unsigned int *B) {
+	pollEvents();
+	if (B != NULL) {
+		*B = mouseButtons;
+	}
+}
+
+void MouseDelta(int *X, int *Y) {
+	pollEvents();
+	if (X != NULL) {
+		*X = mouseDX;
+	}
+	if (Y != NULL) {
+		*Y = mouseDY;
+	}
+	mouseDX = 0;
+	mouseDY = 0;
+}
+
+int LastScan() {
+	pollEvents();
+	return lastScan;
+}
+
+char LastASCII() {
+	pollEvents();
+	return lastASCII;
+}
+
+int Keyboard(int Key) {
+	assert(Key >= 0 && Key < 128);
+	pollEvents();
+	return keyboard[Key];
+}
+
+///////////////////////////////////////////////////////////////////////////
+//
+//	IN_ClearKeyDown() - Clears the keyboard array
+//
+///////////////////////////////////////////////////////////////////////////
+void
+IN_ClearKeysDown(void)
+{
+	int	i;
+
+	lastScan = sc_None;
+	lastASCII = key_None;
+	for (i = 0;i < 128;i++)
+		keyboard[i] = 0;
+}
+
+
+
+///////////////////////////////////////////////////////////////////////////
+//
+//	IN_AckBack() - Waits for either an ASCII keypress or a button press
+//
+///////////////////////////////////////////////////////////////////////////
+void
+IN_AckBack(void)
+{
+	word	i;
+
+	while (!LastScan())
+	{
+		if (mouseButtons != 0)
+		{
+			while (mouseButtons != 0) {
+				pollEvents();
+			}
+			return;
+		}
+	}
+
+	keyboard[lastScan] = 0;
+	lastScan = sc_None;
+}
+
+///////////////////////////////////////////////////////////////////////////
+//
+//	IN_Ack() - Clears user input & then calls IN_AckBack()
+//
+///////////////////////////////////////////////////////////////////////////
+void
+IN_Ack(void)
+{
+	word	i;
+
+	keyboard[lastScan] = 0;
+	lastScan = sc_None;
+
+	do { pollEvents();
+	} while (mouseButtons != 0);
+
+	IN_AckBack();
+}
+
+
+///////////////////////////////////////////////////////////////////////////
+//
+//	IN_IsUserInput() - Returns true if a key has been pressed or a button
+//		is down
+//
+///////////////////////////////////////////////////////////////////////////
+boolean
+IN_IsUserInput(void)
+{
+	boolean	result;
+	word	i;
+
+	result = LastScan();
+
+	if (mouseButtons != 0)
+		result = true;
+
+	return(result);
+}
+
+///////////////////////////////////////////////////////////////////////////
+//
+//	IN_UserInput() - Waits for the specified delay time (in ticks) or the
+//		user pressing a key or a mouse button. If the clear flag is set, it
+//		then either clears the key or waits for the user to let the mouse
+//		button up.
+//
+///////////////////////////////////////////////////////////////////////////
+boolean
+IN_UserInput(longword delay,boolean clear)
+{
+	longword	lasttime;
+
+	lasttime = SP_TimeCount();
+	do
+	{
+		if (IN_IsUserInput())
+		{
+			if (clear)
+				IN_AckBack();
+			return(true);
+		}
+	} while (SP_TimeCount() - lasttime < delay);
+	return(false);
+}
+
+// originally from id_mm.c but that doesn't exist anymore
+
+void MM_GetPtr (memptr *baseptr,unsigned long size)
+{
+	*baseptr = malloc(size);
+}
+
+void MM_FreePtr (memptr *baseptr)
+{
+	free((void*)*baseptr);
+	*baseptr = NULL;
 }
 
 
@@ -721,18 +773,7 @@ void VW_Bar (unsigned x, unsigned y, unsigned width, unsigned height,
 
 void	VW_ClearVideo (int color)
 {
-#if 0
-	SDL_Rect rect;
-	rect.x = 0;
-	rect.y = 0;
-	rect.w = screenWidth;
-	rect.h = screenHeight;
-	pthread_mutex_lock(&SDLMutex);
-	assert(SDL_FillRect(screen, &rect, color) == 0);
-	pthread_mutex_unlock(&SDLMutex);
-#else
 	memset(screenBuffer, color, screenWidth*screenHeight);
-#endif
 }
 
 
@@ -747,15 +788,17 @@ void FizzleFade (unsigned width, unsigned height, boolean abortable)
 
 	rect.w = 1;
 	rect.h = 1;
-	TimeCount=frame=0;
+	frame=0;
+	SP_SetTimeCount(0);
 	do      // while (1)
 	{
+		pollEvents(false);
 		if (abortable)
 		{
 			IN_ReadControl(0,&c);
-			if (c.button0 || c.button1 || Keyboard[sc_Space] || Keyboard[sc_Enter])
+			if (c.button0 || c.button1 || Keyboard(sc_Space) || Keyboard(sc_Enter))
 			{
-				BE_FlipBuffer();
+				SP_FlipBuffer();
 				return;
 			}
 		}
@@ -790,26 +833,10 @@ void FizzleFade (unsigned width, unsigned height, boolean abortable)
 		}
 		SDL_Flip(screen);
 		frame+=1;
-		while (TimeCount<frame) {        // don't go too fast
+		while (SP_TimeCount()<frame) {        // don't go too fast
 		}
 	} while (1);
 
-}
-
-
-
-void VW_ColorBorder (int color)
-{
-	bordercolor = color;
-	setPalette();
-}
-
-
-void VW_SetDefaultColors(void)
-{
-	colors[3][16] = bordercolor;
-	setPalette();
-	screenfaded = false;
 }
 
 
@@ -825,7 +852,7 @@ void VW_DrawTile8(unsigned X, unsigned Y, unsigned Tile) {
 		t++;
 		for (x = 0; x < 8; x++) {
 			unsigned int c = (p3&8)+(p2&4)+(p1&2)+(p0&1);
-			putPixel(X+8-x,Y+y, c);
+			putPixelXOR(X+7-x,Y+y, c);
 			p0>>=1;
 			p1>>=1;
 			p2>>=1;
@@ -852,7 +879,7 @@ void VW_MaskBlock(byte *Source, unsigned X, unsigned Y, unsigned Width, unsigned
 			for (i = 0; i < 8; i++) {
 				if (!(m&1)) {
 					unsigned int c = (p3&8)+(p2&4)+(p1&2)+(p0&1);
-					putPixel(X+8*x+8-i, Y+y, c);
+					putPixel(X+8*x+7-i, Y+y, c);
 				}
 				m >>= 1;
 				p0 >>= 1;
@@ -879,7 +906,7 @@ void VW_MemToScreen(byte *Source,unsigned X, unsigned Y,unsigned Width,unsigned 
 			planes++;
 			for (i = 0; i < 8; i++) {
 				unsigned int c = (p3&8)+(p2&4)+(p1&2)+(p0&1);
-				putPixel(X+8*x+8-i, Y+y, c);
+				putPixel(X+8*x+7-i, Y+y, c);
 				p0 >>= 1;
 				p1 >>= 1;
 				p2 >>= 1;
@@ -908,7 +935,7 @@ void VW_MemToScreen2(byte *Source,unsigned X, unsigned Y,unsigned Width,unsigned
 			planes++;
 			for (i = 0; i < 8; i++) {
 				unsigned int c = (p3&8)+(p2&4)+(p1&2)+(p0&1);
-				putPixel(X+8*x+8-i, Y+y, c);
+				putPixel(X+8*x+7-i, Y+y, c);
 				p0 >>= 1;
 				p1 >>= 1;
 				p2 >>= 1;
@@ -1005,9 +1032,9 @@ int US_RndT(void) {
 // id_vw_a.asm
 
 void	VW_WaitVBL (int number) {
-	long tics = BE_GetTics()+number;
+	long tics = SP_TimeCount()+number;
 	VW_UpdateScreen();
-	while (BE_GetTics() < tics) {
+	while (SP_TimeCount() < tics) {
 	}
 }
 
