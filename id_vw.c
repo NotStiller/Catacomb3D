@@ -168,9 +168,12 @@ void VW_ClipDrawMPic(unsigned x, int y, unsigned chunknum)
 void
 VWL_MeasureString (char *string, word *width, word *height, fontstruct *font)
 {
-	*height = font->height;
+	byte *f = (byte*)font;
+
+	*height = *(int16_t*)f;
 	for (*width = 0;*string;string++)
-		*width += font->width[*((byte *)string)];	// proportional width
+		*width += *(byte*)(f+2+512+*(byte *)string);
+
 }
 
 void	VW_MeasurePropString (char *string, word *width, word *height)

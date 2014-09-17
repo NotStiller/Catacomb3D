@@ -56,10 +56,10 @@ extern	unsigned char introscn[];
 // typedef	enum	{false,true}	boolean;
 #define false 0
 #define true 1
-typedef	unsigned char	boolean;
-typedef	unsigned	char		byte;
-typedef	unsigned	short int			word;
-typedef	unsigned	long		longword;
+typedef	uint8_t	boolean;
+typedef	uint8_t	byte;
+typedef	uint16_t			word;
+typedef	uint32_t		longword;
 typedef	byte *					Ptr;
 
 typedef	struct

@@ -416,12 +416,14 @@ static void putPixelXOR(unsigned x, unsigned y, unsigned color) {
 }
 
 int drawPropChar(int X, int Y, int FontNumber, int Char) {
-	fontstruct *font = (fontstruct*)grsegs[STARTFONT+FontNumber];
-	int width = font->width[Char];
-	byte *chardata = (byte*)font + font->location[Char];
+	byte *font = (byte*)grsegs[STARTFONT+FontNumber];
+	int height = *(int16_t*)font;
+	int width = *(byte*)(font+2+512+Char);
+	int loc = *(int16_t*)(font+2+2*Char);
+	byte *chardata = (byte*)(font+loc);
 	byte *c = chardata;
 	int x, y, i;
-	for (y = 0; y < font->height; y++) {
+	for (y = 0; y < height; y++) {
 		int i = 8;
 		for (x = 0; x < width;) {
 			unsigned short b = *c++;

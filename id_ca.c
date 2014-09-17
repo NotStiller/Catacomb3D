@@ -36,28 +36,13 @@ loaded into the data segment
 /*
 =============================================================================
 
-						 LOCAL CONSTANTS
-
-=============================================================================
-*/
-
-typedef struct
-{
-	uint16_t	RLEWtag;
-	int8_t		headeroffsets[4*100];
-	int8_t		tileinfo[];
-} mapfiletype;
-
-
-/*
-=============================================================================
-
 						 GLOBAL VARIABLES
 
 =============================================================================
 */
 
-byte 		*tinf;
+uint16_t    map_RLEWtag;
+int32_t		*map_headeroffsets;
 int			loadedmap;
 
 uint16_t	 		*mapsegs[3];
@@ -73,7 +58,7 @@ void				*grsegs[NUMCHUNKS];
 =============================================================================
 */
 
-extern	byte	_maphead[];
+extern	byte	_maphead[]; // in data.c
 
 FILE		*grhandle;		// handle to EGAGRAPH
 FILE		*maphandle;		// handle to MAPTEMP / GAMEMAPS
@@ -81,7 +66,6 @@ FILE		*audiohandle;	// handle to AUDIOT / AUDIO
 
 long		chunkcomplen,chunkexplen;
 
-SDMode		oldsoundmode;
 
 
 
@@ -457,8 +441,11 @@ void CAL_SetupGrFile (void)
 //
 // load the pic and sprite headers into the arrays in the data segment
 //
+	assert(sizeof(pictabletype) == 4);
 	CAL_ReadAndHuffExpand(STRUCTPIC, (memptr*)&pictable, NUMPICS*sizeof(pictabletype));
 	CAL_ReadAndHuffExpand(STRUCTPICM, (memptr*)&picmtable, NUMPICM*sizeof(pictabletype));
+
+	assert(sizeof(spritetabletype) == 18);
 	CAL_ReadAndHuffExpand(STRUCTSPRITE, (memptr*)&spritetable, NUMSPRITES*sizeof(spritetabletype));
 
 }
@@ -479,7 +466,17 @@ void CAL_SetupMapFile (void)
 	FILE *handle;
 	long length;
 
-	tinf = (byte*)_maphead;
+/*
+typedef struct
+{
+	uint16_t	RLEWtag;
+	int8_t		headeroffsets[4*100]; // actually an array of int32 !
+	int8_t		tileinfo[];
+} mapfiletype;
+*/
+	map_RLEWtag = *(uint16_t*)_maphead;
+	map_headeroffsets = (int32_t*)(_maphead+2);
+	
 	if ((maphandle = fopen("GAMEMAPS."EXTENSION, "r")) == NULL)
 		Quit ("Can't open GAMEMAPS."EXTENSION"!");
 }
@@ -526,6 +523,7 @@ void CA_Startup (void)
 	CAL_SetupGrFile ();
 	CAL_SetupAudioFile ();
 
+// Ignore this please...
 	int accountedfor=0;
 	int i;
 	for (i = 0; i < NUMCHUNKS; i++) {
@@ -605,10 +603,6 @@ void CA_CacheAudioChunk (int chunk)
 		return;							// allready in memory
 	}
 
-//
-// load the chunk into a buffer, either the miscbuffer if it fits, or allocate
-// a larger buffer
-//
 	pos = AudioChunksPos[chunk];
 	compressed = AudioChunksSize[chunk];
 
@@ -617,7 +611,7 @@ void CA_CacheAudioChunk (int chunk)
 	MM_GetPtr(&bigbufferseg,compressed);
 	source = bigbufferseg;
 	CA_FarRead(audiohandle,source,compressed);
-	expanded = *(long*)source;
+	expanded = *(int32_t*)source;
 	source += 4;			// skip over length
 	MM_GetPtr ((memptr*)&(audiosegs[chunk]),expanded);
 	int bytesread = CAL_HuffExpand2 (source,audiosegs[chunk],expanded,audiohuffman);
@@ -641,39 +635,12 @@ done:
 
 void CA_LoadAllSounds (void)
 {
-	unsigned	start,i;
-
-	switch (oldsoundmode)
+	if (SoundMode == sdm_AdLib)
 	{
-	case sdm_Off:
-		goto cachein;
-	case sdm_PC:
-		start = STARTPCSOUNDS;
-		break;
-	case sdm_AdLib:
-		start = STARTADLIBSOUNDS;
-		break;
+		int i;
+		for (i=0;i<NUMSOUNDS;i++)
+			CA_CacheAudioChunk (STARTADLIBSOUNDS+i);
 	}
-
-cachein:
-
-	switch (SoundMode)
-	{
-	case sdm_Off:
-		return;
-	case sdm_PC:
-		start = STARTPCSOUNDS;
-		break;
-	case sdm_AdLib:
-		start = STARTADLIBSOUNDS;
-		break;
-	}
-	assert(SoundMode == sdm_AdLib);
-
-	for (i=0;i<NUMSOUNDS;i++,start++)
-		CA_CacheAudioChunk (start);
-
-	oldsoundmode = SoundMode;
 }
 
 
@@ -856,13 +823,38 @@ printf("CA_CacheMap(%i)\n", mapnum);
 //
 	if (!mapheaderseg[mapnum])
 	{
-		pos = ((int32_t*)&((mapfiletype*)tinf)->headeroffsets[0])[mapnum];
+		pos = map_headeroffsets[mapnum];
 		if (pos<0)						// $FFFFFFFF start is a sparse map
 		  Quit ("CA_CacheMap: Tried to load a non existent map!");
 
 		MM_GetPtr((memptr*)&mapheaderseg[mapnum],sizeof(maptype));
+		maptype *map = mapheaderseg[mapnum];
+		byte *buffer;
+		MM_GetPtr(&buffer,12+6+4+16);
 		fseek(maphandle,pos,SEEK_SET);
-		CA_FarRead (maphandle,(memptr)mapheaderseg[mapnum],sizeof(maptype));
+		CA_FarRead (maphandle,buffer,sizeof(maptype));
+/* I am afraid of packing issues, so let's unpack this manually here:
+typedef	struct {
+	int32_t			planestart[3];
+	uint16_t		planelength[3];
+	uint16_t		width,height;
+	char			name[16];
+} maptype;
+*/
+		map->planestart[0] = *(int32_t*)(buffer+0);
+		map->planestart[1] = *(int32_t*)(buffer+4);
+		map->planestart[2] = *(int32_t*)(buffer+8);
+		map->planelength[0] = *(uint16_t*)(buffer+12);
+		map->planelength[1] = *(uint16_t*)(buffer+14);
+		map->planelength[2] = *(uint16_t*)(buffer+16);
+		map->width = *(uint16_t*)(buffer+18);
+		map->height = *(uint16_t*)(buffer+20);
+		int i;
+		for (i = 0; i < 16; i++)
+		{
+			map->name[i] = buffer[22+i];
+		}
+		MM_FreePtr(&buffer);
 	}
 
 //
@@ -898,7 +890,7 @@ printf("CA_CacheMap(%i)\n", mapnum);
 		source++;
 		MM_GetPtr (&buffer2seg,expanded);
 		CAL_CarmackExpand (source, (uint16_t*)buffer2seg,expanded);
-		CA_RLEWexpand ((uint16_t*)buffer2seg+1,*dest,size,((mapfiletype*)tinf)->RLEWtag);
+		CA_RLEWexpand ((uint16_t*)buffer2seg+1,*dest,size,map_RLEWtag);
 		MM_FreePtr (&buffer2seg);
 		MM_FreePtr(&bigbufferseg);
 	}

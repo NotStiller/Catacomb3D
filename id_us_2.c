@@ -160,7 +160,7 @@ static  boolean USL_ConfigCustom(UserCall call,struct UserItem *item),
 	UserItem soundi[] =
 	{
 		{DefRButton(sc_N,"NO SOUND EFFECTS")},
-		{DefRButton(sc_P,"PC SPEAKER")},
+//		{DefRButton(sc_P,"PC SPEAKER")},
 		{DefRButton(sc_A,"ADLIB/SOUNDBLASTER")},
 		{uii_Bad}
 	};

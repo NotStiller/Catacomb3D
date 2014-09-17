@@ -69,7 +69,7 @@ typedef struct
 } spritetabletype;
 
 typedef	struct
-{
+{ // the first three fields are filled in by software ! can be erased anyway...
 	uint16_t	sourceoffset[MAXSHIFTS];
 	uint16_t	planesize[MAXSHIFTS];
 	uint16_t	width[MAXSHIFTS];
