@@ -729,7 +729,7 @@ void CAL_ExpandGrChunk (int chunk, byte *source)
 	//
 	// everything else has an explicit size longword
 	//
-		expanded = *(long*)source;
+		expanded = *(int32_t*)source;
 		source += 4;			// skip over length
 	}
 
