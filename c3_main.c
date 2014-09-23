@@ -115,8 +115,7 @@ boolean	SaveTheGame(FILE *file)
 //
 // leave a word at start of compressed data for compressed length
 //
-		compressed = (unsigned short)CA_RLEWCompress ((uint16_t*)mapsegs[i]
-			,expanded,((uint16_t*)bigbuffer)+1,RLETAG);
+		compressed = (unsigned short)CA_RLEWCompress ((uint16_t*)mapheaderseg[loadedmap].mapsegs[i],expanded,((uint16_t*)bigbuffer)+1,RLETAG);
 
 		*(uint16_t*)bigbuffer = compressed;
 
@@ -164,6 +163,7 @@ boolean	LoadTheGame(FILE *file)
 
 	expanded = mapwidth * mapheight * 2;
 	MM_GetPtr (&bigbuffer,expanded);
+	loadedmap = gamestate.mapon;
 
 	for (i = 0;i < 3;i+=2)	// Read planes 0 and 2
 	{
@@ -180,7 +180,7 @@ boolean	LoadTheGame(FILE *file)
 		}
 
 		CA_RLEWexpand ((uint16_t*)bigbuffer,
-			(uint16_t*)mapsegs[i],expanded,RLETAG);
+			(uint16_t*)mapheaderseg[loadedmap].mapsegs[i],expanded,RLETAG);
 	}
 
 	MM_FreePtr (&bigbuffer);
@@ -190,7 +190,7 @@ boolean	LoadTheGame(FILE *file)
 //
 	memset (tilemap,0,sizeof(tilemap));
 	memset (actorat,0,sizeof(actorat));
-	map = mapsegs[0];
+	map = mapheaderseg[loadedmap].mapsegs[0];
 	for (y=0;y<mapheight;y++)
 		for (x=0;x<mapwidth;x++)
 		{
@@ -261,7 +261,6 @@ void ShutdownId (void)
   US_Shutdown ();
   SD_Shutdown ();
   IN_Shutdown ();
-  CA_Shutdown ();
 }
 
 
@@ -285,14 +284,12 @@ void InitGame (void)
 
 //	US_TextScreen();
 
-	VW_Startup ();
 	IN_Startup ();
 	SD_Startup ();
 	US_Startup ();
 
 //	US_UpdateTextScreen();
 
-	CA_Startup ();
 	US_Setup ();
 
 	US_SetLoadSaveHooks(LoadTheGame,SaveTheGame,ResetGame);
@@ -385,13 +382,13 @@ void	DemoLoop (void)
 	while (1)
 	{
 		CA_CacheGrChunk (TITLEPIC);
-		VWB_DrawPic (0,0,TITLEPIC);
+		SPG_DrawPic(grsegs[TITLEPIC],0,0);
 		FizzleFade (320,200,true);
 
 		if (!IN_UserInput(TickBase*3,false))
 		{
 			CA_CacheGrChunk (CREDITSPIC);
-			VWB_DrawPic (0,0,CREDITSPIC);
+			SPG_DrawPic(grsegs[CREDITSPIC],0,0);
 			FizzleFade (320,200,true);
 
 		}
@@ -421,63 +418,7 @@ void	DemoLoop (void)
 
 //===========================================================================
 
-/*
-==========================
-=
-= SetupScalePic
-=
-==========================
-*/
-
-void SetupScalePic (unsigned short picnum)
-{
-	unsigned	scnum;
-
-	scnum = picnum-FIRSTSCALEPIC;
-
-	if (shapedirectory[scnum])
-	{
-		return;					// allready in memory
-	}
-
-	CA_CacheGrChunk (picnum);
-	DeplanePic (picnum);
-	shapesize[scnum] = BuildCompShape (&shapedirectory[scnum]);
-	MM_FreePtr (&grsegs[picnum]);
-}
-
 //===========================================================================
-
-/*
-==========================
-=
-= SetupScaleWall
-=
-==========================
-*/
-
-void SetupScaleWall (unsigned short picnum)
-{
-	int		x,y;
-	unsigned	scnum;
-	byte	*dest;
-
-	scnum = picnum-FIRSTWALLPIC;
-
-	if (walldirectory[scnum])
-	{
-		return;					// allready in memory
-	}
-
-	CA_CacheGrChunk (picnum);
-	DeplanePic (picnum);
-	MM_GetPtr(&walldirectory[scnum],64*64);
-	dest = (byte*)walldirectory[scnum];
-	for (x=0;x<64;x++)
-		for (y=0;y<64;y++)
-			*dest++ = spotvis[y][x];
-	MM_FreePtr (&grsegs[picnum]);
-}
 
 //===========================================================================
 

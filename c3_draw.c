@@ -117,8 +117,6 @@ walltype	walls[MAXWALLS],*leftwall,*rightwall;
 // refresh stuff
 //
 
-int screenpage;
-
 long lasttimecount;
 
 //
@@ -1016,19 +1014,12 @@ void CalcTics (void)
 void	DrawHand (void)
 {
 	int	picnum;
-	memptr source;
-	unsigned dest,width,height;
 
 	picnum = HAND1PICM;
 	if (gamestate.shotpower || boltsleft)
 		picnum += (((unsigned)SP_TimeCount()>>3)&1);
 
-	source = grsegs[picnum];
-	width = picmtable[picnum-STARTPICM].width;
-	height = picmtable[picnum-STARTPICM].height;
-
-	VW_MaskBlock(source,12*8,VIEWHEIGHT-handheight,width,handheight,width*height);
-//	EGAMAPMASK(15);
+	SPG_DrawMaskedPicSkip(grsegs[picnum], 12*8, VIEWHEIGHT-handheight, 0, handheight);
 }
 
 //==========================================================================
@@ -1142,25 +1133,7 @@ restart:
 		MouseDelta(NULL, NULL);	// Clear accumulated mouse movement
 	}
 
-	if (0) // draw 16x16 tiles
-	{
-		int i;
-		for (i = 0; i < NUMTILE16; i++) {
-			if (grsegs[STARTTILE16+i] != NULL) {
-				VW_MemToScreen(grsegs[STARTTILE16+i],16*(i%20),16*(i/20),2,16);
-			}
-		}
-	}
-	if (0) // draw masked 16x16 tiles
-	{
-		int i;
-		for (i = 0; i < NUMTILE16M; i++) {
-			if (grsegs[STARTTILE16M+i] != NULL) {
-				VW_MaskBlock((byte*)grsegs[STARTTILE16M+i],16*(i%20),16*(i/20),2,16,32);
-			}
-		}
-	}
-	VW_UpdateScreen();
+	SPG_FlipBuffer();
 	CalcTics ();
 
 

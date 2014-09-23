@@ -39,11 +39,8 @@
 #pragma	hdrstop
 
 // 	Global variables
-		boolean		//Keyboard[NumCodes],
-					MousePresent;
+		boolean		MousePresent;
 		boolean		Paused;
-//		char		LastASCII;
-//		ScanCode	LastScan;
 		KeyboardDef	KbdDefs[MaxKbds] = {{0x1d,0x38,0x47,0x48,0x49,0x4b,0x4d,0x4f,0x50,0x51}};
 		ControlType	Controls[MaxPlayers];
 
@@ -304,28 +301,28 @@ register	KeyboardDef	*def;
 		case ctrl_Keyboard2:
 			def = &KbdDefs[type - ctrl_Keyboard];
 
-			if (Keyboard(def->upleft))
+			if (SP_Keyboard(def->upleft))
 				mx = motion_Left,my = motion_Up;
-			else if (Keyboard(def->upright))
+			else if (SP_Keyboard(def->upright))
 				mx = motion_Right,my = motion_Up;
-			else if (Keyboard(def->downleft))
+			else if (SP_Keyboard(def->downleft))
 				mx = motion_Left,my = motion_Down;
-			else if (Keyboard(def->downright))
+			else if (SP_Keyboard(def->downright))
 				mx = motion_Right,my = motion_Down;
 
-			if (Keyboard(def->up))
+			if (SP_Keyboard(def->up))
 				my = motion_Up;
-			else if (Keyboard(def->down))
+			else if (SP_Keyboard(def->down))
 				my = motion_Down;
 
-			if (Keyboard(def->left))
+			if (SP_Keyboard(def->left))
 				mx = motion_Left;
-			else if (Keyboard(def->right))
+			else if (SP_Keyboard(def->right))
 				mx = motion_Right;
 
-			if (Keyboard(def->button0))
+			if (SP_Keyboard(def->button0))
 				buttons += 1 << 0;
-			if (Keyboard(def->button1))
+			if (SP_Keyboard(def->button1))
 				buttons += 1 << 1;
 			realdelta = false;
 			break;

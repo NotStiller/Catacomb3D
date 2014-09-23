@@ -145,7 +145,7 @@ boolean ShotClipMove (objtype *ob, long xmove, long ymove);
 
 void DrawChar (unsigned x, unsigned y, unsigned tile)
 {
-	VW_MemToScreen((char*)grsegs[STARTTILE8]+tile*32, 8*x, y, 1, 8);
+	VW_DrawTile8(x,y,tile);
 }
 
 
@@ -169,23 +169,23 @@ void RedrawStatusWindow (void)
 
 	j = gamestate.bolts < SHOWITEMS ? gamestate.bolts : SHOWITEMS;
 	for (i=0;i<j;i++)
-		DrawChar(7+i,SPLITSCREENOFFSET+20,BOLTCHAR);
+		DrawChar(7+i,144+20,BOLTCHAR);
 	j = gamestate.nukes < SHOWITEMS ? gamestate.nukes : SHOWITEMS;
 	for (i=0;i<j;i++)
-		DrawChar(7+i,SPLITSCREENOFFSET+30,NUKECHAR);
+		DrawChar(7+i,144+30,NUKECHAR);
 	j = gamestate.potions < SHOWITEMS ? gamestate.potions : SHOWITEMS;
 	for (i=0;i<j;i++)
-		DrawChar(7+i,SPLITSCREENOFFSET+40,POTIONCHAR);
+		DrawChar(7+i,144+40,POTIONCHAR);
 
 	x=24;
 	for (i=0;i<4;i++)
 		for (j=0;j<gamestate.keys[i];j++)
-			DrawChar(x++,SPLITSCREENOFFSET+20,KEYCHARS+i);
+			DrawChar(x++,144+20,KEYCHARS+i);
 
 	x=24;
 	for (i=0;i<8;i++)
 		if (gamestate.scrolls[i])
-			DrawChar(x++,SPLITSCREENOFFSET+30,SCROLLCHARS+i);
+			DrawChar(x++,144+30,SCROLLCHARS+i);
 
 	AddPoints(0);
 
@@ -207,7 +207,7 @@ void GiveBolt (void)
 {
 	SD_PlaySound (GETBOLTSND);
 	if (++gamestate.bolts<=9)
-		DrawChar(6+gamestate.bolts,SPLITSCREENOFFSET+20,BOLTCHAR);
+		DrawChar(6+gamestate.bolts,144+20,BOLTCHAR);
 }
 
 
@@ -223,7 +223,7 @@ void TakeBolt (void)
 {
 	SD_PlaySound (USEBOLTSND);
 	if (--gamestate.bolts<=9)
-		DrawChar(7+gamestate.bolts,SPLITSCREENOFFSET+20,BLANKCHAR);
+		DrawChar(7+gamestate.bolts,144+20,BLANKCHAR);
 }
 
 //===========================================================================
@@ -240,7 +240,7 @@ void GiveNuke (void)
 {
 	SD_PlaySound (GETNUKESND);
 	if (++gamestate.nukes<=9)
-		DrawChar(6+gamestate.nukes,SPLITSCREENOFFSET+30,NUKECHAR);
+		DrawChar(6+gamestate.nukes,144+30,NUKECHAR);
 }
 
 
@@ -256,7 +256,7 @@ void TakeNuke (void)
 {
 	SD_PlaySound (USENUKESND);
 	if (--gamestate.nukes<=9)
-		DrawChar(7+gamestate.nukes,SPLITSCREENOFFSET+30,BLANKCHAR);
+		DrawChar(7+gamestate.nukes,144+30,BLANKCHAR);
 }
 
 //===========================================================================
@@ -273,7 +273,7 @@ void GivePotion (void)
 {
 	SD_PlaySound (GETPOTIONSND);
 	if (++gamestate.potions<=9)
-		DrawChar(6+gamestate.potions,SPLITSCREENOFFSET+40,POTIONCHAR);
+		DrawChar(6+gamestate.potions,144+40,POTIONCHAR);
 }
 
 
@@ -289,7 +289,7 @@ void TakePotion (void)
 {
 	SD_PlaySound (USEPOTIONSND);
 	if (--gamestate.potions<=9)
-		DrawChar(7+gamestate.potions,SPLITSCREENOFFSET+40,BLANKCHAR);
+		DrawChar(7+gamestate.potions,144+40,BLANKCHAR);
 }
 
 //===========================================================================
@@ -312,7 +312,7 @@ void GiveKey (int keytype)
 	x=24;
 	for (i=0;i<4;i++)
 		for (j=0;j<gamestate.keys[i];j++)
-			DrawChar(x++,SPLITSCREENOFFSET+20,KEYCHARS+i);
+			DrawChar(x++,144+20,KEYCHARS+i);
 
 }
 
@@ -335,9 +335,9 @@ void TakeKey (int keytype)
 	x=24;
 	for (i=0;i<4;i++)
 		for (j=0;j<gamestate.keys[i];j++)
-			DrawChar(x++,SPLITSCREENOFFSET+20,KEYCHARS+i);
+			DrawChar(x++,144+20,KEYCHARS+i);
 
-	DrawChar(x,SPLITSCREENOFFSET+20,BLANKCHAR);
+	DrawChar(x,144+20,BLANKCHAR);
 }
 
 //===========================================================================
@@ -360,7 +360,7 @@ void GiveScroll (int scrolltype,boolean show)
 	x=24;
 	for (i=0;i<8;i++)
 		if (gamestate.scrolls[i])
-			DrawChar(x++,SPLITSCREENOFFSET+30,SCROLLCHARS+i);
+			DrawChar(x++,144+30,SCROLLCHARS+i);
 	if (show)
 		ReadScroll(scrolltype);
 }
@@ -404,7 +404,7 @@ void AddPoints (int points)
 
 	x=24+(8-len);
 	for (i=0;i<len;i++)
-		DrawChar(x++,SPLITSCREENOFFSET+40,NUMBERCHARS+str[i]-'0');
+		DrawChar(x++,144+40,NUMBERCHARS+str[i]-'0');
 }
 
 
@@ -463,8 +463,8 @@ void DrawLevelNumber (int number)
 		PrintX=13;
 	else
 		PrintX = 5;
-	PrintY = SPLITSCREENOFFSET+4;
-	VW_Bar (5,SPLITSCREENOFFSET+4,16,9,STATUSCOLOR);
+	PrintY = 144+4;
+	VW_Bar (5,144+4,16,9,STATUSCOLOR);
 	temp = fontcolor;
 	fontcolor = TEXTCOLOR^STATUSCOLOR;
 	US_PrintUnsigned (number+1);
@@ -492,7 +492,7 @@ void DrawText (void)
 	//
 	// draw a new text description if needed
 	//
-	number = *(byte*)(mapsegs[0]+player->tiley*mapwidth+player->tilex)-NAMESTART;
+	number = *(byte*)(mapheaderseg[loadedmap].mapsegs[0]+player->tiley*mapwidth+player->tilex)-NAMESTART;
 
 	if ( number>26 )
 		number = 0;
@@ -502,11 +502,11 @@ void DrawText (void)
 
 	lasttext = number;
 
-	PrintY = SPLITSCREENOFFSET+4;
+	PrintY = 144+4;
 	WindowX = 26;
 	WindowW = 232;
 
-	text = textstarts[number];
+	text = mapheaderseg[loadedmap].texts[number];
 
 	if (text == NULL) {
 		memset(str, 0, 80);
@@ -514,7 +514,7 @@ void DrawText (void)
 		memcpy (str,text,80);
 	}
 
-	VW_Bar (26,SPLITSCREENOFFSET+4,232,9,STATUSCOLOR);
+	VW_Bar (26,144+4,232,9,STATUSCOLOR);
 	temp = fontcolor;
 	fontcolor = TEXTCOLOR^STATUSCOLOR;
 	US_CPrintLine (str);
@@ -551,7 +551,7 @@ void DrawCompass (void)
 
 	lastcompass = number;
 
-	LatchDrawPic (COMPASSX,SPLITSCREENOFFSET+COMPASSY,COMPAS1PIC+15-number);
+	SPG_DrawPic(grsegs[COMPAS1PIC+15-number],8*COMPASSX,144+COMPASSY);
 }
 
 //===========================================================================
@@ -567,24 +567,14 @@ void DrawCompass (void)
 
 void DrawBars (void)
 {
-	int			i;
-	memptr	source;
-	short topline;
-
-	for (i=0;i<3;i++)
-	{
-		VW_Bar (34*8,POWERLINE,40,MAXSHOTPOWER,1);
-	}
+	VW_Bar (34*8,POWERLINE,40,MAXSHOTPOWER,1);
 
 //
 // shot power
 //
 	if (gamestate.shotpower)
 	{
-		topline = MAXSHOTPOWER - gamestate.shotpower;
-
-		source = (byte*)grsegs[SHOTPOWERPIC]+topline*SIDEBARWIDTH;
-		VW_MemToScreen2(source, 34*8, POWERLINE+topline, SIDEBARWIDTH, gamestate.shotpower, SIDEBARWIDTH*MAXSHOTPOWER);
+		SPG_DrawPicSkip(grsegs[SHOTPOWERPIC], 34*8, POWERLINE, MAXSHOTPOWER-gamestate.shotpower, MAXSHOTPOWER);
 	}
 
 //
@@ -592,17 +582,13 @@ void DrawBars (void)
 //
 	if (gamestate.body)
 	{
-		byte *source = grsegs[BODYPIC];
-		VW_MemToScreen2(source, 34*8,BODYLINE, SIDEBARWIDTH, gamestate.body, SIDEBARWIDTH*MAXBODY);
-
+		SPG_DrawPicSkip(grsegs[BODYPIC], 34*8, BODYLINE, 0, gamestate.body);
 	}
 
 
 	if (gamestate.body != MAXBODY)
 	{
-		byte *source = (byte*)grsegs[NOBODYPIC]+gamestate.body*SIDEBARWIDTH;
-		VW_MemToScreen2(source, 34*8,BODYLINE+gamestate.body, SIDEBARWIDTH, MAXBODY-gamestate.body, SIDEBARWIDTH*MAXBODY);
-
+		SPG_DrawPicSkip(grsegs[NOBODYPIC], 34*8, BODYLINE, gamestate.body, MAXBODY);
 	}
 }
 
@@ -771,8 +757,7 @@ void BuildShotPower (void)
 	}
 	topline = MAXSHOTPOWER - gamestate.shotpower;
 
-	source = grsegs[FIRSTLATCHPIC+L_SHOTBAR]+topline*SIDEBARWIDTH;
-	VW_MemToScreen2(source, 8*34, POWERLINE+topline, SIDEBARWIDTH, gamestate.shotpower, SIDEBARWIDTH*MAXSHOTPOWER);
+	DrawBars();
 }
 
 
@@ -788,18 +773,10 @@ void BuildShotPower (void)
 
 void ClearShotPower (void)
 {
-	byte *	source;
-	int topline;
-
-
-	topline = MAXSHOTPOWER - gamestate.shotpower;
-
-	source = grsegs[FIRSTLATCHPIC+L_NOSHOT]+topline*SIDEBARWIDTH;
-
 	if (!gamestate.shotpower)
 		return;
 
-	VW_MemToScreen2(source, 8*34, POWERLINE+topline, SIDEBARWIDTH, gamestate.shotpower, SIDEBARWIDTH*MAXSHOTPOWER);
+	SPG_DrawPic(grsegs[NOSHOTPOWERPIC], 8*34, POWERLINE);
 
 	gamestate.shotpower = 0;
 }
@@ -938,13 +915,7 @@ void DrinkPotion (void)
 
 	TakePotion ();
 	gamestate.body = MAXBODY;
-
-//
-// draw a full up bar
-//
-	source = grsegs[BODYPIC];
-	VW_MemToScreen2(source, 34*8, BODYLINE, SIDEBARWIDTH, gamestate.body, SIDEBARWIDTH*MAXBODY);
-
+	DrawBars();
 }
 
 
@@ -970,24 +941,12 @@ void ReadScroll (int scroll)
 //
 	CA_CacheGrChunk (SCROLLTOPPIC);
 	CA_CacheGrChunk (SCROLL1PIC + scroll);
-	VW_DrawPic (0,0,SCROLLTOPPIC);
-	VW_DrawPic (0,32,SCROLL1PIC + scroll);
+	SPG_DrawPic(grsegs[SCROLLTOPPIC],0,0);
+	SPG_DrawPic(grsegs[SCROLL1PIC+scroll],0,32);
 	MM_FreePtr (&grsegs[SCROLL1PIC + scroll]);
 	MM_FreePtr (&grsegs[SCROLLTOPPIC]);
 
-//
-// cache wall pictures back in
-//
-	for (i=1;i<NUMFLOORS;i++)
-		if (tileneeded[i])
-		{
-			SetupScaleWall (walllight1[i]);
-			SetupScaleWall (walllight2[i]);
-			SetupScaleWall (walldark1[i]);
-			SetupScaleWall (walldark2[i]);
-		}
-
-	VW_WaitVBL(80);
+	VW_WaitVBL(10);
 waitkey:
 	IN_ClearKeysDown ();
 	IN_Ack();
@@ -1026,11 +985,7 @@ void TakeDamage (int points)
 		SD_PlaySound (TAKEDAMAGESND);
 
 	gamestate.body -= points;
-//
-// shrink the body bar
-//
-	source = (byte*)grsegs[NOBODYPIC]+gamestate.body*SIDEBARWIDTH;
-	VW_MemToScreen2(source, 34*8, BODYLINE+gamestate.body, SIDEBARWIDTH, MAXBODY-gamestate.body, SIDEBARWIDTH*MAXBODY);
+	DrawBars();
 }
 
 
@@ -1059,7 +1014,7 @@ void OpenDoor (uint16_t bx, uint16_t by, uint16_t doorbase)
 
 	x=bx;
 	y=by;
-	map = mapsegs[0]+mapwidth*y+x;
+	map = mapheaderseg[loadedmap].mapsegs[0]+mapwidth*y+x;
 	while (tilemap[x][y]-doorbase>=0 && tilemap[x][y]-doorbase<4)
 	{
 		tilemap[x][y] = CASTAT(intptr_t, actorat[x][y]) = *map = 0;
@@ -1067,7 +1022,7 @@ void OpenDoor (uint16_t bx, uint16_t by, uint16_t doorbase)
 		x--;
 	}
 	x=bx+1;
-	map = mapsegs[0]+mapwidth*y+x;
+	map = mapheaderseg[loadedmap].mapsegs[0]+mapwidth*y+x;
 	while (tilemap[x][y]-doorbase>=0 && tilemap[x][y]-doorbase<4)
 	{
 		tilemap[x][y] = CASTAT(intptr_t,actorat[x][y]) = *map = 0;
@@ -1076,7 +1031,7 @@ void OpenDoor (uint16_t bx, uint16_t by, uint16_t doorbase)
 	}
 	x=bx;
 	y=by-1;
-	map = mapsegs[0]+mapwidth*y+x;
+	map = mapheaderseg[loadedmap].mapsegs[0]+mapwidth*y+x;
 	while (tilemap[x][y]-doorbase>=0 && tilemap[x][y]-doorbase<4)
 	{
 		tilemap[x][y] = CASTAT(intptr_t,actorat[x][y]) = *map = 0;
@@ -1084,7 +1039,7 @@ void OpenDoor (uint16_t bx, uint16_t by, uint16_t doorbase)
 		y--;
 	}
 	y=by+1;
-	map = mapsegs[0]+mapwidth*y+x;
+	map = mapheaderseg[loadedmap].mapsegs[0]+mapwidth*y+x;
 	while (tilemap[x][y]-doorbase>=0 && tilemap[x][y]-doorbase<4)
 	{
 		tilemap[x][y] = CASTAT(intptr_t,actorat[x][y]) = *map = 0;
@@ -1760,16 +1715,16 @@ void	T_Player (objtype *ob)
 	// special actions
 	//
 
-	if ( (Keyboard(sc_Space) || Keyboard(sc_H)) && gamestate.body != MAXBODY)
+	if ( (SP_Keyboard(sc_Space) || SP_Keyboard(sc_H)) && gamestate.body != MAXBODY)
 		DrinkPotion ();
 
-	if (Keyboard(sc_B) && !boltsleft)
+	if (SP_Keyboard(sc_B) && !boltsleft)
 		CastBolt ();
 
-	if ( (Keyboard(sc_Enter) || Keyboard(sc_N)) && SP_TimeCount()-lastnuke > NUKETIME)
+	if ( (SP_Keyboard(sc_Enter) || SP_Keyboard(sc_N)) && SP_TimeCount()-lastnuke > NUKETIME)
 		CastNuke ();
 
-	scroll = LastScan()-2;
+	scroll = SP_LastScan()-2;
 	if ( scroll>=0 && scroll<NUMSCROLLS && gamestate.scrolls[scroll])
 		ReadScroll (scroll);
 

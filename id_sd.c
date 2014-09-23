@@ -115,16 +115,6 @@ static void SDL_ALStopSound(void)
 	alSound = 0;
 }
 
-///////////////////////////////////////////////////////////////////////////
-//
-//	SDL_ALPlaySound() - Plays the specified sound on the AdLib card
-//
-///////////////////////////////////////////////////////////////////////////
-static void SDL_ALPlaySound(AdLibSound *sound)
-{
-	SP_PlaySound(sound);
-}
-
 ////////////////////////////////////////////////////////////////////////////
 //
 //	SDL_ShutDevice() - turns off whatever device was being used for sound fx
@@ -342,23 +332,12 @@ SD_Shutdown(void)
 void
 SD_PlaySound(soundnames sound)
 {
-	SoundCommon *s;
-
 	if ((SoundMode != sdm_AdLib) || (sound == -1))
 		return;
 
-	s = (SoundCommon*)audiosegs[STARTADLIBSOUNDS+sound];
-	if (!s)
-		Quit("SD_PlaySound() - Uncached sound");
-	if (!s->length)
-		Quit("SD_PlaySound() - Zero length sound");
-	if (s->priority < SoundPriority)
-		return;
-
-	SDL_ALPlaySound((void *)s);
-
-	SoundNumber = sound;
-	SoundPriority = s->priority;
+	if (SP_PlaySound(sound)) {
+		SoundNumber = sound;
+	}
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -444,11 +423,11 @@ SD_MusicOff(void)
 //
 ///////////////////////////////////////////////////////////////////////////
 void
-SD_StartMusic(MusicGroup *music)
+SD_StartMusic(int MusicName)
 {
 	if (MusicMode == smm_AdLib)
 	{
-		SP_StartMusic(music);
+		SP_StartMusic(MusicName);
 		SD_MusicOn();
 	}
 }

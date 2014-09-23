@@ -31,71 +31,6 @@ t_compshape *shapedirectory[NUMSCALEPICS];
 memptr			walldirectory[NUMSCALEWALLS];
 
 /*
-===========================
-=
-= DeplanePic
-=
-= Takes a raw bit map of width bytes by height and creates a scaleable shape
-=
-= Returns the length of the shape in bytes
-=
-= Fills in spotvis (a convenient 64*64 array) with the color values
-=
-===========================
-*/
-
-void DeplanePic (int picnum)
-{
-	byte		*plane0,*plane1,*plane2,*plane3;
-	byte		by0,by1,by2,by3;
-	unsigned	x,y,b,color,shift,width,height;
-	byte		*dest;
-
-//
-// convert ega pixels to byte color values in a temp buffer
-//
-	width = pictable[picnum-STARTPICS].width;
-	height = pictable[picnum-STARTPICS].height;
-
-	if (width>64 || height!=64)
-		Quit ("DePlanePic: Bad size shape");
-
-	memset (spotvis,BACKGROUNDPIX,sizeof(spotvis));
-
-	plane0 = (byte *)grsegs[picnum];
-	plane1 = plane0 + width*height;
-	plane2 = plane1 + width*height;
-	plane3 = plane2 + width*height;
-
-	for (y=0;y<height;y++)
-	{
-		dest = &spotvis[y][0];
-		for (x=0;x<width;x++)
-		{
-			by0 = *plane0++;
-			by1 = *plane1++;
-			by2 = *plane2++;
-			by3 = *plane3++;
-
-			for (b=0;b<8;b++)
-			{
-				color = ((by3&1)<<3) + ((by2&1)<<2) + ((by1&1)<<1) + (by0&1);
-				by3 >>= 1;
-				by2 >>= 1;
-				by1 >>= 1;
-				by0 >>= 1;
-
-				dest[7-b] = color;
-			}	// B
-			dest += 8;
-		}		// X
-	}			// Y
-}
-
-
-
-
-/*
 ========================
 =
 = BuildCompScale
@@ -174,77 +109,9 @@ unsigned BuildCompScale (int height, memptr *finalspot)
 }
 
 
-
-
-/*
-========================
-=
-= BuildCompShape
-=
-= typedef struct
-= {
-=	unsigned	width;
-=	unsigned	codeofs[64];
-= }	t_compshape;
-=
-= Width is the number of compiled line draws in the shape.  The shape
-= drawing code will assume that the midpoint of the shape is in the
-= middle of the width.
-=
-= The non background pixel data will start at codeofs[width], so codeofs
-= greater than width will be invalid.
-=
-= Each code offset will draw one vertical line of the shape, consisting
-= of 0 or more segments of scaled pixels.
-=
-= The scaled shapes use ss:0-4 as a scratch variable for the far call to
-= the compiled scaler, so zero it back out after the shape is scaled, or
-= a "null pointer assignment" will result upon termination.
-=
-= Setup for a call to a compiled shape
-= -----------------------------------
-= ax	toast
-= bx	toast
-= cx	toast
-= dx	segment of compiled shape
-= si	toast
-= di	byte at top of view area to draw the line in
-= bp	0
-= ss:2 and ds  the segment of the compiled scaler to use
-= es	screenseg
-=
-= Upon return, ds IS NOT SET to the data segment.  Do:
-=	mov	ax,ss
-=	mov	ds,ax
-=
-=
-= GC_BITMASK	set to the pixels to be drawn in the row of bytes under DI
-= GC_MODE		read mode 1, write mode 2
-= GC_COLORDONTCARE  set to 0, so all reads from video memory return 0xff
-=
-=
-= Code generated for each segment
-= -------------------------------
-=	mov	bx,[(segend+1)*2]
-=	mov	cx,[bx]
-=	mov	[BYTE PTR bx],0xc8		// far return
-=	mov	ax,[segstart*2]
-=	mov	[ss:0],ax				// entry point into the compiled scaler
-=	mov	ds,dx                   // (mov ds,cs) the data is after the compiled code
-=	mov	si,ofs data
-=	call	[bp]				// scale some pixels
-=	mov	ds,[bp+2]
-=	mov	[bx],cx					// un patch return
-=
-= Code generated after all segments on a line
-= -------------------------------------------
-=	retf
-=
-========================
-*/
-
-unsigned BuildCompShape (t_compshape **finalspot)
+void BuildCompShape (int Num, uint8_t *Data)
 {
+
 	t_compshape *work;
 	byte		*code;
 	int			firstline,lastline,x,y;
@@ -264,7 +131,7 @@ unsigned BuildCompShape (t_compshape **finalspot)
 	do
 	{
 		for (y=0;y<64;y++)
-			if (spotvis[y][x] != BACKGROUNDPIX)
+			if (Data[y*64+x] != BACKGROUNDPIX)
 			{
 				firstline = x;
 				break;
@@ -278,7 +145,7 @@ unsigned BuildCompShape (t_compshape **finalspot)
 	do
 	{
 		for (y=0;y<64;y++)
-			if (spotvis[y][x] != BACKGROUNDPIX)
+			if (Data[y*64+x] != BACKGROUNDPIX)
 			{
 				lastline = x;
 				break;
@@ -300,14 +167,14 @@ unsigned BuildCompShape (t_compshape **finalspot)
 	for (x=firstline;x<=lastline;x++) {
 		work->lineofs[x-firstline] = lineofs;
 		for (y=0;y<64;y++) {
-			if (spotvis[y][x] != BACKGROUNDPIX) {
+			if (Data[y*64+x] != BACKGROUNDPIX) {
 				if (!span) {
 					span = true;
 					spanofs = lineofs;
 					code[lineofs++] = 0;
 					code[lineofs++] = y;
 				}
-				code[lineofs++] = spotvis[y][x];
+				code[lineofs++] = Data[64*y+x];
 			} else if (span) {
 				span = false;
 				assert(lineofs>spanofs+2);
@@ -326,14 +193,10 @@ unsigned BuildCompShape (t_compshape **finalspot)
 // copy the final shape to a properly sized buffer
 //
 	totalsize = lineofs;
-	MM_GetPtr ((memptr *)finalspot,totalsize);
-	memcpy ((byte*)(*finalspot),(byte*)work,totalsize);
+	MM_GetPtr ((memptr *)&shapedirectory[Num],totalsize);
+	memcpy ((byte*)(shapedirectory[Num]),(byte*)work,totalsize);
 	MM_FreePtr ((memptr*)&work);
-
-	return totalsize;
-
-
-	return 0;
+	shapesize[Num] = totalsize;
 }
 
 
@@ -366,8 +229,7 @@ void ScaleShape (int xcenter, t_compshape *compshape, unsigned height)
 	unsigned short	badcodeptr;
 	short int		rightclip;
 
-	if (!compshape)
-		Quit ("ScaleShape: NULL compshape ptr!");
+	assert(compshape != NULL);
 
 	int scale = (height+1)/2;
 	if (!scale)

@@ -35,22 +35,6 @@
 
 //===========================================================================
 
-typedef	struct
-{
-	int32_t			planestart[3];
-	uint16_t		planelength[3];
-	uint16_t		width,height;
-	char			name[16];
-} maptype;
-
-//===========================================================================
-
-extern	byte 				*tinf;
-extern	int					loadedmap;
-
-extern	uint16_t			*mapsegs[3];
-extern	maptype				*mapheaderseg[NUMMAPS];
-extern	byte				*audiosegs[NUMSNDCHUNKS];
 extern	void				*grsegs[NUMCHUNKS];
 
 extern	char		*titleptr[8];

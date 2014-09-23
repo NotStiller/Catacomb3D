@@ -133,7 +133,7 @@ void CheckKeys (void)
 		SP_GameLeave();
 		CenterWindow (8,3);
 		US_PrintCentered ("PAUSED");
-		VW_UpdateScreen ();
+		SPG_FlipBuffer();
 		SD_MusicOff();
 		IN_Ack();
 		SD_MusicOn();
@@ -145,14 +145,14 @@ void CheckKeys (void)
 //
 // F1-F7/ESC to enter control panel
 //
-	if ( (LastScan() >= sc_F1 && LastScan() <= sc_F7) || LastScan() == sc_Escape)
+	if ( (SP_LastScan() >= sc_F1 && SP_LastScan() <= sc_F7) || SP_LastScan() == sc_Escape)
 	{
 		SP_GameLeave();
 		StopMusic ();
 		NormalScreen ();
 		US_CenterWindow (20,8);
 		US_CPrint ("Loading");
-		VW_UpdateScreen ();
+		SPG_FlipBuffer();
 		US_ControlPanel();
 		if (abortgame)
 		{
@@ -166,7 +166,6 @@ void CheckKeys (void)
 		if (loadedgame)
 			playstate = ex_loadedgame;
 		DrawPlayScreen ();
-		CacheScaleds ();
 		lasttimecount = SP_TimeCount();
 		MouseDelta(NULL, NULL);	// Clear accumulated mouse movement
 		SP_GameEnter();
@@ -175,7 +174,7 @@ void CheckKeys (void)
 //
 // F10-? debug keys
 //
-	if (Keyboard(sc_F10))
+	if (SP_Keyboard(sc_F10))
 	{
 //		DebugKeys();
 		MouseDelta(NULL, NULL);	// Clear accumulated mouse movement
@@ -355,7 +354,7 @@ void PollControls (void)
 		c.button1 = 1;
 
 	{
-		if (Keyboard(sc_RShift)||Keyboard(sc_LShift))
+		if (SP_Keyboard(sc_RShift)||SP_Keyboard(sc_LShift))
 			running = true;
 		else
 			running = false;
@@ -400,12 +399,7 @@ void StartMusic(void)
 	musicnames	chunk;
 
 	SD_MusicOff();
-	chunk =	TOOHOT_MUS;
-//	if ((chunk == -1) || (MusicMode != smm_AdLib))
-//DEBUG control panel		return;
-
-	CA_CacheAudioChunk(STARTMUSIC + chunk);
-	SD_StartMusic((MusicGroup*)audiosegs[STARTMUSIC + chunk]);
+	SD_StartMusic(TOOHOT_MUS);
 }
 
 //==========================================================================

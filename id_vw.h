@@ -103,67 +103,28 @@ extern	byte		pdrawmode,fontcolor;
 //===========================================================================
 
 
-void	VW_Startup (void);
-void	VW_Shutdown (void);
-
 void	VW_ClearVideo (int color);
 void	VW_WaitVBL (int number);
-
-//
-// block primitives
-//
-
-void VW_MaskBlock(byte *source,unsigned x, unsigned y, unsigned wide,unsigned height,unsigned planesize);
-void VW_MemToScreen(byte *source,unsigned x, unsigned y,unsigned width,unsigned height);
-void VW_MemToScreen2(byte *source,unsigned x, unsigned y,unsigned width,unsigned height, unsigned planesize);
-void VW_ScreenToMem(unsigned x, unsigned y,memptr dest,unsigned width,unsigned height);
-void VW_ScreenToScreen(unsigned sx, unsigned sy,unsigned dx, unsigned dy,unsigned width,unsigned height);
-
 
 //
 // block addressable routines
 //
 
 void VW_DrawTile8(unsigned x, unsigned y, unsigned tile);
-
-#define VW_DrawTile8M(x,y,t) \
-	VW_MaskBlock((byte*)grsegs[STARTTILE8M]+(t)*40,8*x,y,1,8,8)
-
-void VW_DrawPic(unsigned x, unsigned y, unsigned chunknum);
-void VW_DrawMPic(unsigned x, unsigned y, unsigned chunknum);
-void VW_ClipDrawMPic(unsigned x, int y, unsigned chunknum);
+void VW_DrawTile8M(unsigned x, unsigned y, unsigned tile);
 
 //
 // pixel addressable routines
 //
 void	VW_MeasurePropString (char *string, word *width, word *height);
-void	VW_MeasureMPropString  (char *string, word *width, word *height);
-
 void VW_DrawPropString (char *string);
-void VW_DrawMPropString (char *string);
+
 void VW_Plot(unsigned x, unsigned y, unsigned color);
 void VW_Hlin(unsigned xl, unsigned xh, unsigned y, unsigned color);
 void VW_Vlin(unsigned yl, unsigned yh, unsigned x, unsigned color);
 void VW_Bar (unsigned x, unsigned y, unsigned width, unsigned height,
 	unsigned color);
 
-//===========================================================================
-
-void VW_UpdateScreen (void);
-
-//
-// mode independant routines
-// coordinates in pixels, rounded to best screen res
-// regions marked in double buffer
-//
-
-void VWB_DrawTile8 (int x, int y, int tile);
-void VWB_DrawTile8M (int x, int y, int tile);
-void VWB_DrawPic (int x, int y, int chunknum);
-void VWB_DrawMPic(int x, int y, int chunknum);
-void VWB_Bar (int x, int y, int width, int height, int color);
-
 void VWB_DrawPropString	 (char *string);
-void VWB_DrawSprite (int x, int y, int chunknum);
 
 //===========================================================================

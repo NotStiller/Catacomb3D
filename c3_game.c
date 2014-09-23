@@ -107,17 +107,6 @@ NEMESISPIC
 };
 
 
-
-/*
-=============================================================================
-
-						 GLOBAL VARIABLES
-
-=============================================================================
-*/
-
-memptr  textstarts[27];
-
 /*
 =============================================================================
 
@@ -152,7 +141,7 @@ void ScanInfoPlane (void)
 
 	memset (lumpneeded,0,sizeof(lumpneeded));
 
-	start = mapsegs[2];
+	start = mapheaderseg[loadedmap].mapsegs[2];
 	for (y=0;y<mapheight;y++)
 	{
 		for (x=0;x<mapwidth;x++)
@@ -294,39 +283,6 @@ void ScanInfoPlane (void)
 /*
 ==================
 =
-= ScanText
-=
-==================
-*/
-
-void ScanText (void)
-{
-	int     i;
-	char *text;
-
-	text = (char*)grsegs[LEVEL1TEXT+loadedmap];
-
-	textstarts[0] = 0;
-
-	for (i=1;i<=26;i++)
-	{
-		while (*text != '\n')
-		{
-			if (*text == '\r')
-				*text = 0;
-			text++;
-		}
-		text++;
-		textstarts[i] = text;
-	}
-
-}
-
-//==========================================================================
-
-/*
-==================
-=
 = DrawEnterScreen
 =
 ==================
@@ -363,7 +319,7 @@ void DrawEnterScreen (void)
 
 	x = (VIEWWIDTH - (18 * 8)) / 2 -3;
 	y = (VIEWHEIGHT - (5 * 8)) / 2;
-	VW_DrawPic(x / 8,y,ENTERPLAQUEPIC);
+	SPG_DrawPic(grsegs[ENTERPLAQUEPIC],x/8*8,y);
 
 	WindowX = x;
 	WindowW = 18 * 8;
@@ -376,44 +332,6 @@ void DrawEnterScreen (void)
 boolean tileneeded[NUMFLOORS];
 
 
-/*
-==================
-=
-= CacheScaleds
-=
-==================
-*/
-
-void CacheScaleds (void)
-{
-	int     i,j;
-	unsigned        source,dest;
-
-	CA_CacheGrChunk(LEVEL1TEXT+loadedmap);
-	ScanText ();
-
-//
-// cache wall pictures
-//
-	for (i=1;i<NUMFLOORS;i++)
-		if (tileneeded[i])
-		{
-			SetupScaleWall (walllight1[i]);
-			SetupScaleWall (walllight2[i]);
-			SetupScaleWall (walldark1[i]);
-			SetupScaleWall (walldark2[i]);
-		}
-
-//
-// cache the actor pictures
-//
-	for (i=0;i<NUMLUMPS;i++)
-		if (lumpneeded[i])
-			for (j=lumpstart[i];j<=lumpend[i];j++)
-				SetupScalePic(j);
-
-	screenpage = 1;
-}
 
 //==========================================================================
 
@@ -427,10 +345,9 @@ void CacheScaleds (void)
 
 void SetupGameLevel (void)
 {
-	int      x,y,i;
+	int      x,y,i,j;
 	uint16_t *map,tile,spot;
 
-	memset (tileneeded,0,sizeof(tileneeded));
 //
 // randomize if not a demo
 //
@@ -445,17 +362,18 @@ void SetupGameLevel (void)
 //
 // load the level
 //
-	CA_CacheMap (gamestate.mapon);
+	SPD_LoadMap(gamestate.mapon);
 
-	mapwidth = mapheaderseg[loadedmap]->width;
-	mapheight = mapheaderseg[loadedmap]->height;
+	mapwidth = mapheaderseg[loadedmap].width;
+	mapheight = mapheaderseg[loadedmap].height;
 
 //
 // copy the wall data to a data segment array
 //
+	memset (tileneeded,0,sizeof(tileneeded));
 	memset (tilemap,0,sizeof(tilemap));
 	memset (actorat,0,sizeof(actorat));
-	map = mapsegs[0];
+	map = mapheaderseg[loadedmap].mapsegs[0];
 	for (y=0;y<mapheight;y++) 
 	{
 		for (x=0;x<mapwidth;x++)
@@ -487,33 +405,32 @@ void SetupGameLevel (void)
 //
 	ScanInfoPlane ();
 
+
 //
-// have the caching manager load and purge stuff to make sure all marks
-// are in memory
+// cache wall pictures
 //
-	CA_LoadAllSounds ();
+	for (i=1;i<NUMFLOORS;i++)
+		if (tileneeded[i])
+		{
+			SPD_SetupScaleWall (walllight1[i]);
+			SPD_SetupScaleWall (walllight2[i]);
+			SPD_SetupScaleWall (walldark1[i]);
+			SPD_SetupScaleWall (walldark2[i]);
+		}
+
+//
+// cache the actor pictures
+//
+	for (i=0;i<NUMLUMPS;i++)
+		if (lumpneeded[i])
+			for (j=lumpstart[i];j<=lumpend[i];j++)
+				SPD_SetupScalePic(j);
 
 }
 
 
 //==========================================================================
 
-/*
-=====================
-=
-= LatchDrawPic
-=
-=====================
-*/
-
-void LatchDrawPic (unsigned x, unsigned y, unsigned picnum)
-{
-	VW_DrawPic(x, y, picnum);
-/*
-	EGAWRITEMODE(1);
-	EGAMAPMASK(15);
-*/
-}
 
 
 //==========================================================================
@@ -530,8 +447,8 @@ void Victory (void)
 {
 	NormalScreen ();
 	CA_CacheGrChunk (FINALEPIC);
-	VWB_DrawPic (0,0,FINALEPIC);
-	VW_UpdateScreen ();
+	SPG_DrawMaskedPic(grsegs[FINALEPIC], 0, 0);
+	SPG_FlipBuffer();
 	SD_PlaySound (GETBOLTSND);
 	SD_WaitSoundDone ();
 	SD_PlaySound (GETNUKESND);
@@ -565,7 +482,7 @@ void Died (void)
 // fizzle fade screen to grey
 //
 	SD_PlaySound (GAMEOVERSND);
-	LatchDrawPic(0,0,DEADPIC);
+	SPG_DrawPic(grsegs[DEADPIC],0,0);
 	FizzleFade(VIEWWIDTH,VIEWHEIGHT,false);
 	IN_ClearKeysDown();
 	IN_Ack();
@@ -600,20 +517,15 @@ void DrawPlayScreen (void)
 {
 	int     i,j,p,m;
 
-	screenpage = 0;
-
-	VW_Bar (0,SPLITSCREENOFFSET+0,320,STATUSLINES,7);
+	VW_Bar (0,144+0,320,STATUSLINES,7);
 	VW_Bar (0,0,320,VIEWHEIGHT,7);
 
 	CA_CacheGrChunk (STATUSPIC);
 	CA_CacheGrChunk (SIDEBARSPIC);
 
-	VW_DrawPic (0,SPLITSCREENOFFSET+0,STATUSPIC);
+	SPG_DrawPic(grsegs[STATUSPIC],0,144+0);
 
-	for (i=0;i<3;i++)
-	{
-		VW_DrawPic (33,0,SIDEBARSPIC);
-	}
+	SPG_DrawPic(grsegs[SIDEBARSPIC],8*33,0);
 
 	RedrawStatusWindow ();
 }
@@ -683,7 +595,8 @@ void    DrawHighScores(void)
 
 
 	CA_CacheGrChunk (HIGHSCORESPIC);
-	VWB_DrawPic (0,0,HIGHSCORESPIC);
+
+	SPG_DrawPic(grsegs[HIGHSCORESPIC], 0, 0);
 
 	for (i = 0,s = Scores;i < MaxScores;i++,s++)
 	{
@@ -804,8 +717,6 @@ restart:
 			SetupGameLevel ();
 		else
 			loadedgame = false;
-
-		CacheScaleds ();
 
 		SP_GameEnter();
 		PlayLoop ();

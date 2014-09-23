@@ -159,9 +159,6 @@ extern	Demo		DemoMode;
 extern	byte		*DemoBuffer;
 extern	word		DemoOffset,DemoSize;
 
-// Function prototypes
-#define	IN_KeyDown(code)	(Keyboard(code))
-
 // DEBUG - put names in prototypes
 extern	void		IN_Startup(void),IN_Shutdown(void),
 					IN_Default(boolean gotit,ControlType in),

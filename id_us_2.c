@@ -25,9 +25,7 @@
 //
 
 #include "id_heads.h"
-#pragma hdrstop
 
-#pragma warn    -pia
 
 //      Special imports
 extern  boolean         showscorebox;
@@ -321,7 +319,7 @@ USL_DrawItemIcon(UserItem *item)
 		tile = TileBase + ((flags & ui_Selected)? 3 : 2);
 	else
 		tile = TileBase + ((flags & ui_Selected)? 1 : 0);
-	VWB_DrawTile8(item->x,item->y,tile);
+	VW_DrawTile8(item->x/SCREENXDIV,item->y,tile);
 }
 
 static void
@@ -330,7 +328,7 @@ USL_DrawItem(UserItem *item)
 	if (topcard->custom && topcard->custom(uic_Draw,item))
 		return;
 
-	VWB_Bar(CtlPanelSX + 1,item->y,
+	VW_Bar(CtlPanelSX + 1,item->y,
 			CtlPanelEX - CtlPanelSX - 1,8,BackColor);       // Clear out background
 	USL_DrawItemIcon(item);
 	if ((item->flags & ui_Selected) && !(item->flags & ui_Disabled))
@@ -382,7 +380,8 @@ USL_DrawCtlPanelContents(void)
 	{
 		// Draw the title
 		MyLine(CtlPanelSY + 7);
-		VWB_DrawPic(CtlPanelSX + 6,CtlPanelSY,topcard->title);
+		SPG_DrawPic(grsegs[topcard->title], (CtlPanelSX + 6)/8*8,CtlPanelSY);
+
 	}
 
 	USL_DrawBottom();
@@ -414,24 +413,25 @@ USL_DrawCtlPanel(void)
 	if (topcard->items || topcard->title)
 	{
 		// Draw the backdrop
-		VWB_DrawPic(0,0,CP_MENUSCREENPIC);
+		SPG_DrawPic(grsegs[CP_MENUSCREENPIC],0,0);
 
 		// Draw the contents
 		USL_DrawCtlPanelContents();
 	}
 
 	// Refresh the screen
-	VW_UpdateScreen();
+	SPG_FlipBuffer();
 }
 
 static void
 USL_DialogSetup(word w,word h,word *x,word *y)
 {
-	VWB_DrawMPic(CtlPanelSX,CtlPanelSY,CP_MENUMASKPICM);
+	SPG_DrawMaskedPic(grsegs[CP_MENUMASKPICM], CtlPanelSX/8*8,CtlPanelSY);
+
 
 	*x = CtlPanelSX + ((CtlPanelW - w) / 2);
 	*y = CtlPanelSY + ((CtlPanelH - h) / 2);
-	VWB_Bar(*x,*y,w + 1,h + 1,BackColor);
+	VW_Bar(*x,*y,w + 1,h + 1,BackColor);
 	VW_Hlin(*x - 1,*x + w + 1,*y - 1,NohiliteColor);
 	VW_Hlin(*x - 1,*x + w + 1,*y + h + 1,NohiliteColor);
 	VW_Vlin(*y - 1,*y + h + 1,*x - 1,NohiliteColor);
@@ -460,7 +460,7 @@ USL_ShowLoadSave(char *s,char *name)
 	px = x + ((tw - w) / 2);
 	USL_DrawString(msg);
 
-	VW_UpdateScreen();
+	SPG_FlipBuffer();
 
 	IN_UserInput(100, true);
 }
@@ -507,7 +507,7 @@ USL_CtlDialog(char *s1,char *s2,char *s3)
 		USL_DrawString(s3);
 	}
 
-	VW_UpdateScreen();
+	SPG_FlipBuffer();
 
 	IN_ClearKeysDown();
 	do
@@ -518,7 +518,7 @@ USL_CtlDialog(char *s1,char *s2,char *s3)
 		else if (cursorinfo.button1)
 			c = sc_Escape;
 		else
-			c = LastScan();
+			c = SP_LastScan();
 	} while (c == sc_None);
 	do
 	{
@@ -599,12 +599,12 @@ USL_HandleError(int num)
 		strcat(buf,sys_errlist[num]);
 
 	USL_CtlDialog(buf,"PRESS ANY KEY",nil);
-	VW_UpdateScreen();
+	SPG_FlipBuffer();
 
 	IN_ClearKeysDown();
 	IN_Ack();
 
-	VW_UpdateScreen();
+	SPG_FlipBuffer();
 }
 
 static void
@@ -685,11 +685,12 @@ USL_CKSetKey(UserItem *item,word i)
 		if (SP_TimeCount() >= time)
 		{
 			on ^= true;
-			VWB_Bar(item->x + 90,item->y,40,8,fontcolor ^ BackColor);
-			VWB_Bar(item->x + 90 + 1,item->y + 1,40 - 2,8 - 2,BackColor);
+			VW_Bar(item->x + 90,item->y,40,8,fontcolor ^ BackColor);
+			VW_Bar(item->x + 90 + 1,item->y + 1,40 - 2,8 - 2,BackColor);
 			if (on)
-				VWB_DrawTile8(item->x + 90 + 16,item->y,TileBase + 8);
-			VW_UpdateScreen();
+				VW_DrawTile8((item->x + 90 + 16)/8,item->y,TileBase + 8);
+
+			SPG_FlipBuffer();
 
 			time = SP_TimeCount() + (TickBase / 2);
 		}
@@ -703,11 +704,11 @@ USL_CKSetKey(UserItem *item,word i)
 
 //	asm     pushf
 //	asm     cli
-		if (LastScan() == sc_LShift) {
+		if (SP_LastScan() == sc_LShift) {
 			IN_ClearKeysDown();
 		}
 //	asm     popf
-	} while (!(scan = LastScan()));
+	} while (!(scan = SP_LastScan()));
 
 	if (scan != sc_Escape)
 	{
@@ -753,15 +754,15 @@ USL_KeyCustom(UserCall call,UserItem *item)
 		Controls[0] = ctrl_Keyboard;
 		break;
 	case uic_Draw:
-		VWB_Bar(CtlPanelSX + 1,item->y,
+		VW_Bar(CtlPanelSX + 1,item->y,
 				CtlPanelEX - CtlPanelSX - 1,8,BackColor);       // Clear out background
 		USL_DrawItemIcon(item);
 		fontcolor = (item->flags & ui_Selected)? HiliteColor : NohiliteColor;
 		px = item->x + 8;
 		py = item->y + 1;
 		USL_DrawString(item->text);
-		VWB_Bar(item->x + 90,item->y,40,8,fontcolor ^ BackColor);
-		VWB_Bar(item->x + 90 + 1,item->y + 1,40 - 2,8 - 2,BackColor);
+		VW_Bar(item->x + 90,item->y,40,8,fontcolor ^ BackColor);
+		VW_Bar(item->x + 90 + 1,item->y + 1,40 - 2,8 - 2,BackColor);
 		px = item->x + 90 + 6;
 		py = item->y + 1;
 		USL_DrawString(IN_GetScanName(*KeyMaps[i]));
@@ -892,7 +893,7 @@ USL_LoadCustom(UserCall call,UserItem *item)
 		break;
 	case uic_Draw:
 		USL_DrawFileIcon(item);
-		VWB_Bar(item->x + 1,item->y + 2,CtlPanelW - 12 - 2,7,BackColor);
+		VW_Bar(item->x + 1,item->y + 2,CtlPanelW - 12 - 2,7,BackColor);
 
 		i = item - loadsavegamei;
 		if (Games[i].present)
@@ -927,7 +928,7 @@ USL_DoSaveGame(UserItem *item)
 	n = item - loadsavegamei;
 	game = &Games[n];
 	fontcolor = HiliteColor;
-	VWB_Bar(item->x + 1,item->y + 2,CtlPanelW - 12 - 2,7,BackColor);
+	VW_Bar(item->x + 1,item->y + 2,CtlPanelW - 12 - 2,7,BackColor);
 	game->oldtest = &PrintX;
 	ok = US_LineInput(item->x + 2,item->y + 2,
 						game->name,game->present? game->name : nil,
@@ -1006,12 +1007,12 @@ USL_DrawPongScore(word k,word c)
 	fontcolor = HiliteColor;
 	PrintY = py = CtlPanelSY + 4;
 	px = CtlPanelSX + 6;
-	VWB_Bar(px,py,42,6,BackColor);
+	VW_Bar(px,py,42,6,BackColor);
 	USL_DrawString("YOU:");
 	PrintX = px;
 	US_PrintUnsigned(k);
 	px = CtlPanelSX + 108;
-	VWB_Bar(px,py,50,6,BackColor);
+	VW_Bar(px,py,50,6,BackColor);
 	USL_DrawString("COMP:");
 	PrintX = px;
 	US_PrintUnsigned(c);
@@ -1046,9 +1047,9 @@ USL_PlayPong(void)
 		waittime = SP_TimeCount();
 
 		IN_ReadCursor(&cursorinfo);
-		if (((cursorinfo.x < 0) || IN_KeyDown(sc_LeftArrow)) && (kx > PaddleMinX))
+		if (((cursorinfo.x < 0) || SP_Keyboard(sc_LeftArrow)) && (kx > PaddleMinX))
 			kx -= 2;
-		else if (((cursorinfo.x > 0) || IN_KeyDown(sc_RightArrow)) && (kx < PaddleMaxX))
+		else if (((cursorinfo.x > 0) || SP_Keyboard(sc_RightArrow)) && (kx < PaddleMaxX))
 			kx += 2;
 
 		if (killball)
@@ -1071,11 +1072,12 @@ USL_PlayPong(void)
 				cx -= 1;
 		}
 
-		VWB_Bar(BallMinX,BallMinY - 1,
+		VW_Bar(BallMinX,BallMinY - 1,
 				BallMaxX - BallMinX + 5,BallMaxY - BallMinY + 7,
 				BackColor);
-		VWB_DrawSprite(cx,CPaddleY,PADDLESPR);
-		VWB_DrawSprite(kx,KPaddleY,PADDLESPR);
+
+		SPG_DrawMaskedPic(grsegs[PADDLESPR], cx&0xFFFE, CPaddleY);
+		SPG_DrawMaskedPic(grsegs[PADDLESPR], kx&0xFFFE, KPaddleY);
 		if (ball)
 		{
 			if
@@ -1159,7 +1161,7 @@ USL_PlayPong(void)
 					revdir = false;
 				}
 			}
-			VWB_DrawSprite(x,y,(x & 1)? BALL1PIXELTOTHERIGHTSPR : BALLSPR);
+			SPG_DrawMaskedPic(grsegs[(x & 1)? BALL1PIXELTOTHERIGHTSPR : BALLSPR], x&0xFFFE, y);
 		}
 		else if (SP_TimeCount() >= balltime)
 		{
@@ -1171,10 +1173,10 @@ USL_PlayPong(void)
 			bx = (BallMinX + ((BallMaxX - BallMinX) / 2)) << 2;
 			by = (BallMinY + ((BallMaxY - BallMinY) / 2)) << 2;
 		}
-		VW_UpdateScreen();
+		SPG_FlipBuffer();
 		while (waittime == SP_TimeCount())
 			;       // DEBUG - do adaptiveness
-	} while ((LastScan() != sc_Escape) && !done);
+	} while ((SP_LastScan() != sc_Escape) && !done);
 	IN_ClearKeysDown();
 }
 
@@ -1185,8 +1187,9 @@ USL_PongCustom(UserCall call,struct UserItem *item)
 	if (call != uic_SetupCard)
 		return(false);
 
-	VWB_DrawPic(0,0,CP_MENUSCREENPIC);
-	VWB_DrawPic(CtlPanelSX + 56,CtlPanelSY,CP_PADDLEWARPIC);
+
+	SPG_DrawPic(grsegs[CP_MENUSCREENPIC],0,0);
+	SPG_DrawPic(grsegs[CP_PADDLEWARPIC],(CtlPanelSX+56)/8*8,CtlPanelSY);
 	VW_Hlin(CtlPanelSX + 3,CtlPanelEX - 3,CtlPanelSY + 12,HiliteColor ^ BackColor);
 	VW_Hlin(CtlPanelSX + 3,CtlPanelEX - 3,CtlPanelEY - 7,HiliteColor ^ BackColor);
 	USL_PlayPong();
@@ -1366,6 +1369,8 @@ USL_SetControlValues(void)
 	// DEBUG - write the rest of this
 }
 
+
+
 ///////////////////////////////////////////////////////////////////////////
 //
 //      USL_SetUpCtlPanel() - Sets the states of the UserItems to reflect the
@@ -1384,7 +1389,6 @@ USL_SetUpCtlPanel(void)
 		CA_CacheGrChunk(i);
 	CA_CacheGrChunk(STARTFONT+1);            // Little font
 	CA_CacheGrChunk(CP_MENUMASKPICM);        // Mask for dialogs
-	CA_LoadAllSounds();
 
 	// Do some other setup
 	fontnumber = 1;
@@ -1473,14 +1477,13 @@ USL_TearDownCtlPanel(void)
 		fontcolor = F_SECONDCOLOR;
 		US_PrintCentered("Quitting...");
 		fontcolor = F_BLACK;
-		VW_UpdateScreen();
+		SPG_FlipBuffer();
 		Quit(nil);
 	}
 
 	IN_ClearKeysDown();
 	SD_WaitSoundDone();
 	VW_Bar (0,0,320,200,3); // CAT3D patch
-	CA_LoadAllSounds();
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -1513,7 +1516,7 @@ extern void HelpScreens(void);
 	}
 #endif
 
-	if ((LastScan() < sc_F1) || (LastScan() > sc_F10))
+	if ((SP_LastScan() < sc_F1) || (SP_LastScan() > sc_F10))
 		IN_ClearKeysDown();
 
 	USL_SetUpCtlPanel();
@@ -1540,11 +1543,11 @@ extern void HelpScreens(void);
 			item->flags |= ui_Selected;
 		}
 
-		VW_UpdateScreen();
+		SPG_FlipBuffer();
 
-		if (LastScan())
+		if (SP_LastScan())
 		{
-			switch (LastScan())
+			switch (SP_LastScan())
 			{
 			case sc_UpArrow:
 				USL_PrevItem();
@@ -1573,8 +1576,8 @@ extern void HelpScreens(void);
 			(
 				(!resetitem)
 			&&      (
-					(LastScan() == KbdDefs[0].button0)
-				||      (LastScan() == KbdDefs[0].button1)
+					(SP_LastScan() == KbdDefs[0].button0)
+				||      (SP_LastScan() == KbdDefs[0].button1)
 				)
 			)
 			{
@@ -1586,7 +1589,7 @@ extern void HelpScreens(void);
 			{
 				for (item = topcard->items,i = 0;item->type != uii_Bad;item++,i++)
 				{
-					if (item->hotkey == LastScan())
+					if (item->hotkey == SP_LastScan())
 					{
 						USL_SelectItem(topcard,i,true);
 						resetitem = true;

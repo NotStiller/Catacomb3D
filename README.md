@@ -25,25 +25,39 @@ I compiled the game for a x86 system with gcc version 4.7.2 (Debian 4.7.2-5) and
 
 The source port SHOULD work for all platforms, but frankly, I haven't tested it
 with 64bit or any other compiler. Packing issues in other parts than the sound
-system might emerge. If it does, please contact me at @NotStiller.
+system might emerge. If it does, please contact me.
 
-The game works great with the GOG release
-(http://www.gog.com/game/catacombs_pack).
+The game works great with the GOG release:
+http://www.gog.com/game/catacombs_pack
 
 
 General notes
------------
+-------------
 
 There is a lot to be done. Provided that there is any demand for it, I will also
  convert the later Catacombs games. But for now, I just want to get this thing
  out.
 
-I have not fixed the aspect ratio. That was never on my radar, before @fabynou
-did it with Wolfenstein.
+I have not fixed the aspect ratio. That was never even on my radar, but when I
+rewrite the renderer I will think of it.
 
 If you have any comments or bugs to report, please do so via @NotStiller
 (twitter.com/NotStiller) or github.com/NotStiller. I'd love to hear from you !
 
+
+Known Bugs and Things To Do
+---------------------------
+
+- Sometimes ray tracing goes out of map, I don't know if I introduced that or 
+  if it always was there. I put an assert there.
+
+- There are some rendering errors. Some were always there, one I introduced.
+
+- Switch to CMake.
+
+- Get sequels to work.
+
+- Clean up the code.
 
 Porting issues (aka the fun part)
 ---------------------------------
@@ -64,14 +78,5 @@ A lot of the further modules were removed or severely crippled. This includes th
 
 As for the general architecture, I decided to do all the SDL specific stuff in a new thread. The original code was based on using interrupts (a concept which is of course related to multithreading, but not the same) to magically set variables like last key pressed etc. so that whereever keyboard input is accessed, it does not call a function but merely accesses a variable. I could have touched that code and replaced the variables with functions, but I wanted to keep the original code. The multithreading approach works fine in that respect.
 Also I didn't mind to carefully wrap everything with mutexes. So race conditions might be existant. Unfortunately, there is still sometimes a crash at exit, which might have to do with his.
-
-
-Bugs
-----
-
-- Rendering bug in Skull and Bones. Just make the ball touch the right side.
-
-- Sometimes ray tracing goes out of map, I don't know if I introduced that or 
-  if it always was there. I put an assert there.
 
 

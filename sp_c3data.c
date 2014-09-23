@@ -1,188 +1,62 @@
+/* Catacomb 3-D SDL Port
+ * Copyright (C) 2014 twitter.com/NotStiller
+ * Copyright (C) 1993-2014 Flat Rock Software
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along
+ * with this program; if not, write to the Free Software Foundation, Inc.,
+ * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+ */
+
+#include "srcport.h"
+
 #include "id_heads.h"
+#include "mapsc3d.h"
 
-// _maphead was extracted from C3DMHEAD.OBJ.
-byte _maphead[618] = {
-0xcd, 0xab, 0x85, 0x01,  0x00, 0x00, 0x53, 0x03,  
-0x00, 0x00, 0x20, 0x06,  0x00, 0x00, 0x6f, 0x08,  
-0x00, 0x00, 0x0d, 0x0b,  0x00, 0x00, 0xa2, 0x0d,  
-0x00, 0x00, 0xaf, 0x10,  0x00, 0x00, 0x9f, 0x13,  
-0x00, 0x00, 0xc4, 0x14,  0x00, 0x00, 0x82, 0x17,  
-0x00, 0x00, 0x61, 0x1a,  0x00, 0x00, 0xf8, 0x1c,  
-0x00, 0x00, 0x8b, 0x20,  0x00, 0x00, 0xbf, 0x23,  
-0x00, 0x00, 0x78, 0x26,  0x00, 0x00, 0x3e, 0x29,  
-0x00, 0x00, 0x59, 0x2c,  0x00, 0x00, 0xac, 0x2e,  
-0x00, 0x00, 0x8a, 0x31,  0x00, 0x00, 0xa6, 0x37,  
-0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,  
-0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,  
-0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,  
-0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,  
-0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,  
-0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,  
-0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,  
-0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,  
-0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,  
-0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,  
-0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,  
-0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,  
-0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,  
-0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,  
-0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,  
-0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,  
-0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,  
-0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,  
-0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,  
-0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,  
-0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,  
-0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,  
-0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,  
-0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,  
-0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,  
-0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,  
-0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,  
-0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,  
-0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,  
-0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,  
-0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,  
-0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,  
-0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,  
-0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,  
-0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,  
-0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,  
-0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,  
-0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,  
-0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,  
-0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,  
-0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,  
-0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,  
-0x00, 0x00, 0x00, 0x00,  0x01, 0xff, 0x01, 0xff,  
-0x01, 0xff, 0x01, 0xff,  0x01, 0xff, 0x01, 0xff,  
-0x01, 0xff, 0x01, 0xff,  0x00, 0x00, 0x00, 0x00,  
-0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,  
-0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,  
-0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,  
-0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,  
-0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,  
-0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,  
-0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,  
-0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,  
-0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,  
-0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,  
-0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,  
-0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,  
-0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,  
-0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,  
-0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,  
-0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,  
-0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,  
-0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,  
-0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,  
-0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,  
-0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,  
-0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,  
-0x00, 0x00, 
+#define NUMSCALEWALLS 30
+
+extern memptr			walldirectory[NUMSCALEWALLS];
+
+int loadedmap=-1;
+maptype mapheaderseg[30];
+
+extern uint16_t maphead_RLEWtag;
+extern int32_t maphead_headeroffsets[20];
+
+pictabletype	*pictable;
+pictabletype	*picmtable;
+spritetabletype *spritetable;
+
+static uint8_t *mapData=NULL;
+static long mapDataSize=0;
+
+static uint8_t *grData=NULL;
+static long grDataSize=0;
+
+static uint8_t *auData=NULL;
+static long auDataSize=0;
+
+
+// the following fields were extracted from _maphead, which in turn was 
+// extracted from C3DMHEAD.OBJ.
+
+uint16_t maphead_RLEWtag = 0xabcd;
+int32_t maphead_headeroffsets[20] = {
+     389,     851,    1568,    2159,
+    2829,    3490,    4271,    5023,
+    5316,    6018,    6753,    7416,
+    8331,    9151,    9848,   10558,
+   11353,   11948,   12682,   14246,
 };
-
-
-/*
-The following function was used to convert the extracted data into the data below.
-void ExtractData()
-{
-	int GrChunksNum = sizeof(EGAhead)/3;
-	int GrChunksPos[GrChunksNum];
-	int GrChunksSize[GrChunksNum];
-
-	int AudioChunksNum = sizeof(audiohead)/sizeof(uint32_t);
-	int AudioChunksPos[AudioChunksNum];
-	int AudioChunksSize[AudioChunksNum];
-
-	int SizeAudio_C3D=5062;
-	int SizeEGAGraph_C3D=256899;
-	int SizeGamemaps_C3D=14288;
-
-	printf("// The following data was extracted from the variables audiohead, audiodict, EGAhead, EGAdict, _maphead,\n");
-	printf("// which, in the original GPL release, were located in the respective .OBJ files.\n");
-	
-	int i, j;
-	for (i = j = 0; i < sizeof(EGAhead)/3; i++) {
-		int32_t v = EGAhead[3*i+0]+256*(EGAhead[3*i+1]+256*EGAhead[3*i+2]);
-		if (v == 0xFFFFFF) {
-			v = -1;
-		}
-		GrChunksPos[i] = v;
-		GrChunksSize[i] = 0;
-		if (v != -1) {
-			GrChunksSize[j] = v-GrChunksPos[j];
-			j = i;
-		}
-	}
-	
-	printf("int32_t GrChunksNum = %i;\n", GrChunksNum);
-	printf("int32_t GrChunksPos[%i] = {\n", GrChunksNum);
-	for (i = 0; i < GrChunksNum; i++) {
-		printf("%7i,", GrChunksPos[i]);
-		if (!((i+1)&7)) {
-			printf("\n");
-		}
-	}
-	printf("\n};\n\n");
-	printf("int32_t GrChunksSize[%i] = {\n", GrChunksNum);
-	for (i = 0; i < GrChunksNum; i++) {
-		printf("%7i,", GrChunksSize[i]);
-		if (!((i+1)&7)) {
-			printf("\n");
-		}
-	}
-	printf("\n};\n\n");
-
-	for (i = 0; i < AudioChunksNum; i++) {
-		int32_t v = ((uint32_t*)audiohead)[i];
-		AudioChunksPos[i] = v;
-		AudioChunksSize[i] = 0;
-		if (i>=0) {
-			AudioChunksSize[i-1] = v-AudioChunksPos[i-1];
-		}
-	}
-	printf("int32_t AudioChunksNum = %i;\n", AudioChunksNum);
-	printf("int32_t AudioChunksPos[%i] = {\n", AudioChunksNum);
-	for (i = 0; i < AudioChunksNum; i++) {
-		printf("%7i,", AudioChunksPos[i]);
-		if (!((i+1)&7)) {
-			printf("\n");
-		}
-	}
-	printf("\n};\n\n");
-	printf("int32_t AudioChunksSize[%i] = {\n", AudioChunksNum);
-	for (i = 0; i < AudioChunksNum; i++) {
-		printf("%7i,", AudioChunksSize[i]);
-		if (!((i+1)&7)) {
-			printf("\n");
-		}
-	}
-	printf("\n};\n\n");
-	
-	printf("huffnode audiohuffman[256] = {\n");
-	for (i = 0; i < sizeof(audiodict)/4; i++) {
-		uint16_t bit0 = audiodict[4*i+0]+256*audiodict[4*i+1];
-		uint16_t bit1 = audiodict[4*i+2]+256*audiodict[4*i+3];
-		printf("{%3i, %3i}, ", bit0, bit1);
-		if (!((i+1)&7)) {
-			printf("\n");
-		}
-	}
-	printf("};\n\n");
-
-	printf("huffnode grhuffman[256] = {\n");
-	for (i = 0; i < sizeof(EGAdict)/4; i++) {
-		uint16_t bit0 = EGAdict[4*i+0]+256*EGAdict[4*i+1];
-		uint16_t bit1 = EGAdict[4*i+2]+256*EGAdict[4*i+3];
-		printf("{%3i, %3i}, ", bit0, bit1);
-		if (!((i+1)&7)) {
-			printf("\n");
-		}
-	}
-	printf("};\n\n");
-}
-*/
 
 
 // The following data was extracted from the variables audiohead, audiodict, EGAhead, EGAdict, _maphead,
@@ -415,7 +289,501 @@ huffnode grhuffman[256] = {
 {498, 499}, {500, 501}, {502, 503}, {504, 505}, {506, 507}, {255, 508}, {  0, 509}, {  0,   0}, 
 };
 
-
 // end of extracted data
 
+
+void CAL_HuffExpand (byte *source, byte *dest,long length,huffnode *hufftable);
+void CAL_CarmackExpand (uint16_t *source, uint16_t *dest, long length);
+
+uint8_t readU8(uint8_t **Buffer) {
+	return *(*Buffer)++;
+}
+
+int8_t readS8(uint8_t **Buffer) {
+	uint8_t v = *(*Buffer)++;
+	return *(int8_t*)&v;
+}
+
+int16_t readU16(uint8_t **Buffer) {
+	int16_t v = readU8(Buffer)+0x100*readU8(Buffer);
+	return v;
+}
+
+int16_t readS16(uint8_t **Buffer) {
+	uint16_t v = readU16(Buffer);
+	return *(int16_t*)&v;
+}
+
+uint32_t readU32(uint8_t **Buffer) {
+	return readU16(Buffer)+0x10000*readU16(Buffer);
+}
+
+int32_t readS32(uint8_t **Buffer) {
+	uint32_t v = readU32(Buffer);
+	return *(int32_t*)&v;
+}
+
+uint8_t *readFile(const char *Name, long *Size) {
+	assert(Size != NULL);
+	FILE *handle;
+	handle = fopen(Name, "r");
+	assert(handle != NULL);
+	fseek(handle, 0, SEEK_END);
+	*Size = ftell(handle);
+	uint8_t *data = malloc(*Size);
+	fseek(handle, 0, SEEK_SET);
+	fread(data, 1, *Size, handle);
+	//fclose(handle);
+
+	return data;
+}
+
+static memptr readAndHuffExpand(uint8_t *Data, huffnode Dictionary[], long *Expanded) {	
+	int32_t explen = readS32(&Data);
+	if (Expanded) {
+		*Expanded = explen;
+	}
+	memptr buffer = malloc(explen);
+	CAL_HuffExpand (Data, buffer,explen,Dictionary);
+	assert(buffer != NULL);
+	return buffer;
+}
+
+
+
+static void deplaneRaw (memptr Source, int Width, int Height, uint8_t *Buffer) {
+	byte *plane0,*plane1,*plane2,*plane3;
+	plane0 = Source;
+	plane1 = plane0 + Width*Height;
+	plane2 = plane1 + Width*Height;
+	plane3 = plane2 + Width*Height;
+
+	int x,y;
+	for (y=0;y<Height;y++)
+	{
+		for (x=0;x<Width;x++)
+		{
+			byte by0,by1,by2,by3;
+			by0 = *plane0++;
+			by1 = *plane1++;
+			by2 = *plane2++;
+			by3 = *plane3++;
+
+			int b;
+			for (b=0;b<8;b++)
+			{
+				Buffer[7-b] = ((by3&1)<<3) + ((by2&1)<<2) + ((by1&1)<<1) + (by0&1);
+				by3 >>= 1;
+				by2 >>= 1;
+				by1 >>= 1;
+				by0 >>= 1;
+			}
+			Buffer += 8;
+		}
+	}
+}
+
+
+static void deplaneMaskedRaw(memptr Source, int Width, int Height, uint8_t *Buffer) {
+	byte *plane0,*plane1,*plane2,*plane3,*planeM;
+	planeM = Source;
+	plane0 = planeM + Width*Height;
+	plane1 = plane0 + Width*Height;
+	plane2 = plane1 + Width*Height;
+	plane3 = plane2 + Width*Height;
+
+	int x,y;
+	for (y=0;y<Height;y++)
+	{
+		for (x=0;x<Width;x++)
+		{
+			byte byM,by0,by1,by2,by3;
+			byM = *planeM++;
+			by0 = *plane0++;
+			by1 = *plane1++;
+			by2 = *plane2++;
+			by3 = *plane3++;
+
+			int b;
+			for (b=0;b<8;b++)
+			{
+				if (byM&1) {
+					Buffer[7-b] = 0xFF;
+				} else {
+					Buffer[7-b] = ((by3&1)<<3) + ((by2&1)<<2) + ((by1&1)<<1) + (by0&1);
+				}				
+				by3 >>= 1;
+				by2 >>= 1;
+				by1 >>= 1;
+				by0 >>= 1;
+				byM >>= 1;
+			}
+			Buffer += 8;
+		}
+	}
+}
+
+
+
+static pictabletype *loadPicTable(uint8_t *Data, long DataSize, int NumElements) {
+	memptr buffer = readAndHuffExpand(Data, grhuffman, NULL);
+	pictabletype *table = malloc(sizeof(pictabletype)*NumElements);
+	int i;
+	uint8_t *p = buffer;
+	for (i = 0; i < NumElements; i++) {
+		table[i].width = readS16(&p);
+		table[i].height = readS16(&p);
+	}
+	free(buffer);
+	return table;
+}
+
+
+static spritetabletype *loadSpriteTable(uint8_t *Data, long DataSize, int NumElements) {
+	memptr buffer = readAndHuffExpand(Data, grhuffman, NULL);
+
+	spritetabletype *table = malloc(sizeof(spritetabletype)*NumElements);
+	int i;
+	uint8_t *p = buffer;
+	for (i = 0; i < NumElements; i++) {
+		table[i].width = readS16(&p);
+		table[i].height = readS16(&p);
+		table[i].orgx = readS16(&p);
+		table[i].orgy = readS16(&p);
+		table[i].xl = readS16(&p);
+		table[i].yl = readS16(&p);
+		table[i].xh = readS16(&p);
+		table[i].yh = readS16(&p);
+		table[i].shifts = readS16(&p);
+	}
+	free(buffer);
+	return table;
+}
+
+static void deplanePic (memptr Source, int Width, int Height, boolean Masked, memptr *Destination)
+{
+	MM_GetPtr(Destination, 8*Width*Height+2*sizeof(uint32_t));
+	((uint32_t*)*Destination)[0] = 8*Width;
+	((uint32_t*)*Destination)[1] = Height;
+	if (Masked) {
+		deplaneMaskedRaw(Source, Width, Height, *Destination+2*sizeof(uint32_t));
+	} else {
+		deplaneRaw(Source, Width, Height, *Destination+2*sizeof(uint32_t));
+	}
+}
+
+static void loadPic(int Chunk) {
+	memptr buffer = readAndHuffExpand(grData+GrChunksPos[Chunk], grhuffman, NULL);
+	deplanePic(buffer, pictable[Chunk-STARTPICS].width, pictable[Chunk-STARTPICS].height, false, &grsegs[Chunk]);
+	free(buffer);
+}
+
+static void loadMaskedPic(int Chunk) {
+	memptr buffer = readAndHuffExpand(grData+GrChunksPos[Chunk], grhuffman, NULL);
+	deplanePic(buffer, picmtable[Chunk-STARTPICM].width, picmtable[Chunk-STARTPICM].height, true, &grsegs[Chunk]);
+	free(buffer);
+}
+
+static void loadSprite(int Chunk) {
+// This is a crippled version of the sprite loading function, but we need no bit
+// shifting functionality anyway. Now sprites are just replaced by masked pics,
+// which they really are.
+	memptr buffer = readAndHuffExpand(grData+GrChunksPos[Chunk], grhuffman, NULL);
+	spritetabletype *spr = &spritetable[Chunk-STARTSPRITES];
+	assert(spr->orgx == 0);
+	assert(spr->orgy == 0);
+	assert(spr->shifts == 4);
+	deplanePic(buffer, spr->width, spr->height, true, &grsegs[Chunk]);
+	free(buffer);
+}
+
+void loadTile(int Chunk, int NumTilesInChunk, int Width, int Height, boolean Masked) {
+	assert(grsegs[Chunk] == NULL);
+	
+	long pos = GrChunksPos[Chunk];
+	assert(pos >= 0);
+	
+	int srcSpriteSize = (Masked?5:4)*Width*Height,
+		dstSpriteSize = 8*Width*Height;
+	uint8_t *buffer = malloc(NumTilesInChunk*srcSpriteSize);
+	CAL_HuffExpand(grData+pos,buffer,NumTilesInChunk*srcSpriteSize,grhuffman);
+	MM_GetPtr (&grsegs[Chunk],NumTilesInChunk*dstSpriteSize);
+	int i;
+	for (i = 0; i < NumTilesInChunk; i++) {
+		if (!Masked) {
+			deplaneRaw(buffer+i*srcSpriteSize, Width, Height, (uint8_t*)grsegs[Chunk]+i*dstSpriteSize);
+		} else {
+			deplaneMaskedRaw(buffer+i*srcSpriteSize, Width, Height, (uint8_t*)grsegs[Chunk]+i*dstSpriteSize);
+		}
+	}
+	free(buffer);
+}
+
+static void loadFont(int Chunk) {
+	long explen;
+	memptr buffer = readAndHuffExpand(grData+GrChunksPos[Chunk], grhuffman, &explen);
+	int datalen = explen-3*256-2;
+	uint8_t *p = (uint8_t*)buffer;
+	MM_GetPtr(&grsegs[Chunk], datalen+sizeof(fontstruct));
+	fontstruct *font = grsegs[Chunk];
+	font->height = readS16(&p);
+	int i;
+	for (i = 0; i < 256; i++) {
+		font->location[i] = readS16(&p)-3*256-2+sizeof(fontstruct);
+	}
+	for (i = 0; i < 256; i++) {
+		uint8_t w = readU8(&p);
+		assert(w < 128);
+		font->width[i] = (char)w;
+	}
+	memcpy((uint8_t*)font+sizeof(fontstruct), p, datalen);
+	free(buffer);
+}
+
+static void loadMapTexts(int Chunk, int Level) {
+	long len=0;
+	memptr buffer = readAndHuffExpand(grData+GrChunksPos[Chunk], grhuffman, &len);
+	MM_GetPtr(&grsegs[Chunk], len); // just to make the accountant shut up, erase this later !
+	memcpy(grsegs[Chunk], buffer, len);
+	free(buffer);
+
+	int     i;
+	char *p = grsegs[Chunk];
+	mapheaderseg[Level].texts[0] = NULL;
+	for (i=1;i<27;i++)
+	{
+		while (*p != '\n')
+		{
+			if (*p == '\r')
+				*p = 0;
+			p++;
+		}
+		p++;
+		mapheaderseg[Level].texts[i] = p;
+	}
+}
+
+static void loadMapHeader(uint8_t *Data, int Map) {
+	int mapnum = Map;
+
+// load map header
+	{
+		long	pos;
+		pos = maphead_headeroffsets[mapnum];
+		assert(pos >= 0);
+		uint8_t *data = Data+pos;
+
+		maptype *map = &mapheaderseg[mapnum];
+		byte *p = data;
+		map->planestart[0] = readS32(&p);
+		map->planestart[1] = readS32(&p);
+		map->planestart[2] = readS32(&p);
+		map->planelength[0] = readU16(&p);
+		map->planelength[1] = readU16(&p);
+		map->planelength[2] = readU16(&p);
+		map->width = readU16(&p);
+		map->height = readU16(&p);
+		int i;
+		for (i = 0; i < 16; i++) {
+			map->name[i] = readS8(&p);
+		}
+	}
+
+	int size = mapheaderseg[mapnum].width * mapheaderseg[mapnum].height * 2;
+
+	int plane;
+	for (plane = 0; plane<MAPPLANES; plane++)
+	{
+		mapheaderseg[mapnum].rawplaneslength[plane] = 0;
+		long pos = mapheaderseg[mapnum].planestart[plane];
+		long compressed = mapheaderseg[mapnum].planelength[plane];		
+		if (!compressed)
+			continue;		// the plane is not used in this game
+
+		memptr *dest = (memptr*)&mapheaderseg[mapnum].mapsegs[plane];
+		MM_GetPtr(dest,size);
+
+		int16_t *source = (int16_t*)(Data+pos);
+		long expanded = *source;
+		source++;
+		char *buffer = (char*)malloc(expanded);
+
+		CAL_CarmackExpand (source, (uint16_t*)buffer,expanded);
+		CA_RLEWexpand ((uint16_t*)buffer+1,*dest,size,maphead_RLEWtag);
+		free(buffer);
+		mapheaderseg[mapnum].rawplaneslength[plane] = size;
+		
+		MM_GetPtr(&mapheaderseg[mapnum].rawplanes[plane], mapheaderseg[mapnum].rawplaneslength[plane]);
+		memcpy(mapheaderseg[mapnum].rawplanes[plane], mapheaderseg[mapnum].mapsegs[plane], mapheaderseg[mapnum].rawplaneslength[plane]);
+	}
+	int i;
+	for (i = 0; i < 27; i++) {
+		mapheaderseg[mapnum].texts[i] = NULL;
+	}
+}
+
+
+static void loadTables(uint8_t *Data) {
+	pictable = loadPicTable(Data+GrChunksPos[STRUCTPIC], GrChunksSize[STRUCTPIC], NUMPICS);
+	picmtable = loadPicTable(Data+GrChunksPos[STRUCTPICM], GrChunksSize[STRUCTPICM], NUMPICM);
+	spritetable = loadSpriteTable(Data+GrChunksPos[STRUCTSPRITE], GrChunksSize[STRUCTSPRITE], NUMSPRITES);
+}
+
+static void setupScaleWall(int Pic) {
+	int scnum = Pic-FIRSTWALLPIC;
+	uint8_t *buffer = grsegs[Pic], *p = buffer;
+	int width = readU32(&p);
+	int height = readU32(&p);
+	assert(width <= 64);
+	assert(height <= 64);
+	if (width > 64) {
+		width = 64;
+	}
+	if (height > 64) {
+		height = 64;
+	}
+	MM_GetPtr(&walldirectory[scnum],64*64);
+	uint8_t *dest = walldirectory[scnum];
+	int x,y;
+	for (x=0;x<width;x++)
+		for (y=0;y<height;y++)
+			*dest++ = p[y*width+x];
+}
+
+static void setupScalePic (int Pic) {
+	uint8_t *buffer = grsegs[Pic], *p = buffer;
+	int width = readU32(&p);
+	int height = readU32(&p);
+	assert(width <= 64);
+	assert(height <= 64);
+	uint8_t dest[64*64];
+	memset(dest, 5, 64*64);
+	int x,y;
+	for (y=0;y<height;y++)
+		for (x=0;x<width;x++)
+			dest[y*64+x] = p[y*width+x];
+	BuildCompShape (Pic-FIRSTSCALEPIC, dest);
+}
+
+
+void loadAdlibSounds(uint8_t *Data) {
+	SPA_InitSamples(NUMSOUNDS, 1);
+
+	int i;
+	for (i = 0; i < NUMSOUNDS; i++) {
+		memptr buffer = readAndHuffExpand(Data+AudioChunksPos[STARTADLIBSOUNDS+i], audiohuffman, NULL);
+		SoundCommon *s =  buffer;
+		SPA_RenderSample(i, buffer);
+		free(buffer);
+	}
+	{
+		int i=0;
+		memptr buffer = readAndHuffExpand(Data+AudioChunksPos[STARTMUSIC+i], audiohuffman, NULL);
+		SPA_RenderMusic(i, buffer);
+		free(buffer);
+	}
+}
+
+static void loadMapHeaders(uint8_t *Data) {
+	memset(&mapheaderseg, 0, sizeof(mapheaderseg));
+	int i;
+	for (i = APPROACH_MAP; i < NEMESISSLAIR_MAP; i++) {
+		loadMapHeader(Data, i);
+	}	
+}
+
+void SPD_SetupCatacomb3DData() {
+	mapData = readFile("GAMEMAPS.C3D", &mapDataSize);
+	auData = readFile("AUDIO.C3D", &auDataSize);
+	grData = readFile("EGAGRAPH.C3D", &grDataSize);
+
+	memset(grsegs, 0, sizeof(grsegs));
+
+	loadMapHeaders(mapData);
+	loadAdlibSounds(auData);
+	loadTables(grData);
+}
+
+
+void combinedLoader(int Chunk) {
+	if (Chunk >= STARTFONT && Chunk < STARTFONT+NUMFONT) {
+		loadFont(Chunk);
+	} else if (Chunk >= STARTPICS && Chunk < STARTPICS+NUMPICS) {
+		loadPic(Chunk);
+	} else if (Chunk >= STARTPICM && Chunk < STARTPICM+NUMPICM) {
+		loadMaskedPic(Chunk);
+	} else if (Chunk >= STARTSPRITES && Chunk < STARTSPRITES+NUMSPRITES) {
+		loadSprite(Chunk);
+	} else if (Chunk >= STARTSPRITES && Chunk < STARTSPRITES+NUMSPRITES) {
+		loadSprite(Chunk);
+	} else if (Chunk == STARTTILE8) {
+		loadTile(STARTTILE8, NUMTILE8, 1, 8, false);
+	} else if (Chunk == STARTTILE8M) {
+		loadTile(STARTTILE8M, NUMTILE8M, 1, 8, true);
+	} else if (Chunk >= STARTTILE16 && Chunk < STARTTILE16+NUMTILE16) {
+		loadTile(Chunk, 1, 2, 16, false);
+	} else if (Chunk >= STARTTILE16M && Chunk < STARTTILE16M+NUMTILE16M) {
+		loadTile(Chunk, 1, 2, 16, true);
+	} else if (Chunk >= STARTTILE32 && Chunk < STARTTILE32+NUMTILE32) {
+		loadTile(Chunk, 1, 4, 32, false);
+		assert(false);
+	} else if (Chunk >= STARTTILE32M && Chunk < STARTTILE32M+NUMTILE32M) {
+		loadTile(Chunk, 1, 4, 32, true);
+		assert(false);
+	} else if (Chunk >= LEVEL1TEXT && Chunk <= LEVEL20TEXT) {
+		printf("MAP TEXTS\n");
+		loadMapTexts(Chunk,Chunk-LEVEL1TEXT);
+	} else {
+		assert(false);
+	}
+}
+
+void SPD_SetupScaleWall(int Chunk) {
+	loadPic(Chunk);
+	setupScaleWall(Chunk);
+}
+
+void SPD_SetupScalePic(int Chunk) {
+	loadPic(Chunk);
+	setupScalePic(Chunk);
+}
+
+
+void SPD_LoadGrChunk(int Chunk) {
+	if (grsegs[Chunk]) {
+		return;
+	}
+	if (GrChunksPos[Chunk] < 0) {
+		return;
+	}
+	combinedLoader(Chunk);
+}
+
+
+void SPD_LoadMap(mapnum) {
+	if (loadedmap != -1) {
+		int plane;
+		for (plane=0;plane<MAPPLANES;plane++)
+			if (mapheaderseg[loadedmap].mapsegs[plane])
+				MM_FreePtr (&mapheaderseg[loadedmap].mapsegs[plane]);
+	}
+
+	loadedmap = mapnum;
+
+// load the planes in
+// If a plane's pointer still exists it will be overwritten (levels are
+// allways reloaded, never cached)
+
+	int size = mapheaderseg[mapnum].width * mapheaderseg[mapnum].height * 2;
+
+	int plane;
+	for (plane = 0; plane<MAPPLANES; plane++)
+	{
+		if (!mapheaderseg[mapnum].rawplaneslength[plane])
+			continue;
+		MM_GetPtr (&mapheaderseg[loadedmap].mapsegs[plane], size);
+		memcpy(mapheaderseg[mapnum].mapsegs[plane], mapheaderseg[mapnum].rawplanes[plane], mapheaderseg[mapnum].rawplaneslength[plane]);
+	}
+	loadMapTexts(LEVEL1TEXT+mapnum,mapnum);
+}
 

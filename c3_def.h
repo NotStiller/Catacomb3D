@@ -225,7 +225,6 @@ int main (int argc, char *argv[]);
 
 extern	memptr	latchpics[NUMLATCHPICS];
 extern	memptr	tileoffsets[NUMTILE16];
-extern	memptr	textstarts[27];
 
 
 #define	L_CHARS		0
@@ -444,9 +443,8 @@ extern	t_compshape *shapedirectory[NUMSCALEPICS];
 extern	memptr			walldirectory[NUMSCALEWALLS];
 extern	unsigned short	shapesize[MAXSCALE+1];
 
-void 		DeplanePic (int picnum);
 void ScaleShape (int xcenter, t_compshape *compshape, unsigned scale);
-unsigned	BuildCompShape (t_compshape **finalspot);
+void BuildCompShape (int Num, uint8_t *Buffer);
 
 
 /*

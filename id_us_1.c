@@ -520,7 +520,7 @@ US_CPrint(char *S)
 void
 US_ClearWindow(void)
 {
-	VWB_Bar(WindowX,WindowY,WindowW,WindowH,WHITE);
+	VW_Bar(WindowX,WindowY,WindowW,WindowH,WHITE);
 	PrintX = WindowX;
 	PrintY = WindowY;
 }
@@ -551,13 +551,19 @@ US_DrawWindow(word x,word y,word w,word h)
 
 	US_ClearWindow();
 
-	VWB_DrawTile8M(sx,sy,0),VWB_DrawTile8M(sx,sy + sh,6);
-	for (i = sx + 8;i <= sx + sw - 8;i += 8)
-		VWB_DrawTile8M(i,sy,1),VWB_DrawTile8M(i,sy + sh,7);
-	VWB_DrawTile8M(i,sy,2),VWB_DrawTile8M(i,sy + sh,8);
+	VW_DrawTile8M(sx/8,sy,0);
+	VW_DrawTile8M(sx/8,sy + sh,6);
+	for (i = sx + 8;i <= sx + sw - 8;i += 8) {
+		VW_DrawTile8M(i/8,sy,1);
+		VW_DrawTile8M(i/8,sy + sh,7);
+	}
+	VW_DrawTile8M(i/8,sy,2);
+	VW_DrawTile8M(i/8,sy + sh,8);
 
-	for (i = sy + 8;i <= sy + sh - 8;i += 8)
-		VWB_DrawTile8M(sx,i,3),VWB_DrawTile8M(sx + sw,i,5);
+	for (i = sy + 8;i <= sy + sh - 8;i += 8) {
+		VW_DrawTile8M(sx/8,i,3);
+		VW_DrawTile8M((sx + sw)/8,i,5);
+	}
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -676,8 +682,8 @@ US_LineInput(int x,int y,char *buf,char *def,boolean escok,
 //	asm     pushf
 //	asm     cli
 
-		sc = LastScan();
-		c = LastASCII();
+		sc = SP_LastScan();
+		c = SP_LastASCII();
 		IN_ClearKeysDown();
 
 //	asm     popf
@@ -802,7 +808,7 @@ US_LineInput(int x,int y,char *buf,char *def,boolean escok,
 		if (cursorvis)
 			USL_XORICursor(x,y,s,cursor);
 
-		VW_UpdateScreen();
+		SPG_FlipBuffer();
 	}
 
 	if (cursorvis)
@@ -813,7 +819,7 @@ US_LineInput(int x,int y,char *buf,char *def,boolean escok,
 		py = y;
 		USL_DrawString(olds);
 	}
-	VW_UpdateScreen();
+	SPG_FlipBuffer();
 
 	IN_ClearKeysDown();
 	return(result);

@@ -38,7 +38,6 @@
 
 typedef	enum	{
 					sdm_Off,
-//					sdm_PC,
 					sdm_AdLib,
 				}	SDMode;
 typedef	enum	{
@@ -50,36 +49,6 @@ typedef	struct
 			longword	length;
 			word		priority;
 		} SoundCommon;
-
-//	PC Sound stuff
-#define	pcTimer		0x42
-#define	pcTAccess	0x43
-#define	pcSpeaker	0x61
-
-#define	pcSpkBits	3
-
-typedef	struct
-		{
-			SoundCommon	common;
-			byte		data[1];
-		} PCSound;
-
-// 	Registers for the Sound Blaster card - needs to be offset by n0
-#define	sbReset		0x206
-#define	sbReadData	0x20a
-#define	sbWriteCmd	0x20c
-#define	sbWriteData	0x20c
-#define	sbWriteStat	0x20c
-#define	sbDataAvail	0x20e
-
-typedef	struct
-		{
-			SoundCommon	common;
-			word		hertz;
-			byte		bits,
-						reference,
-						data[1];
-		} SampledSound;
 
 // 	Registers for the AdLib card
 // Operator stuff
@@ -186,7 +155,7 @@ extern	void	SD_Startup(void),
 				SD_PlaySound(soundnames sound),
 				SD_StopSound(void),
 				SD_WaitSoundDone(void),
-				SD_StartMusic(MusicGroup *music),
+				SD_StartMusic(int MusicName),
 				SD_MusicOn(void),
 				SD_MusicOff(void),
 				SD_FadeOutMusic(void);
