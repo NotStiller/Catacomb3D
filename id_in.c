@@ -36,59 +36,15 @@
 //
 
 #include "id_heads.h"
-#pragma	hdrstop
 
 // 	Global variables
-		boolean		MousePresent;
-		boolean		Paused;
 		KeyboardDef	KbdDefs[MaxKbds] = {{0x1d,0x38,0x47,0x48,0x49,0x4b,0x4d,0x4f,0x50,0x51}};
 		ControlType	Controls[MaxPlayers];
-
-		Demo		DemoMode = demo_Off;
-		byte 		*DemoBuffer;
-		word		DemoOffset,DemoSize;
 
 //	Internal variables
 static	boolean		IN_Started;
 static	boolean		CapsLock;
-static	byte        ASCIINames[] =		// Unshifted ASCII for scan codes
-					{
-//	 0   1   2   3   4   5   6   7   8   9   A   B   C   D   E   F
-	0  ,27 ,'1','2','3','4','5','6','7','8','9','0','-','=',8  ,9  ,	// 0
-	'q','w','e','r','t','y','u','i','o','p','[',']',13 ,0  ,'a','s',	// 1
-	'd','f','g','h','j','k','l',';',39 ,'`',0  ,92 ,'z','x','c','v',	// 2
-	'b','n','m',',','.','/',0  ,'*',0  ,' ',0  ,0  ,0  ,0  ,0  ,0  ,	// 3
-	0  ,0  ,0  ,0  ,0  ,0  ,0  ,'7','8','9','-','4','5','6','+','1',	// 4
-	'2','3','0',127,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,	// 5
-	0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,	// 6
-	0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0		// 7
-					},
-					ShiftNames[] =		// Shifted ASCII for scan codes
-					{
-//	 0   1   2   3   4   5   6   7   8   9   A   B   C   D   E   F
-	0  ,27 ,'!','@','#','$','%','^','&','*','(',')','_','+',8  ,9  ,	// 0
-	'Q','W','E','R','T','Y','U','I','O','P','{','}',13 ,0  ,'A','S',	// 1
-	'D','F','G','H','J','K','L',':',34 ,'~',0  ,'|','Z','X','C','V',	// 2
-	'B','N','M','<','>','?',0  ,'*',0  ,' ',0  ,0  ,0  ,0  ,0  ,0  ,	// 3
-	0  ,0  ,0  ,0  ,0  ,0  ,0  ,'7','8','9','-','4','5','6','+','1',	// 4
-	'2','3','0',127,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,	// 5
-	0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,	// 6
-	0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0   	// 7
-					},
-					SpecialNames[] =	// ASCII for 0xe0 prefixed codes
-					{
-//	 0   1   2   3   4   5   6   7   8   9   A   B   C   D   E   F
-	0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,	// 0
-	0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,13 ,0  ,0  ,0  ,	// 1
-	0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,	// 2
-	0  ,0  ,0  ,0  ,0  ,'/',0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,	// 3
-	0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,	// 4
-	0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,	// 5
-	0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,	// 6
-	0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0  ,0   	// 7
-					},
-
-					*ScanNames[] =		// Scan code names with single chars
+static	byte        *ScanNames[] =		// Scan code names with single chars
 					{
 	"?","?","1","2","3","4","5","6","7","8","9","0","-","+","?","?",
 	"Q","W","E","R","T","Y","U","I","O","P","[","]","|","?","A","S",
@@ -175,7 +131,6 @@ IN_Startup(void)
 		return;
 
 	INL_StartKbd();
-	MousePresent = true;
 	IN_Started = true;
 }
 
@@ -190,7 +145,6 @@ IN_Default(boolean gotit,ControlType in)
 	if
 	(
 		(!gotit)
-	|| 	((in == ctrl_Mouse) && !MousePresent)
 	)
 		in = ctrl_Keyboard1;
 	IN_SetControlType(0,in);
@@ -246,12 +200,9 @@ IN_ReadCursor(CursorInfo *info)
 	info->x = info->y = 0;
 	info->button0 = info->button1 = false;
 
-	if (MousePresent)
-	{
-		buttons = INL_GetMouseButtons();
-		INL_GetMouseDelta(&dx,&dy);
-		INL_AdjustCursor(info,buttons,dx,dy);
-	}
+	buttons = INL_GetMouseButtons();
+	INL_GetMouseDelta(&dx,&dy);
+	INL_AdjustCursor(info,buttons,dx,dy);
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -275,63 +226,42 @@ register	KeyboardDef	*def;
 	mx = my = motion_None;
 	buttons = 0;
 
-	if (DemoMode == demo_Playback)
+	switch (type = Controls[player])
 	{
-		dbyte = DemoBuffer[DemoOffset + 1];
-		my = (dbyte & 3) - 1;
-		mx = ((dbyte >> 2) & 3) - 1;
-		buttons = (dbyte >> 4) & 3;
+	case ctrl_Keyboard1:
+	case ctrl_Keyboard2:
+		def = &KbdDefs[type - ctrl_Keyboard];
 
-		if (!(--DemoBuffer[DemoOffset]))
-		{
-			DemoOffset += 2;
-			if (DemoOffset >= DemoSize)
-				DemoMode = demo_PlayDone;
-		}
+		if (SP_Keyboard(def->upleft))
+			mx = motion_Left,my = motion_Up;
+		else if (SP_Keyboard(def->upright))
+			mx = motion_Right,my = motion_Up;
+		else if (SP_Keyboard(def->downleft))
+			mx = motion_Left,my = motion_Down;
+		else if (SP_Keyboard(def->downright))
+			mx = motion_Right,my = motion_Down;
 
+		if (SP_Keyboard(def->up))
+			my = motion_Up;
+		else if (SP_Keyboard(def->down))
+			my = motion_Down;
+
+		if (SP_Keyboard(def->left))
+			mx = motion_Left;
+		else if (SP_Keyboard(def->right))
+			mx = motion_Right;
+
+		if (SP_Keyboard(def->button0))
+			buttons += 1 << 0;
+		if (SP_Keyboard(def->button1))
+			buttons += 1 << 1;
 		realdelta = false;
-	}
-	else if (DemoMode == demo_PlayDone)
-		Quit("Demo playback exceeded");
-	else
-	{
-		switch (type = Controls[player])
-		{
-		case ctrl_Keyboard1:
-		case ctrl_Keyboard2:
-			def = &KbdDefs[type - ctrl_Keyboard];
-
-			if (SP_Keyboard(def->upleft))
-				mx = motion_Left,my = motion_Up;
-			else if (SP_Keyboard(def->upright))
-				mx = motion_Right,my = motion_Up;
-			else if (SP_Keyboard(def->downleft))
-				mx = motion_Left,my = motion_Down;
-			else if (SP_Keyboard(def->downright))
-				mx = motion_Right,my = motion_Down;
-
-			if (SP_Keyboard(def->up))
-				my = motion_Up;
-			else if (SP_Keyboard(def->down))
-				my = motion_Down;
-
-			if (SP_Keyboard(def->left))
-				mx = motion_Left;
-			else if (SP_Keyboard(def->right))
-				mx = motion_Right;
-
-			if (SP_Keyboard(def->button0))
-				buttons += 1 << 0;
-			if (SP_Keyboard(def->button1))
-				buttons += 1 << 1;
-			realdelta = false;
-			break;
-		case ctrl_Mouse:
-			INL_GetMouseDelta(&dx,&dy);
-			buttons = INL_GetMouseButtons();
-			realdelta = true;
-			break;
-		}
+		break;
+	case ctrl_Mouse:
+		INL_GetMouseDelta(&dx,&dy);
+		buttons = INL_GetMouseButtons();
+		realdelta = true;
+		break;
 	}
 
 	if (realdelta)
@@ -357,30 +287,6 @@ register	KeyboardDef	*def;
 		my = 0;
 	}
 	info->dir = DirTable[((my + 1) * 3) + (mx + 1)];
-
-	if (DemoMode == demo_Record)
-	{
-		// Pack the control info into a byte
-		dbyte = (buttons << 4) | ((mx + 1) << 2) | (my + 1);
-
-		if
-		(
-			(DemoBuffer[DemoOffset + 1] == dbyte)
-		&&	(DemoBuffer[DemoOffset] < 255)
-		)
-			(DemoBuffer[DemoOffset])++;
-		else
-		{
-			if (DemoOffset || DemoBuffer[DemoOffset])
-				DemoOffset += 2;
-
-			if (DemoOffset >= DemoSize)
-				Quit("Demo buffer overflow");
-
-			DemoBuffer[DemoOffset] = 1;
-			DemoBuffer[DemoOffset + 1] = dbyte;
-		}
-	}
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -394,67 +300,6 @@ IN_SetControlType(int player,ControlType type)
 {
 	// DEBUG - check that requested type is present?
 	Controls[player] = type;
-}
-
-///////////////////////////////////////////////////////////////////////////
-//
-//	IN_StartDemoRecord() - Starts the demo recording, using a buffer the
-//		size passed. Returns if the buffer allocation was successful
-//
-///////////////////////////////////////////////////////////////////////////
-boolean
-IN_StartDemoRecord(word bufsize)
-{
-	if (!bufsize)
-		return(false);
-
-	MM_GetPtr((memptr *)&DemoBuffer,bufsize);
-	DemoMode = demo_Record;
-	DemoSize = bufsize & ~1;
-	DemoOffset = 0;
-	DemoBuffer[0] = DemoBuffer[1] = 0;
-
-	return(true);
-}
-
-///////////////////////////////////////////////////////////////////////////
-//
-//	IN_StartDemoPlayback() - Plays back the demo pointed to of the given size
-//
-///////////////////////////////////////////////////////////////////////////
-void
-IN_StartDemoPlayback(byte *buffer,word bufsize)
-{
-	DemoBuffer = buffer;
-	DemoMode = demo_Playback;
-	DemoSize = bufsize & ~1;
-	DemoOffset = 0;
-}
-
-///////////////////////////////////////////////////////////////////////////
-//
-//	IN_StopDemo() - Turns off demo mode
-//
-///////////////////////////////////////////////////////////////////////////
-void
-IN_StopDemo(void)
-{
-	if ((DemoMode == demo_Record) && DemoOffset)
-		DemoOffset += 2;
-
-	DemoMode = demo_Off;
-}
-
-///////////////////////////////////////////////////////////////////////////
-//
-//	IN_FreeDemoBuffer() - Frees the demo buffer, if it's been allocated
-//
-///////////////////////////////////////////////////////////////////////////
-void
-IN_FreeDemoBuffer(void)
-{
-	if (DemoBuffer)
-		MM_FreePtr((memptr *)&DemoBuffer);
 }
 
 ///////////////////////////////////////////////////////////////////////////

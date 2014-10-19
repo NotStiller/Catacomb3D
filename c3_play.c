@@ -47,22 +47,14 @@ boolean		running,slowturn;
 int			bordertime;
 objtype objlist[MAXACTORS],*new,*obj,*player,*lastobj,*objfreelist;
 
-boolean		singlestep,godmode;
-int			extravbls;
+boolean		godmode;
 
 //
 // replacing refresh manager
 //
-unsigned	mapwidth,mapheight,tics;
+unsigned	mapwidth,mapheight,tics,realtics;
 boolean		compatability;
-byte		*updateptr;
 unsigned	mapwidthtable[64];
-unsigned	uwidthtable[UPDATEHIGH];
-unsigned	blockstarts[UPDATEWIDE*UPDATEHIGH];
-#define	UPDATESCREENSIZE	(UPDATEWIDE*PORTTILESHIGH+2)
-#define	UPDATESPARESIZE		(UPDATEWIDE*2+4)
-#define UPDATESIZE			(UPDATESCREENSIZE+2*UPDATESPARESIZE)
-byte		update[UPDATESIZE];
 
 int		mousexmove,mouseymove;
 int		pointcount,pointsleft;
@@ -123,36 +115,12 @@ void	CenterWindow(word w,word h)
 =====================
 */
 
-void CheckKeys (void)
+void CheckMenu (void)
 {
-//
-// pause key wierdness can't be checked as a scan code
-//
-	if (Paused)
-	{
-		SP_GameLeave();
-		CenterWindow (8,3);
-		US_PrintCentered ("PAUSED");
-		SPG_FlipBuffer();
-		SD_MusicOff();
-		IN_Ack();
-		SD_MusicOn();
-		Paused = false;
-		MouseDelta(NULL, NULL);	// Clear accumulated mouse movement
-		SP_GameEnter();
-	}
-
-//
-// F1-F7/ESC to enter control panel
-//
-	if ( (SP_LastScan() >= sc_F1 && SP_LastScan() <= sc_F7) || SP_LastScan() == sc_Escape)
+	if (SP_LastScan() == sc_Escape)
 	{
 		SP_GameLeave();
 		StopMusic ();
-		NormalScreen ();
-		US_CenterWindow (20,8);
-		US_CPrint ("Loading");
-		SPG_FlipBuffer();
 		US_ControlPanel();
 		if (abortgame)
 		{
@@ -170,17 +138,6 @@ void CheckKeys (void)
 		MouseDelta(NULL, NULL);	// Clear accumulated mouse movement
 		SP_GameEnter();
 	}
-
-//
-// F10-? debug keys
-//
-	if (SP_Keyboard(sc_F10))
-	{
-//		DebugKeys();
-		MouseDelta(NULL, NULL);	// Clear accumulated mouse movement
-		lasttimecount = SP_TimeCount();
-	}
-
 }
 
 
@@ -479,15 +436,16 @@ void PlayLoop (void)
 						RemoveObj (obj);
 				}
 			}
-nextactor:;
+			nextactor:;
 		}
-		
+
 		if (bordertime)
 		{
 			bordertime -= tics;
 			if (bordertime<=0)
 			{
 				bordertime = 0;
+				SPG_SetBorderColor(3);
 			}
 		}
 		if (pointcount)
@@ -496,11 +454,7 @@ nextactor:;
 			if (pointcount <= 0)
 			{
 				pointcount += POINTTICS;
-				give = (pointsleft > 1000)? 1000 :
-						(
-							(pointsleft > 100)? 100 :
-								((pointsleft < 20)? pointsleft : 20)
-						);
+				give = (pointsleft > 1000)? 1000 : ((pointsleft > 100)? 100 : ((pointsleft < 20)? pointsleft : 20));
 				SD_PlaySound (GETPOINTSSND);
 				AddPoints (give);
 				pointsleft -= give;
@@ -510,22 +464,18 @@ nextactor:;
 		}
 
 		ThreeDRefresh ();
-		CheckKeys();
-		if (singlestep)
-		{
-			VW_WaitVBL(14);
-			lasttimecount = SP_TimeCount();
+		if (SPG_PollRedraw()) {
+			DrawPlayScreen ();
 		}
-		if (extravbls)
-			VW_WaitVBL(extravbls);
-
-	}while (!playstate);
+		CheckMenu();
+	} while (!playstate);
 	StopMusic ();
 
 	ingame = false;
 	if (bordertime)
 	{
 		bordertime = 0;
+		SPG_SetBorderColor(3);
 	}
 
 	if (!abortgame)

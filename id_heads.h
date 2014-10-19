@@ -18,6 +18,9 @@
 
 // ID_GLOB.H
 
+#ifndef ID_HEADS_H
+#define ID_HEADS_H
+
 #include "srcport.h"
 
 #include <ctype.h>
@@ -31,26 +34,35 @@
 
 //--------------------------------------------------------------------------
 
-#define	EXTENSION	"C3D"
+extern const char *GamespecificExtension; // C3D, ABS etc.
+extern int C4Features;
 
-extern	unsigned char introscn[];
+//#define	EXTENSION	"C3D"
+//#define	EXTENSION	"ABS"
+//#define	EXT	"ABS"
 
-#include "gfxe_c3d.h"
-#include "audioc3d.h"
+//#define CAT3D
 
-//--------------------------------------------------------------------------
+#define	EGAGR	2
+#define	VGAGR	3
 
-#define CAT3D
+#define  EGA320GR	10					// MDM (GAMERS EDGE)
+#define  EGA640GR	11					// MDM (GAMERS EDGE)
 
-#define GREXT	"EGA"
+#define MAPSIZE		64		// maps are 64*64 max
+#define MAXACTORS	150		// max number of tanks, etc / map
 
-//
-//	ID Engine
-//	Types.h - Generic types, #defines, etc.
-//	v1.0d1
-//
+#define NORTH	0
+#define EAST	1
+#define SOUTH	2
+#define WEST	3
 
-#ifndef	__TYPES__
+#define SIGN(x) ((x)>0?1:-1)
+#define ABS(x) ((int)(x)>0?(x):-(x))
+#define LABS(x) ((long)(x)>0?(x):-(x))
+
+
+
 #define	__TYPES__
 
 // typedef	enum	{false,true}	boolean;
@@ -62,24 +74,89 @@ typedef	uint16_t			word;
 typedef	uint32_t		longword;
 typedef	byte *					Ptr;
 
-typedef	struct
-		{
-			int	x,y;
-		} Point;
-typedef	struct
-		{
-			Point	ul,lr;
-		} Rect;
+typedef	struct { int x,y; } Point;
+typedef	struct { Point ul,lr; } Rect;
 
-#define	nil	((void *)0)
+typedef long fixed;
 
-#endif
+typedef struct { int x,y; } tilept;
+typedef struct { fixed x,y; } globpt;
 
-#include "id_ca.h"
+typedef struct {
+	int x1,x2,leftclip,rightclip;// first pixel of wall (may not be visable)
+	unsigned height1,height2,color,walllength,side;
+	long planecoord;
+} walltype;
+
+enum {north,east,south,west,northeast,southeast,southwest,northwest,nodir};		
+
+typedef int dirtype;
+
+typedef struct	statestruct
+{
+	int		shapenum;
+	int		tictime;
+	void	(*think) ();
+	struct	statestruct	*next;
+} statetype;
+
+typedef struct objstruct
+{
+  enum {no,noalways,yes,always}	active;
+  short int		ticcount;
+  int	obclass;
+  statetype	*state;
+
+  unsigned char flags;
+  boolean	shootable;
+  boolean	tileobject;		// true if entirely inside one tile
+
+  long		distance;
+  dirtype	dir;
+  fixed 	x,y;
+  unsigned short	tilex,tiley;
+  short int	 viewx;
+  unsigned short	viewheight;
+
+  short int 		angle;
+  short int		hitpoints;
+  long		speed;
+
+  long	size;			// global radius for hit rect calculation
+  fixed		xl,xh,yl,yh;	// hit rectangle
+
+  short int		temp1,temp2;
+  struct	objstruct	*next,*prev;
+} objtype;
+
 #include "id_vw.h"
 #include "id_in.h"
 #include "id_sd.h"
 #include "id_us.h"
+
+
+typedef struct {
+	uint8_t *BufferStart;
+	int Width, Height, Pitch;
+	int CenterX, CenterY;
+	int EnterPlaqueX, EnterPlaqueY;
+
+	fixed MinDist;
+	fixed FocalLength;
+	fixed HeightScale; // used to correct aspect ratio for heights
+	fixed ProjConst;
+} RenderSetup3D;
+
+extern RenderSetup3D renderSetup;
+extern RenderSetup2D renderSetup2D;
+extern RenderSetup2D guiSetup;
+extern RenderSetup2D hudSetup;
+
+
+#define TILEGLOBAL	(1l<<16)
+#define TILESHIFT	16l
+#define STATUSLINES		(200-144)
+#define PIXRADIUS		512
 
 
 void	Quit (char *error);		// defined in user program
@@ -88,21 +165,96 @@ void	Quit (char *error);		// defined in user program
 // replacing refresh manager with custom routines
 //
 
-#define	PORTTILESWIDE		21      // all drawing takes place inside a
-#define	PORTTILESHIGH		14		// non displayed port of this size
-
-#define UPDATEWIDE			(PORTTILESWIDE+1)
-#define UPDATEHIGH			PORTTILESHIGH
-
 #define	MAXTICS				6
-#define DEMOTICS			3
+#define MAXREALTICS (2*60)
+#define ANGLES		360		// must be divisable by 4
 
-#define	UPDATETERMINATE	0x0301
+extern	fixed sintable[ANGLES+ANGLES/4],*costable;
+extern	fixed	viewx,viewy;			// the focal point
+extern	tilept	tile,focal,right;
+extern	fixed *zbuffer;
+extern	walltype	walls[],*rightwall;
 
-extern	unsigned	mapwidth,mapheight,tics;
-extern	boolean		compatability;
+extern	unsigned	mapwidth,mapheight,tics,realtics;
+extern	long lasttimecount;
+extern	boolean		fizzlein;
 
-extern	byte		*updateptr;
-extern	unsigned	uwidthtable[UPDATEHIGH];
-extern	unsigned	blockstarts[UPDATEWIDE*UPDATEHIGH];
+
+
+
+
+extern	int	walllight1[];
+extern	int	walldark1[];
+extern	int	walllight2[];
+extern	int	walldark2[];
+
+extern unsigned topcolor,bottomcolor;
+
+
+#define MAXWALLS	50
+#define DANGERHIGH	45
+
+
+
+/*
+=============================================================================
+
+						 C3_TRACE DEFINITIONS
+
+=============================================================================
+*/
+
+int FollowTrace (fixed tracex, fixed tracey, long deltax, long deltay, int max);
+int BackTrace (int finish);
+void ForwardTrace (void);
+int FinishWall (void);
+void InsideCorner (void);
+void OutsideCorner (void);
+void FollowWalls (void);
+boolean CheckTileCoords(int x, int y);
+byte SafeTilemap(int x, int y);
+
+extern	boolean	restarttrace, reallyabsolutelypositivelyaborttrace;
+
+/*
+=============================================================================
+
+						 C3_DRAW DEFINITIONS
+
+=============================================================================
+*/
+
+void	DrawWall (walltype *wallptr);
+void	TraceRay (unsigned angle);
+fixed	FixedByFrac (fixed a, fixed b);
+void	TransformPoint (fixed gx, fixed gy, int *screenx, unsigned *screenheight);
+fixed	TransformX (fixed gx, fixed gy);
+int		FollowTrace (fixed tracex, fixed tracey, long deltax, long deltay, int max);
+void	ForwardTrace (void);
+int		FinishWall (void);
+int		TurnCounterClockwise (void);
+void	FollowWall (void);
+
+void	BuildTables (void);
+
+
+/*
+=============================================================================
+
+						 C3_ASM DEFINITIONS
+
+=============================================================================
+*/
+
+extern	unsigned short	*wallheight;
+extern	unsigned short	*wallwidth;
+extern	uint8_t*		*wallpointer;
+
+void	ScaleWalls (void);
+
+
+
+
+
+#endif
 

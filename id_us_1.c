@@ -46,13 +46,7 @@
 
 #include "id_heads.h"
 
-#pragma hdrstop
-
-#pragma warn    -pia
-
-
 //      Special imports
-extern  boolean         showscorebox;
 		ScanCode        firescan;
 
 //      Global variables
@@ -72,7 +66,7 @@ static  boolean         US_Started;
 					CursorBad;
 
 		void            (*USL_MeasureString)(char *,word *,word *) = VW_MeasurePropString,
-					(*USL_DrawString)(char *) = VWB_DrawPropString;
+					(*USL_DrawString)(char *) = VW_DrawPropString;
 
 		boolean         (*USL_SaveGame)(FILE*),(*USL_LoadGame)(FILE*);
 		void            (*USL_ResetGame)(void);
@@ -101,9 +95,8 @@ static  boolean         US_Started;
 char *
 USL_GiveSaveName(word game)
 {
-static  char    name[] = "SAVEGAMx."EXTENSION;
-
-	name[7] = '0' + game;
+	static char name[1000];
+	snprintf(name, 1000, "SAVEGAM%1i.%s", game, GamespecificExtension);
 	return(name);
 }
 
@@ -132,18 +125,22 @@ static void
 USL_ReadConfig(void)
 {
 	boolean         gotit;
-	char            sig[sizeof(EXTENSION)];
+	char            sig[strlen(GamespecificExtension)+1];
 	word            version;
 	FILE *file;
 	SDMode          sd;
 	SMMode          sm;
 	ControlType     ctl;
 
-	if (file = fopen("CONFIG."EXTENSION,"rb"))
+	char name[1000];
+	snprintf(name, 1000, "CONFIG.%s", GamespecificExtension);
+	file = fopen(name,"wb");
+
+	if (file = fopen(name,"rb"))
 	{
-		fread(sig,1,sizeof(EXTENSION),file);
+		fread(sig,1,strlen(GamespecificExtension)+1,file);
 		fread(&version,1,sizeof(version),file);
-		if (strcmp(sig,EXTENSION) || (version != ConfigVersion))
+		if (strcmp(sig,GamespecificExtension) || (version != ConfigVersion))
 		{
 			fclose(file);
 			goto rcfailed;
@@ -153,8 +150,6 @@ USL_ReadConfig(void)
 		fread(&sm,1,sizeof(sm),file);
 		fread(&ctl,1,sizeof(ctl),file);
 		fread(&(KbdDefs[0]),1,sizeof(KbdDefs[0]),file);
-		fread(&showscorebox,1,sizeof(showscorebox),file);
-		fread(&compatability,1,sizeof(compatability),file);
 		fclose(file);
 
 		HighScoresDirty = false;
@@ -166,7 +161,6 @@ rcfailed:
 		sd = sdm_Off;
 		sm = smm_Off;
 		ctl = ctrl_Keyboard;
-		showscorebox = true;
 
 		gotit = false;
 		HighScoresDirty = true;
@@ -191,10 +185,12 @@ USL_WriteConfig(void)
 
 
 	version = ConfigVersion;
-	file = fopen("CONFIG."EXTENSION,"wb");
+	char name[1000];
+	snprintf(name, 1000, "CONFIG.%s", GamespecificExtension);
+	file = fopen(name,"wb");
 	if (file != NULL)
 	{
-		fwrite(EXTENSION,1,sizeof(EXTENSION),file);
+		fwrite(GamespecificExtension,1,strlen(GamespecificExtension)+1,file);
 		fwrite(&version,1,sizeof(version),file);
 		fwrite(Scores,1,sizeof(HighScore) * MaxScores,file);
 		fwrite(&SoundMode,1,sizeof(SoundMode),file);
@@ -202,8 +198,6 @@ USL_WriteConfig(void)
 		Controls[0] = ctrl_Keyboard;
 		fwrite(&(Controls[0]),1,sizeof(Controls[0]),file);
 		fwrite(&(KbdDefs[0]),1,sizeof(KbdDefs[0]),file);
-		fwrite(&showscorebox,1,sizeof(showscorebox),file);
-		fwrite(&compatability,1,sizeof(compatability),file);
 		fclose(file);
 	}
 }
@@ -235,7 +229,7 @@ USL_CheckSavedGames(void)
 			if
 			(
 				(fread(game,1,sizeof(*game),file) == sizeof(*game))
-			&&      (!strcmp(game->signature,EXTENSION))
+			&&      (!strcmp(game->signature,GamespecificExtension))
 //			&&      (game->oldtest == &PrintX)
 			)
 				ok = true;
@@ -247,7 +241,7 @@ USL_CheckSavedGames(void)
 			game->present = true;
 		else
 		{
-			strcpy(game->signature,EXTENSION);
+			strcpy(game->signature,GamespecificExtension);
 			game->present = false;
 			strcpy(game->name,"Empty");
 		}
@@ -271,7 +265,6 @@ US_Startup(void)
 
 	USL_ReadConfig();               // Read config file
 
-	compatability = false;
 	US_Started = true;
 }
 
@@ -623,7 +616,7 @@ US_RestoreWindow(WindowRec *win)
 //
 ///////////////////////////////////////////////////////////////////////////
 static void
-USL_XORICursor(int x,int y,char *s,word cursor)
+USL_XORICursor(int x,int y,char *s,word cursor, boolean draw)
 {
 	char    buf[MaxString];
 	word    w,h;
@@ -634,7 +627,12 @@ USL_XORICursor(int x,int y,char *s,word cursor)
 
 	px = x + w - 1;
 	py = y;
+	int temp = fontcolor;
+	if (!draw) {
+		fontcolor = 0;
+	}
 	USL_DrawString("\x80");
+	fontcolor = temp;
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -678,7 +676,7 @@ US_LineInput(int x,int y,char *buf,char *def,boolean escok,
 	while (!done)
 	{
 		if (cursorvis)
-			USL_XORICursor(x,y,s,cursor);
+			USL_XORICursor(x,y,s,cursor,false);
 //	asm     pushf
 //	asm     cli
 
@@ -782,7 +780,10 @@ US_LineInput(int x,int y,char *buf,char *def,boolean escok,
 		{
 			px = x;
 			py = y;
+			int temp=fontcolor;
+			fontcolor = 0;
 			USL_DrawString(olds);
+			fontcolor = temp;
 			strcpy(olds,s);
 
 			px = x;
@@ -806,13 +807,13 @@ US_LineInput(int x,int y,char *buf,char *def,boolean escok,
 			cursorvis ^= true;
 		}
 		if (cursorvis)
-			USL_XORICursor(x,y,s,cursor);
+			USL_XORICursor(x,y,s,cursor,true);
 
 		SPG_FlipBuffer();
 	}
 
 	if (cursorvis)
-		USL_XORICursor(x,y,s,cursor);
+		USL_XORICursor(x,y,s,cursor,false);
 	if (!result)
 	{
 		px = x;

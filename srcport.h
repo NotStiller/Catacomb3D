@@ -1,5 +1,4 @@
 /* Catacomb 3-D SDL Port
- * Copyright (C) 2014 twitter.com/NotStiller
  * Copyright (C) 1993-2014 Flat Rock Software
  *
  * This program is free software; you can redistribute it and/or modify
@@ -22,50 +21,22 @@
 
 #include <stdint.h>
 #include <assert.h>
+#include <stdio.h>
+
+#include "sp_audio.h"
+#include "sp_data.h"
+#include "sp_graph.h"
+#include "sp_main.h"
 
 // the following defs are mostly accessed by the original sources
 #define CASTAT(type, where) (*(type*)&(where))
+#define RANDOM(max) (rand()%(max))
 
 typedef void* memptr;
 
-void SP_Exit();
-void SP_GameEnter();
-void SP_GameLeave();
-int  SP_StrafeOn();
-void SP_PollEvents();
-int SP_LastScan();
-char SP_LastASCII();
-int SP_Keyboard(int Key);
-void SP_SetTimeCount(long Ticks);
-long SP_TimeCount();
-
-void SPA_Init();
-void SPA_AudioCallback(void *userdata, uint8_t *stream, int len);
-void SPA_InitSamples(int NumSamples, int NumMusic);
-void SPA_RenderMusic(int SampleName, uint8_t *Data);
-void SPA_RenderSample(int SampleName, uint8_t *Data);
-void SPA_MusicOff();
-void SPA_MusicOn();
-void SP_StartMusic(int Musicname);
-int SP_PlaySound(int SoundName);
-
-void SPG_Init();
-void SPG_SetPalette();
-
-void SPD_SetupScaleWall(int Chunk);
-void SPD_SetupScalePic(int Chunk);
-void SPD_LoadGrChunk(int Chunk);
-void SPD_SetupCatacomb3DData();
-void SPG_DrawMaskedPic(uint8_t *Source, int ScrX, int ScrY);
-void SPG_DrawMaskedPicSkip(uint8_t *Source, int ScrX, int ScrY, int LowerV, int UpperV);
-void SPG_DrawPic(uint8_t *Source, int ScrX, int ScrY);
-void SPG_DrawPicSkip(uint8_t *Source, int ScrX, int ScrY, int LowerV, int UpperV);
-void SPG_FlipBuffer();
-
-typedef struct
-{
-  uint16_t bit0,bit1;	// 0-255 is a character, > is a pointer to a node
-} huffnode;
+#define NUMMAPS		30
+#define MAPPLANES	3
+extern	void **grsegs;
 
 typedef	struct
 {
@@ -77,12 +48,18 @@ typedef	struct
 	char *texts[27];
 	uint16_t *rawplanes[3];
 	long rawplaneslength[3];
-	uint16_t *mapsegs[3];
 } maptype;
 
 extern int loadedmap;
+extern maptype *curmap;
 extern maptype mapheaderseg[30];
 
+
+//c3_draw and c4_draw
+#define PI	3.141592657
+#define ANGLEQUAD	(ANGLES/4)
+#define FINEANGLES	3600
+#define MINRATIO	16
 
 
  

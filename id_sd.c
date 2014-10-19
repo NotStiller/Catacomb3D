@@ -41,17 +41,7 @@
 //			NeedsMusic - load music?
 //
 
-#pragma hdrstop		// Wierdo thing with MUSE
-
-//#include <dos.h>
-
-#ifdef	_MUSE_      // Will be defined in ID_Types.h
-#include "id_sd.h"
-#else
 #include "id_heads.h"
-#endif
-#pragma	hdrstop
-#pragma	warn	-pia
 
 #define	SDL_SoundFinished()	{SoundNumber = SoundPriority = 0;}
 
@@ -69,11 +59,6 @@
 
 //	Internal variables
 static	boolean			SD_Started;
-static	char			*ParmStrings[] =
-						{
-							"noal",
-							nil
-						};
 static	word			SoundNumber,SoundPriority;
 //static	word			t0CountTable[] = {8,8,8,8,40,40};
 
@@ -82,15 +67,8 @@ static	boolean			alNoCheck;
 static	byte		 *alSound;
 static	word			alBlock;
 static	longword		alLengthLeft;
-static	longword		alTimeCount;
 static	Instrument		alZeroInst;
 
-// This table maps channel numbers to carrier and modulator op cells
-static	byte			carriers[9] =  { 3, 4, 5,11,12,13,19,20,21},
-						modifiers[9] = { 0, 1, 2, 8, 9,10,16,17,18},
-// This table maps percussive voice numbers to op cells
-						pcarriers[5] = {19,0xff,0xff,0xff,0xff},
-						pmodifiers[5] = {16,17,18,20,21};
 
 //	Sequencer variables
 static	boolean			sqActive;
@@ -251,7 +229,6 @@ SD_Startup(void)
 	alNoCheck = false;
 
 	SP_SetTimeCount(0);
-	alTimeCount = 0;
 
 	SD_SetSoundMode(sdm_Off);
 	SD_SetMusicMode(smm_Off);
@@ -330,12 +307,12 @@ SD_Shutdown(void)
 //
 ///////////////////////////////////////////////////////////////////////////
 void
-SD_PlaySound(soundnames sound)
+SD_PlaySound(int sound)
 {
 	if ((SoundMode != sdm_AdLib) || (sound == -1))
 		return;
 
-	if (SP_PlaySound(sound)) {
+	if (SPA_PlaySound(sound)) {
 		SoundNumber = sound;
 	}
 }
@@ -390,8 +367,7 @@ SD_StopSound(void)
 void
 SD_WaitSoundDone(void)
 {
-printf("Waiting for sound not done yet !\n");
-/*	while (SD_SoundPlaying());*/
+	SPA_WaitUntilSoundIsDone();
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -403,7 +379,7 @@ void
 SD_MusicOn(void)
 {
 	sqActive = true;
-	SP_MusicOn();
+	SPA_MusicOn();
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -414,7 +390,7 @@ SD_MusicOn(void)
 void
 SD_MusicOff(void)
 {
-	SP_MusicOff();
+	SPA_MusicOff();
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -427,7 +403,7 @@ SD_StartMusic(int MusicName)
 {
 	if (MusicMode == smm_AdLib)
 	{
-		SP_StartMusic(MusicName);
+		SPA_StartMusic(MusicName);
 		SD_MusicOn();
 	}
 }

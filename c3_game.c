@@ -19,7 +19,6 @@
 // C3_GAME.C
 
 #include "c3_def.h"
-#pragma hdrstop
 
 /*
 =============================================================================
@@ -115,6 +114,7 @@ NEMESISPIC
 =============================================================================
 */
 
+boolean tileneeded[NUMFLOORS];
 boolean lumpneeded[NUMLUMPS];
 
 
@@ -141,7 +141,7 @@ void ScanInfoPlane (void)
 
 	memset (lumpneeded,0,sizeof(lumpneeded));
 
-	start = mapheaderseg[loadedmap].mapsegs[2];
+	start = gamestate.mapsegs[2];
 	for (y=0;y<mapheight;y++)
 	{
 		for (x=0;x<mapwidth;x++)
@@ -315,21 +315,27 @@ void DrawEnterScreen (void)
 {
 	int     x,y;
 
-	VW_Bar(0,0,VIEWWIDTH,VIEWHEIGHT,9);     // Medium blue
+	for (y=0; y < renderSetup.Height; y++) {
+		memset(renderSetup.BufferStart+y*renderSetup.Pitch, 9, renderSetup.Width);
+	}
 
-	x = (VIEWWIDTH - (18 * 8)) / 2 -3;
-	y = (VIEWHEIGHT - (5 * 8)) / 2;
-	SPG_DrawPic(grsegs[ENTERPLAQUEPIC],x/8*8,y);
+	x = (renderSetup2D.Width-18*8)/2;
+	y = (renderSetup2D.Height-5*8)/2;
+	SPG_DrawPic(&renderSetup2D, grsegs[ENTERPLAQUEPIC],x,y);
 
-	WindowX = x;
-	WindowW = 18 * 8;
-	PrintY = (VIEWHEIGHT/2) + 3;
-	US_CPrint (levelnames[gamestate.mapon]);
+	int width;
+	SPG_MeasureString(levelnames[gamestate.mapon], 0, &width, NULL);
+	SPG_DrawString(&renderSetup2D, x+(18*8-width)/2, y+23, levelnames[gamestate.mapon], 0, 8);
+
+	if (1) {
+		SPG_FlipBuffer();
+		IN_ClearKeysDown ();
+		IN_Ack();
+	}
 }
 
 //==========================================================================
 
-boolean tileneeded[NUMFLOORS];
 
 
 
@@ -351,21 +357,24 @@ void SetupGameLevel (void)
 //
 // randomize if not a demo
 //
-	if (DemoMode)
-	{
-		US_InitRndT(false);
-		gamestate.difficulty = gd_Normal;
-	}
-	else
-		US_InitRndT(true);
+	US_InitRndT(true);
 
 //
 // load the level
 //
-	SPD_LoadMap(gamestate.mapon);
+	SPD_LoadMap(LEVEL1TEXT+gamestate.mapon,gamestate.mapon);
+	int plane;
+	for (plane = 0; plane<MAPPLANES; plane++)
+	{
+		int size=mapheaderseg[gamestate.mapon].rawplaneslength[plane];
+		if (!size)
+			continue;
+		MM_GetPtr (&gamestate.mapsegs[plane], size);
+		memcpy(gamestate.mapsegs[plane], mapheaderseg[gamestate.mapon].rawplanes[plane], size);
+	}
 
-	mapwidth = mapheaderseg[loadedmap].width;
-	mapheight = mapheaderseg[loadedmap].height;
+	mapwidth = mapheaderseg[gamestate.mapon].width;
+	mapheight = mapheaderseg[gamestate.mapon].height;
 
 //
 // copy the wall data to a data segment array
@@ -373,7 +382,7 @@ void SetupGameLevel (void)
 	memset (tileneeded,0,sizeof(tileneeded));
 	memset (tilemap,0,sizeof(tilemap));
 	memset (actorat,0,sizeof(actorat));
-	map = mapheaderseg[loadedmap].mapsegs[0];
+	map = gamestate.mapsegs[0];
 	for (y=0;y<mapheight;y++) 
 	{
 		for (x=0;x<mapwidth;x++)
@@ -412,10 +421,10 @@ void SetupGameLevel (void)
 	for (i=1;i<NUMFLOORS;i++)
 		if (tileneeded[i])
 		{
-			SPD_SetupScaleWall (walllight1[i]);
-			SPD_SetupScaleWall (walllight2[i]);
-			SPD_SetupScaleWall (walldark1[i]);
-			SPD_SetupScaleWall (walldark2[i]);
+			SPD_SetupScaleWall (walllight1[i], walllight1[i]-STARTPICS, walllight1[i]-FIRSTWALLPIC);
+			SPD_SetupScaleWall (walllight2[i], walllight2[i]-STARTPICS, walllight2[i]-FIRSTWALLPIC);
+			SPD_SetupScaleWall (walldark1[i], walldark1[i]-STARTPICS, walldark1[i]-FIRSTWALLPIC);
+			SPD_SetupScaleWall (walldark2[i], walldark2[i]-STARTPICS, walldark2[i]-FIRSTWALLPIC);
 		}
 
 //
@@ -424,8 +433,7 @@ void SetupGameLevel (void)
 	for (i=0;i<NUMLUMPS;i++)
 		if (lumpneeded[i])
 			for (j=lumpstart[i];j<=lumpend[i];j++)
-				SPD_SetupScalePic(j);
-
+				SPD_SetupScalePic(j, j-STARTPICS, j-FIRSTSCALEPIC);
 }
 
 
@@ -445,9 +453,8 @@ void SetupGameLevel (void)
 
 void Victory (void)
 {
-	NormalScreen ();
-	CA_CacheGrChunk (FINALEPIC);
-	SPG_DrawMaskedPic(grsegs[FINALEPIC], 0, 0);
+	SPD_LoadGrChunk(FINALEPIC);
+	SPG_DrawPic(&guiSetup, grsegs[FINALEPIC], 0, 0);
 	SPG_FlipBuffer();
 	SD_PlaySound (GETBOLTSND);
 	SD_WaitSoundDone ();
@@ -482,25 +489,10 @@ void Died (void)
 // fizzle fade screen to grey
 //
 	SD_PlaySound (GAMEOVERSND);
-	SPG_DrawPic(grsegs[DEADPIC],0,0);
-	FizzleFade(VIEWWIDTH,VIEWHEIGHT,false);
+	SPG_DrawPic(&guiSetup, grsegs[DEADPIC],0,0);
+	FizzleFade(renderSetup.Width,renderSetup.Height,false);
 	IN_ClearKeysDown();
 	IN_Ack();
-}
-
-//==========================================================================
-
-/*
-===================
-=
-= NormalScreen
-=
-===================
-*/
-
-void NormalScreen (void)
-{
-	 VW_Bar(0,0,320,200,0);
 }
 
 //==========================================================================
@@ -517,15 +509,12 @@ void DrawPlayScreen (void)
 {
 	int     i,j,p,m;
 
-	VW_Bar (0,144+0,320,STATUSLINES,7);
-	VW_Bar (0,0,320,VIEWHEIGHT,7);
+	SPD_LoadGrChunk (STATUSPIC);
+	SPD_LoadGrChunk (SIDEBARSPIC);
 
-	CA_CacheGrChunk (STATUSPIC);
-	CA_CacheGrChunk (SIDEBARSPIC);
+	SPG_DrawPic(&hudSetup, grsegs[STATUSPIC],0,144+0);
 
-	SPG_DrawPic(grsegs[STATUSPIC],0,144+0);
-
-	SPG_DrawPic(grsegs[SIDEBARSPIC],8*33,0);
+	SPG_DrawPic(&hudSetup, grsegs[SIDEBARSPIC],8*33,0);
 
 	RedrawStatusWindow ();
 }
@@ -546,11 +535,11 @@ void LoadLatchMem (void)
 	int     i;
 	for (i=0;i<NUMTILE16;i++)
 	{
-		CA_CacheGrChunk (STARTTILE16+i);
+		SPD_LoadGrChunk (STARTTILE16+i);
 	}
 	for (i=FIRSTLATCHPIC+1;i<FIRSTSCALEPIC;i++)
 	{
-		CA_CacheGrChunk (i);
+		SPD_LoadGrChunk (i);
 	}
 }
 
@@ -571,7 +560,7 @@ void FizzleOut (int showlevel)
 //
 	if (showlevel)
 		DrawEnterScreen ();
-	FizzleFade(VIEWWIDTH,VIEWHEIGHT,false);
+	FizzleFade(renderSetup.Width,renderSetup.Height,false);
 }
 
 
@@ -594,9 +583,9 @@ void    DrawHighScores(void)
 	HighScore       *s;
 
 
-	CA_CacheGrChunk (HIGHSCORESPIC);
+	SPD_LoadGrChunk (HIGHSCORESPIC);
 
-	SPG_DrawPic(grsegs[HIGHSCORESPIC], 0, 0);
+	SPG_DrawPic(&guiSetup, grsegs[HIGHSCORESPIC], 0, 0);
 
 	for (i = 0,s = Scores;i < MaxScores;i++,s++)
 	{
@@ -680,7 +669,7 @@ void    CheckHighScore (long score,word other)
 		DrawHighScores ();
 		PrintY = 68 + (16 * n);
 		PrintX = 60;
-		US_LineInput(PrintX,PrintY,Scores[n].name,nil,true,MaxHighName,100);
+		US_LineInput(PrintX,PrintY,Scores[n].name,NULL,true,MaxHighName,100);
 	}
 }
 
@@ -700,6 +689,7 @@ void GameLoop (void)
 	int i,xl,yl,xh,yh;
 	char num[20];
 
+	SP_GameEnter();
 	DrawPlayScreen ();
 
 restart:
@@ -718,15 +708,13 @@ restart:
 		else
 			loadedgame = false;
 
-		SP_GameEnter();
 		PlayLoop ();
-		SP_GameLeave();
 
 		switch (playstate)
 		{
 		case ex_died:
+			SP_GameLeave();
 			Died ();
-			NormalScreen ();
 			CheckHighScore (gamestate.score,gamestate.mapon+1);
 			return;
 		case ex_warped:
@@ -737,13 +725,15 @@ restart:
 				CheckHighScore(gamestate.score,gamestate.mapon+1);
 				return;
 			}
-			break;
+			break; // break out of switch, not out of loop !
 		case ex_abort:
+			SP_GameLeave();
 			return;
 		case ex_resetgame:
 		case ex_loadedgame:
 			goto restart;
 		case ex_victorious:
+			SP_GameLeave();
 			Victory ();
 			CheckHighScore(gamestate.score,gamestate.mapon+1);
 			return;

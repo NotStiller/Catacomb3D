@@ -19,7 +19,6 @@
 // C3_PLAY.C
 
 #include "c3_def.h"
-#pragma hdrstop
 
 /*
 =============================================================================
@@ -160,7 +159,7 @@ void ExplodeWall (int tilex, int tiley)
 	new->obclass = inertobj;
 	new->active = true;
 	CASTAT(intptr_t,actorat[new->tilex][new->tiley]) = tilemap[new->tilex][new->tiley] =
-	*(mapheaderseg[loadedmap].mapsegs[0]+new->tiley*mapwidth+new->tilex) = WALLEXP;
+	*(gamestate.mapsegs[0]+new->tiley*mapwidth+new->tilex) = WALLEXP;
 }
 
 
@@ -182,7 +181,7 @@ void T_WallDie (objtype *ob)
 		tile = WALLEXP-1 + ob->temp1;
 
 	CASTAT(intptr_t,actorat[ob->tilex][ob->tiley]) = tilemap[ob->tilex][ob->tiley] =
-	*(mapheaderseg[loadedmap].mapsegs[0]+ob->tiley*mapwidth+ob->tilex) = tile;
+	*(gamestate.mapsegs[0]+ob->tiley*mapwidth+ob->tilex) = tile;
 
 	if (ob->temp1 == 1)
 	{
@@ -275,7 +274,7 @@ void T_Gate (objtype *ob)
 	//
 	// warp
 	//
-		VW_Bar (26,144+4,232,9,STATUSCOLOR);		// clear text description
+		SPG_Bar(&hudSetup, 26, 148, 232, 9, STATUSCOLOR);
 		IN_ClearKeysDown ();
 		if (ob->temp1)
 		{
@@ -300,7 +299,7 @@ void T_Gate (objtype *ob)
 		// teleport out of level
 		//
 			playstate = ex_warped;
-			spot = (int)*(mapheaderseg[loadedmap].mapsegs[0]+ob->tiley*mapwidth+ob->tilex)-NAMESTART;
+			spot = (int)*(gamestate.mapsegs[0]+ob->tiley*mapwidth+ob->tilex)-NAMESTART;
 			if (spot<1)
 				gamestate.mapon++;
 			else
@@ -1253,4 +1252,5 @@ void T_Bounce (objtype *ob)
 	}
 	CalcBounds (ob);
 }
+
 

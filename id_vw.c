@@ -1,4 +1,4 @@
-/* Catacomb 3-D Source Code
+/* Catacomb 3-D SDL Port
  * Copyright (C) 1993-2014 Flat Rock Software
  *
  * This program is free software; you can redistribute it and/or modify
@@ -16,36 +16,11 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-// ID_VW.C
 
 #include "id_heads.h"
 
-
+int			px,py;
+byte		fontcolor;
 unsigned	fontnumber;		// 0 based font number for drawing
 
-void
-VWL_MeasureString (char *string, word *width, word *height, fontstruct *font)
-{
-	byte *f = (byte*)font;
 
-	*height = font->height;
-	for (*width = 0;*string;string++)
-		*width += font->width[*(byte*)string];
-
-}
-
-void	VW_MeasurePropString (char *string, word *width, word *height)
-{
-	VWL_MeasureString(string,width,height,(fontstruct *)grsegs[STARTFONT+fontnumber]);
-}
-
-void VWB_DrawPropString(char *string)
-{
-	int x,y;
-	x = px;
-	y = py;
-	VW_DrawPropString (string);
-}
-
-
-//===========================================================================

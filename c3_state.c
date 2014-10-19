@@ -19,7 +19,6 @@
 // C3_STATE.C
 
 #include "c3_def.h"
-#pragma hdrstop
 
 /*
 =============================================================================
@@ -543,4 +542,5 @@ void ShootActor (objtype *ob, unsigned damage)
 	}
 	ob->ticcount = ob->state->tictime;
 }
+
 

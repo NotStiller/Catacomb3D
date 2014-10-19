@@ -115,9 +115,6 @@ void MouseButtons(unsigned int *B);
 void MouseDelta(int *X, int *Y);
 
 typedef	enum		{
-						demo_Off,demo_Record,demo_Playback,demo_PlayDone
-					} Demo;
-typedef	enum		{
 						ctrl_Keyboard,
 							ctrl_Keyboard1 = ctrl_Keyboard,ctrl_Keyboard2,
 						ctrl_Mouse
@@ -149,15 +146,10 @@ typedef	struct		{
 					} KeyboardDef;
 // Global variables
 //extern	boolean		Keyboard[]; // newly defined in back end
-extern	boolean		Paused;
 //extern	char		LastASCII; // newly defined in back end
 //extern	ScanCode	LastScan; // newly defined in back end
 extern	KeyboardDef	KbdDefs[];
 extern	ControlType	Controls[MaxPlayers];
-
-extern	Demo		DemoMode;
-extern	byte		*DemoBuffer;
-extern	word		DemoOffset,DemoSize;
 
 // DEBUG - put names in prototypes
 extern	void		IN_Startup(void),IN_Shutdown(void),
@@ -167,12 +159,9 @@ extern	void		IN_Startup(void),IN_Shutdown(void),
 					IN_ReadCursor(CursorInfo *),
 					IN_ReadControl(int,ControlInfo *),
 					IN_SetControlType(int,ControlType),
-					IN_StartDemoPlayback(byte *buffer,word bufsize),
-					IN_StopDemo(void),IN_FreeDemoBuffer(void),
 					IN_Ack(void);
 extern	boolean		IN_UserInput(longword delay,boolean clear),
-					IN_IsUserInput(void),
-					IN_StartDemoRecord(word bufsize);
+					IN_IsUserInput(void);
 extern	byte		*IN_GetScanName(ScanCode);
 
 #endif

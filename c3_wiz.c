@@ -19,7 +19,6 @@
 // C3_WIZ.C
 
 #include "c3_def.h"
-#pragma hdrstop
 
 /*
 =============================================================================
@@ -145,7 +144,7 @@ boolean ShotClipMove (objtype *ob, long xmove, long ymove);
 
 void DrawChar (unsigned x, unsigned y, unsigned tile)
 {
-	VW_DrawTile8(x,y,tile);
+	SPG_DrawTile8(&hudSetup, 8*x,y,(byte*)grsegs[STARTTILE8]+64*tile);
 }
 
 
@@ -455,20 +454,11 @@ void GiveGoal (void)
 
 void DrawLevelNumber (int number)
 {
-	char	str[10];
-	int		len;
-	unsigned	temp;
+	char buf[100];
 
-	if (number<9)
-		PrintX=13;
-	else
-		PrintX = 5;
-	PrintY = 144+4;
-	VW_Bar (5,144+4,16,9,STATUSCOLOR);
-	temp = fontcolor;
-	fontcolor = TEXTCOLOR^STATUSCOLOR;
-	US_PrintUnsigned (number+1);
-	fontcolor = temp;
+	SPG_Bar(&hudSetup, 5, 148, 16, 9, STATUSCOLOR);
+	sprintf(buf, "%i", number+1);
+	SPG_DrawString(&guiSetup, (number<9)?13:5, 148, buf, 0, TEXTCOLOR);
 }
 
 
@@ -492,7 +482,7 @@ void DrawText (void)
 	//
 	// draw a new text description if needed
 	//
-	number = *(byte*)(mapheaderseg[loadedmap].mapsegs[0]+player->tiley*mapwidth+player->tilex)-NAMESTART;
+	number = *(byte*)(gamestate.mapsegs[0]+player->tiley*mapwidth+player->tilex)-NAMESTART;
 
 	if ( number>26 )
 		number = 0;
@@ -501,11 +491,6 @@ void DrawText (void)
 		return;
 
 	lasttext = number;
-
-	PrintY = 144+4;
-	WindowX = 26;
-	WindowW = 232;
-
 	text = mapheaderseg[loadedmap].texts[number];
 
 	if (text == NULL) {
@@ -514,11 +499,10 @@ void DrawText (void)
 		memcpy (str,text,80);
 	}
 
-	VW_Bar (26,144+4,232,9,STATUSCOLOR);
-	temp = fontcolor;
-	fontcolor = TEXTCOLOR^STATUSCOLOR;
-	US_CPrintLine (str);
-	fontcolor = temp;
+	SPG_Bar(&hudSetup, 26, 148, 232, 9, STATUSCOLOR);
+	int width;
+	SPG_MeasureString(str, 0, &width, NULL);
+	SPG_DrawString(&guiSetup, 26+(232-width)/2, 148, str, 0, TEXTCOLOR);
 }
 
 //===========================================================================
@@ -551,7 +535,7 @@ void DrawCompass (void)
 
 	lastcompass = number;
 
-	SPG_DrawPic(grsegs[COMPAS1PIC+15-number],8*COMPASSX,144+COMPASSY);
+	SPG_DrawPic(&hudSetup, grsegs[COMPAS1PIC+15-number],8*COMPASSX,144+COMPASSY);
 }
 
 //===========================================================================
@@ -567,14 +551,14 @@ void DrawCompass (void)
 
 void DrawBars (void)
 {
-	VW_Bar (34*8,POWERLINE,40,MAXSHOTPOWER,1);
+	SPG_Bar(&hudSetup, 34*8, POWERLINE, 40, MAXSHOTPOWER, 1);
 
 //
 // shot power
 //
 	if (gamestate.shotpower)
 	{
-		SPG_DrawPicSkip(grsegs[SHOTPOWERPIC], 34*8, POWERLINE, MAXSHOTPOWER-gamestate.shotpower, MAXSHOTPOWER);
+		SPG_DrawPicSkip(&hudSetup, grsegs[SHOTPOWERPIC], 34*8, POWERLINE, MAXSHOTPOWER-gamestate.shotpower, MAXSHOTPOWER);
 	}
 
 //
@@ -582,13 +566,13 @@ void DrawBars (void)
 //
 	if (gamestate.body)
 	{
-		SPG_DrawPicSkip(grsegs[BODYPIC], 34*8, BODYLINE, 0, gamestate.body);
+		SPG_DrawPicSkip(&hudSetup, grsegs[BODYPIC], 34*8, BODYLINE, 0, gamestate.body);
 	}
 
 
 	if (gamestate.body != MAXBODY)
 	{
-		SPG_DrawPicSkip(grsegs[NOBODYPIC], 34*8, BODYLINE, gamestate.body, MAXBODY);
+		SPG_DrawPicSkip(&hudSetup, grsegs[NOBODYPIC], 34*8, BODYLINE, gamestate.body, MAXBODY);
 	}
 }
 
@@ -776,7 +760,7 @@ void ClearShotPower (void)
 	if (!gamestate.shotpower)
 		return;
 
-	SPG_DrawPic(grsegs[NOSHOTPOWERPIC], 8*34, POWERLINE);
+	SPG_DrawPic(&hudSetup, grsegs[NOSHOTPOWERPIC], 8*34, POWERLINE);
 
 	gamestate.shotpower = 0;
 }
@@ -939,14 +923,15 @@ void ReadScroll (int scroll)
 //
 // make wall pictures purgable
 //
-	CA_CacheGrChunk (SCROLLTOPPIC);
-	CA_CacheGrChunk (SCROLL1PIC + scroll);
-	SPG_DrawPic(grsegs[SCROLLTOPPIC],0,0);
-	SPG_DrawPic(grsegs[SCROLL1PIC+scroll],0,32);
+	SPD_LoadGrChunk (SCROLLTOPPIC);
+	SPD_LoadGrChunk (SCROLL1PIC + scroll);
+	SPG_DrawPic(&hudSetup, grsegs[SCROLLTOPPIC],0,0);
+	SPG_DrawPic(&hudSetup, grsegs[SCROLL1PIC+scroll],0,32);
 	MM_FreePtr (&grsegs[SCROLL1PIC + scroll]);
 	MM_FreePtr (&grsegs[SCROLLTOPPIC]);
 
-	VW_WaitVBL(10);
+
+	SPG_FlipBuffer();
 waitkey:
 	IN_ClearKeysDown ();
 	IN_Ack();
@@ -978,6 +963,7 @@ void TakeDamage (int points)
 	}
 
 	bordertime = points*FLASHTICS;
+	SPG_SetBorderColor(FLASHCOLOR);
 
 	if (gamestate.body<MAXBODY/3)
 		SD_PlaySound (TAKEDMGHURTSND);
@@ -1014,7 +1000,7 @@ void OpenDoor (uint16_t bx, uint16_t by, uint16_t doorbase)
 
 	x=bx;
 	y=by;
-	map = mapheaderseg[loadedmap].mapsegs[0]+mapwidth*y+x;
+	map = gamestate.mapsegs[0]+mapwidth*y+x;
 	while (tilemap[x][y]-doorbase>=0 && tilemap[x][y]-doorbase<4)
 	{
 		tilemap[x][y] = CASTAT(intptr_t, actorat[x][y]) = *map = 0;
@@ -1022,7 +1008,7 @@ void OpenDoor (uint16_t bx, uint16_t by, uint16_t doorbase)
 		x--;
 	}
 	x=bx+1;
-	map = mapheaderseg[loadedmap].mapsegs[0]+mapwidth*y+x;
+	map = gamestate.mapsegs[0]+mapwidth*y+x;
 	while (tilemap[x][y]-doorbase>=0 && tilemap[x][y]-doorbase<4)
 	{
 		tilemap[x][y] = CASTAT(intptr_t,actorat[x][y]) = *map = 0;
@@ -1031,7 +1017,7 @@ void OpenDoor (uint16_t bx, uint16_t by, uint16_t doorbase)
 	}
 	x=bx;
 	y=by-1;
-	map = mapheaderseg[loadedmap].mapsegs[0]+mapwidth*y+x;
+	map = gamestate.mapsegs[0]+mapwidth*y+x;
 	while (tilemap[x][y]-doorbase>=0 && tilemap[x][y]-doorbase<4)
 	{
 		tilemap[x][y] = CASTAT(intptr_t,actorat[x][y]) = *map = 0;
@@ -1039,7 +1025,7 @@ void OpenDoor (uint16_t bx, uint16_t by, uint16_t doorbase)
 		y--;
 	}
 	y=by+1;
-	map = mapheaderseg[loadedmap].mapsegs[0]+mapwidth*y+x;
+	map = gamestate.mapsegs[0]+mapwidth*y+x;
 	while (tilemap[x][y]-doorbase>=0 && tilemap[x][y]-doorbase<4)
 	{
 		tilemap[x][y] = CASTAT(intptr_t,actorat[x][y]) = *map = 0;
@@ -1460,7 +1446,7 @@ void SpawnPlayer (int tilex, int tiley, int dir)
 	player->y = ((long)tiley<<TILESHIFT)+TILEGLOBAL/2;
 	player->state = &s_player;
 	player->angle = (1-dir)*90;
-	player->size = MINDIST;
+	player->size = renderSetup.MinDist;
 	CalcBounds (player);
 	if (player->angle<0)
 		player->angle += ANGLES;

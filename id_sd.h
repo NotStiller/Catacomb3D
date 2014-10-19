@@ -1,4 +1,4 @@
-/* Catacomb 3-D Source Code
+/* Catacomb 3-D SDL Port
  * Copyright (C) 1993-2014 Flat Rock Software
  *
  * This program is free software; you can redistribute it and/or modify
@@ -152,7 +152,7 @@ extern	SMMode		MusicMode;
 extern	void	SD_Startup(void),
 				SD_Shutdown(void),
 				SD_Default(boolean gotit,SDMode sd,SMMode sm),
-				SD_PlaySound(soundnames sound),
+				SD_PlaySound(int sound),
 				SD_StopSound(void),
 				SD_WaitSoundDone(void),
 				SD_StartMusic(int MusicName),

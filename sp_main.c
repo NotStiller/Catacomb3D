@@ -1,5 +1,4 @@
 /* Catacomb 3-D SDL Port
- * Copyright (C) 2014 twitter.com/NotStiller
  * Copyright (C) 1993-2014 Flat Rock Software
  *
  * This program is free software; you can redistribute it and/or modify
@@ -57,7 +56,6 @@ int main(int argc, char **argv) {
 	SPD_SetupCatacomb3DData();
 
 	InitGame ();
-	CheckMemory ();
 	LoadLatchMem ();
 
 	SDL_PauseAudio(0);
@@ -76,19 +74,23 @@ void SP_PollEvents() {
 			pleaseExit = true;
 		} else if (event.type == SDL_KEYDOWN || event.type == SDL_KEYUP) {
 			boolean down = event.type == SDL_KEYDOWN;
-			int idKey = translateKey(event.key.keysym.sym);
-			if (idKey != 0) {
-				keyboard[idKey] = down;
-				if (down) {
-					lastScan = idKey;
+			if (down && event.key.keysym.sym == SDLK_m) { // override mouse grabbing
+				toggleMouseGrab();
+			} else {
+				int idKey = translateKey(event.key.keysym.sym);
+				if (idKey != 0) {
+					keyboard[idKey] = down;
+					if (down) {
+						lastScan = idKey;
+					}
 				}
-			}
-			char c=0;
-			if ((event.key.keysym.unicode&0xFF80) == 0) {
-				c = event.key.keysym.unicode&0x7F;
-			}
-			if (down && c != 0) {
-				lastASCII = c;
+				char c=0;
+				if ((event.key.keysym.unicode&0xFF80) == 0) {
+					c = event.key.keysym.unicode&0x7F;
+				}
+				if (down && c != 0) {
+					lastASCII = c;
+				}
 			}
 		} else if (event.type == SDL_MOUSEMOTION) {
 			mouseDX += event.motion.xrel;
@@ -105,6 +107,9 @@ void SP_PollEvents() {
 			} else if (event.button.button == SDL_BUTTON_RIGHT) {
 				mouseButtons &= ~2;
 			}
+		} else if (event.type == SDL_VIDEORESIZE) {
+			SDL_ResizeEvent *resize = (SDL_ResizeEvent*)&event;
+			SPG_SetWindowSize(resize->w, resize->h);
 		}
 	}
 }
@@ -148,6 +153,16 @@ static int translateKey(int Sym) {
 	case SDLK_F10: return sc_F10; break;
 	case SDLK_F11: return sc_F11; break;
 	case SDLK_F12: return sc_F12; break;
+	case SDLK_1: return 2; break;
+	case SDLK_2: return 3; break;
+	case SDLK_3: return 4; break;
+	case SDLK_4: return 5; break;
+	case SDLK_5: return 6; break;
+	case SDLK_6: return 7; break;
+	case SDLK_7: return 8; break;
+	case SDLK_8: return 9; break;
+	case SDLK_9: return 10; break;
+	case SDLK_0: return 11; break;
 	case SDLK_a: return sc_A; break;
 	case SDLK_b: return sc_B; break;
 	case SDLK_c: return sc_C; break;
@@ -195,6 +210,10 @@ static void toggleMouseGrab() {
 void SP_Exit() {
 	pleaseExit = true;
 	exit(0);
+}
+
+int SP_GameActive() {
+	return inGame;
 }
 
 void SP_GameEnter() {

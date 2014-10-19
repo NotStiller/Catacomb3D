@@ -1,5 +1,4 @@
 /* Catacomb 3-D SDL Port
- * Copyright (C) 2014 twitter.com/NotStiller
  * Copyright (C) 1993-2014 Flat Rock Software
  *
  * This program is free software; you can redistribute it and/or modify
@@ -43,7 +42,7 @@ signed short *curMusic = NULL;
 int curMusicLength, curMusicHead=0;
 
 // this function does the sampling
-void SPA_AudioCallback(void *userdata, uint8_t *stream, int len) {
+static void audioCallback(void *userdata, uint8_t *stream, int len) {
 	len /= 2;
 	int i;
 
@@ -91,25 +90,25 @@ void SPA_Init() {
 	desired.format = AUDIO_S16;
 	desired.channels = 1;
 	desired.samples = 1024;
-	desired.callback = SPA_AudioCallback;
+	desired.callback = audioCallback;
 	desired.userdata = NULL;
 	assert(SDL_OpenAudio(&desired, NULL) == 0);
 
 }
 
-void SP_MusicOff(void) {
+void SPA_MusicOff(void) {
 	SDL_LockAudio();
 	musicOn = 0;
 	SDL_UnlockAudio();
 }
 
-void SP_MusicOn(void) {
+void SPA_MusicOn(void) {
 	SDL_LockAudio();
 	musicOn = 1;
 	SDL_UnlockAudio();
 }
 
-int SP_PlaySound(int SoundName) {
+int SPA_PlaySound(int SoundName) {
 // priority is not loaded, it's anyway always 0.
 	if (SoundName < 0 || SoundName >= prerenderedSoundsNum) {
 		return false;
@@ -117,13 +116,22 @@ int SP_PlaySound(int SoundName) {
 	SDL_LockAudio();
 	curSnd = prerenderedSounds[SoundName];
 	curSndLength = prerenderedSoundsLength[SoundName];
-	assert(curSnd != NULL);
 	curSndHead = 0;
 	SDL_UnlockAudio();
 	return true;
 }
 
-void SP_StartMusic(int MusicName) {
+void SPA_WaitUntilSoundIsDone() {
+	long end = SDL_GetTicks()+2000;
+	while (SDL_GetTicks() < end) {
+		if (curSnd == NULL) {
+			return;
+		}
+	}
+}
+
+
+void SPA_StartMusic(int MusicName) {
 	if (MusicName < 0 || MusicName >= prerenderedMusicNum) {
 		return;
 	}

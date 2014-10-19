@@ -30,20 +30,6 @@
 
 //===========================================================================
 
-#define	G_P_SHIFT		4	// global >> ?? = pixels
-
-#define	SCREENWIDTH		40
-#define CHARWIDTH		1
-#define TILEWIDTH		2
-#define GRPLANES		4
-#define BYTEPIXELS		8
-
-#define VIRTUALHEIGHT	300
-#define	VIRTUALWIDTH	512
-
-
-#define	MAXSHIFTS		4
-
 #define WHITE			15			// graphics mode independant colors
 #define BLACK			0
 #define FIRSTCOLOR		1
@@ -52,10 +38,6 @@
 #define F_BLACK			15
 #define F_FIRSTCOLOR	14
 #define F_SECONDCOLOR	3
-
-#define SCREENXMASK		(~7)
-#define SCREENXPLUS		(7)
-#define SCREENXDIV		(8)
 
 //===========================================================================
 
@@ -67,14 +49,6 @@ typedef struct
 	xl,yl,xh,yh,
 	shifts;
 } spritetabletype;
-
-typedef	struct
-{ // the first three fields are filled in by software ! can be erased anyway...
-	uint16_t	sourceoffset[MAXSHIFTS];
-	uint16_t	planesize[MAXSHIFTS];
-	uint16_t	width[MAXSHIFTS];
-	byte		data[];
-} spritetype;		// the memptr for each sprite points to this
 
 typedef struct
 {
@@ -98,33 +72,21 @@ extern	spritetabletype *spritetable;
 
 extern	unsigned	fontnumber;		// 0 based font number for drawing
 extern	int			px,py;
-extern	byte		pdrawmode,fontcolor;
+extern	byte		fontcolor;
 
 //===========================================================================
 
-
-void	VW_ClearVideo (int color);
-void	VW_WaitVBL (int number);
-
-//
-// block addressable routines
-//
-
 void VW_DrawTile8(unsigned x, unsigned y, unsigned tile);
-void VW_DrawTile8M(unsigned x, unsigned y, unsigned tile);
 
 //
 // pixel addressable routines
 //
-void	VW_MeasurePropString (char *string, word *width, word *height);
+void VW_MeasurePropString (char *string, word *width, word *height);
 void VW_DrawPropString (char *string);
 
 void VW_Plot(unsigned x, unsigned y, unsigned color);
 void VW_Hlin(unsigned xl, unsigned xh, unsigned y, unsigned color);
 void VW_Vlin(unsigned yl, unsigned yh, unsigned x, unsigned color);
-void VW_Bar (unsigned x, unsigned y, unsigned width, unsigned height,
-	unsigned color);
-
-void VWB_DrawPropString	 (char *string);
+void VW_Bar (unsigned x, unsigned y, unsigned width, unsigned height, unsigned color);
 
 //===========================================================================

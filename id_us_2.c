@@ -24,11 +24,10 @@
 //      Hacked up for Catacomb 3D
 //
 
-#include "id_heads.h"
+#include "c3_def.h"
 
 
 //      Special imports
-extern  boolean         showscorebox;
 		ScanCode        firescan;
 
 //      Global variables
@@ -139,8 +138,6 @@ static  boolean USL_ConfigCustom(UserCall call,struct UserItem *item),
 				USL_Joy2Custom(UserCall call,struct UserItem *item),
 				USL_LoadCustom(UserCall call,struct UserItem *item),
 				USL_SaveCustom(UserCall call,struct UserItem *item),
-				USL_ScoreCustom(UserCall call,struct UserItem *item),
-				USL_CompCustom(UserCall call,struct UserItem *item),
 				USL_PongCustom(UserCall call,struct UserItem *item);
 
 #define DefButton(key,text)                             uii_Button,ui_Normal,key,text
@@ -197,16 +194,6 @@ static  boolean USL_ConfigCustom(UserCall call,struct UserItem *item),
 	UserItemGroup   loadgamegroup = {4,3,CP_LOADMENUPIC,sc_None,loadsavegamei,USL_LoadCustom};
 	UserItemGroup   savegamegroup = {4,3,CP_SAVEMENUPIC,sc_None,loadsavegamei,USL_SaveCustom};
 
-	// Options menu
-	UserItemGroup   scoregroup = {0,0,0,sc_None,0,USL_ScoreCustom};
-	UserItemGroup   compgroup = {0,0,0,sc_None,0,USL_CompCustom};
-	UserItem optionsi[] =
-	{
-		{DefFolder(sc_S,"",&scoregroup)},
-		{DefFolder(sc_C,"",&compgroup)},
-		{uii_Bad}
-	};
-	UserItemGroup   optionsgroup = {8,0,CP_OPTIONSMENUPIC,sc_None,optionsi};
 
 	// Keyboard menu
 	UserItem keyi[] =
@@ -224,10 +211,8 @@ static  boolean USL_ConfigCustom(UserCall call,struct UserItem *item),
 	UserItemGroup   keygroup = {0,0,CP_KEYMOVEMENTPIC,sc_None,keyi,USL_KeyCustom};
 	UserItem keybi[] =
 	{
-#ifdef  CAT3D
 		{DefButton(sc_J,"FIRE")},
 		{DefButton(sc_P,"STRAFE")},
-#endif
 		{uii_Bad}
 	};
 	UserItemGroup   keybgroup = {0,0,CP_KEYBUTTONPIC,sc_None,keybi,USL_KeyCustom};
@@ -263,7 +248,7 @@ static  boolean USL_ConfigCustom(UserCall call,struct UserItem *item),
 		{DefFolder(sc_L,"LOAD GAME",&loadgamegroup)},
 		{DefFolder(sc_S,"SAVE GAME",&savegamegroup)},
 		{DefFolder(sc_C,"CONFIGURE",&configgroup)},
-		{DefButton(sc_R,nil),uc_Return},        // Return to Game/Demo
+		{DefButton(sc_R,NULL),uc_Return},        // Return to Game/Demo
 		{DefButton(sc_E,"END GAME"),uc_Abort},
 		{DefFolder(sc_B,"SKULL 'N' BONES",&ponggroup)},
 		{DefButton(sc_Q,"QUIT"),uc_Quit},
@@ -319,7 +304,7 @@ USL_DrawItemIcon(UserItem *item)
 		tile = TileBase + ((flags & ui_Selected)? 3 : 2);
 	else
 		tile = TileBase + ((flags & ui_Selected)? 1 : 0);
-	VW_DrawTile8(item->x/SCREENXDIV,item->y,tile);
+	VW_DrawTile8(item->x/8,item->y,tile);
 }
 
 static void
@@ -373,14 +358,14 @@ USL_DrawCtlPanelContents(void)
 	int                             x,y;
 	UserItem               		    *item;
 
-	if (topcard->custom && topcard->custom(uic_DrawCard,nil))
+	if (topcard->custom && topcard->custom(uic_DrawCard,NULL))
 		return;
 
 	if (topcard->title)
 	{
 		// Draw the title
 		MyLine(CtlPanelSY + 7);
-		SPG_DrawPic(grsegs[topcard->title], (CtlPanelSX + 6)/8*8,CtlPanelSY);
+		SPG_DrawPic(&guiSetup, grsegs[topcard->title], (CtlPanelSX + 6)/8*8,CtlPanelSY);
 
 	}
 
@@ -404,7 +389,7 @@ USL_DrawCtlPanelContents(void)
 		y += 8;
 	}
 	if (topcard->custom)
-		topcard->custom(uic_TouchupCard,nil);
+		topcard->custom(uic_TouchupCard,NULL);
 }
 
 static void
@@ -413,7 +398,7 @@ USL_DrawCtlPanel(void)
 	if (topcard->items || topcard->title)
 	{
 		// Draw the backdrop
-		SPG_DrawPic(grsegs[CP_MENUSCREENPIC],0,0);
+		SPG_DrawPic(&guiSetup, grsegs[CP_MENUSCREENPIC],0,0);
 
 		// Draw the contents
 		USL_DrawCtlPanelContents();
@@ -426,7 +411,7 @@ USL_DrawCtlPanel(void)
 static void
 USL_DialogSetup(word w,word h,word *x,word *y)
 {
-	SPG_DrawMaskedPic(grsegs[CP_MENUMASKPICM], CtlPanelSX/8*8,CtlPanelSY);
+	SPG_DrawPic(&guiSetup, grsegs[CP_MENUMASKPICM], CtlPanelSX/8*8,CtlPanelSY);
 
 
 	*x = CtlPanelSX + ((CtlPanelW - w) / 2);
@@ -461,7 +446,6 @@ USL_ShowLoadSave(char *s,char *name)
 	USL_DrawString(msg);
 
 	SPG_FlipBuffer();
-
 	IN_UserInput(100, true);
 }
 
@@ -598,48 +582,13 @@ USL_HandleError(int num)
 	else
 		strcat(buf,sys_errlist[num]);
 
-	USL_CtlDialog(buf,"PRESS ANY KEY",nil);
+	USL_CtlDialog(buf,"PRESS ANY KEY",NULL);
 	SPG_FlipBuffer();
 
 	IN_ClearKeysDown();
 	IN_Ack();
 
 	SPG_FlipBuffer();
-}
-
-static void
-USL_SetOptionsText(void)
-{
-	optionsi[0].text = showscorebox? "SCORE BOX (ON)" : "SCORE BOX (OFF)";
-	optionsi[1].text = compatability? "SVGA COMPATIBILITY (ON)" : "SVGA COMPATIBILITY (OFF)";
-}
-
-#pragma argsused
-static boolean
-USL_ScoreCustom(UserCall call,UserItem  *item)
-{
-	if (call != uic_SetupCard)
-		return(false);
-
-	showscorebox ^= true;
-	USL_CtlDialog(showscorebox? "Score box now on" : "Score box now off",
-					"Press any key",nil);
-	USL_SetOptionsText();
-	return(true);
-}
-
-#pragma argsused
-static boolean
-USL_CompCustom(UserCall call,UserItem *item)
-{
-	if (call != uic_SetupCard)
-		return(false);
-
-	compatability ^= true;
-	USL_CtlDialog(compatability? "SVGA compatibility now on" : "SVGA compatibility now off",
-					"Press any key",nil);
-	USL_SetOptionsText();
-	return(true);
 }
 
 static boolean
@@ -723,14 +672,13 @@ USL_CKSetKey(UserItem *item,word i)
 			}
 		}
 		if (on)
-			USL_CtlDialog("Key already used","Press a key",nil);
+			USL_CtlDialog("Key already used","Press a key",NULL);
 		else
 			*(KeyMaps[i]) = scan;
 	}
 	IN_ClearKeysDown();
 }
 
-#pragma argsused
 static boolean
 USL_KeySCustom(UserCall call,UserItem *item)
 {
@@ -739,7 +687,6 @@ USL_KeySCustom(UserCall call,UserItem *item)
 	return(false);
 }
 
-#pragma argsused
 static boolean
 USL_KeyCustom(UserCall call,UserItem *item)
 {
@@ -778,7 +725,6 @@ USL_KeyCustom(UserCall call,UserItem *item)
 	return(result);
 }
 
-#pragma argsused
 static boolean
 USL_Joy1Custom(UserCall call,UserItem *item)
 {
@@ -791,7 +737,6 @@ USL_Joy1Custom(UserCall call,UserItem *item)
 		return(false);
 }
 
-#pragma argsused
 static boolean
 USL_Joy2Custom(UserCall call,UserItem *item)
 {
@@ -863,9 +808,6 @@ USL_DoLoadGame(UserItem *item)
 		loadedgame = true;
 	game->present = true;
 
-	if (loadedgame)
-		Paused = true;
-
 	USL_DrawCtlPanel();
 }
 
@@ -931,7 +873,7 @@ USL_DoSaveGame(UserItem *item)
 	VW_Bar(item->x + 1,item->y + 2,CtlPanelW - 12 - 2,7,BackColor);
 	game->oldtest = &PrintX;
 	ok = US_LineInput(item->x + 2,item->y + 2,
-						game->name,game->present? game->name : nil,
+						game->name,game->present? game->name : NULL,
 						true,MaxGameName,
 						CtlPanelW - 22);
 	if (!strlen(game->name))
@@ -1076,8 +1018,8 @@ USL_PlayPong(void)
 				BallMaxX - BallMinX + 5,BallMaxY - BallMinY + 7,
 				BackColor);
 
-		SPG_DrawMaskedPic(grsegs[PADDLESPR], cx&0xFFFE, CPaddleY);
-		SPG_DrawMaskedPic(grsegs[PADDLESPR], kx&0xFFFE, KPaddleY);
+		SPG_DrawPic(&guiSetup, grsegs[PADDLESPR], cx&0xFFFE, CPaddleY);
+		SPG_DrawPic(&guiSetup, grsegs[PADDLESPR], kx&0xFFFE, KPaddleY);
 		if (ball)
 		{
 			if
@@ -1100,7 +1042,7 @@ USL_PlayPong(void)
 				USL_DrawPongScore(kscore,cscore);
 				if (cscore == 21)
 				{
-					USL_CtlDialog("You lost!","Press any key",nil);
+					USL_CtlDialog("You lost!","Press any key",NULL);
 					done = true;
 					continue;
 				}
@@ -1114,7 +1056,7 @@ USL_PlayPong(void)
 				USL_DrawPongScore(kscore,cscore);
 				if (kscore == 21)
 				{
-					USL_CtlDialog("You won!","Press any key",nil);
+					USL_CtlDialog("You won!","Press any key",NULL);
 					done = true;
 					continue;
 				}
@@ -1161,7 +1103,7 @@ USL_PlayPong(void)
 					revdir = false;
 				}
 			}
-			SPG_DrawMaskedPic(grsegs[(x & 1)? BALL1PIXELTOTHERIGHTSPR : BALLSPR], x&0xFFFE, y);
+			SPG_DrawPic(&guiSetup, grsegs[(x & 1)? BALL1PIXELTOTHERIGHTSPR : BALLSPR], x&0xFFFE, y);
 		}
 		else if (SP_TimeCount() >= balltime)
 		{
@@ -1180,7 +1122,6 @@ USL_PlayPong(void)
 	IN_ClearKeysDown();
 }
 
-#pragma argsused
 static boolean
 USL_PongCustom(UserCall call,struct UserItem *item)
 {
@@ -1188,8 +1129,8 @@ USL_PongCustom(UserCall call,struct UserItem *item)
 		return(false);
 
 
-	SPG_DrawPic(grsegs[CP_MENUSCREENPIC],0,0);
-	SPG_DrawPic(grsegs[CP_PADDLEWARPIC],(CtlPanelSX+56)/8*8,CtlPanelSY);
+	SPG_DrawPic(&guiSetup, grsegs[CP_MENUSCREENPIC],0,0);
+	SPG_DrawPic(&guiSetup, grsegs[CP_PADDLEWARPIC],(CtlPanelSX+56)/8*8,CtlPanelSY);
 	VW_Hlin(CtlPanelSX + 3,CtlPanelEX - 3,CtlPanelSY + 12,HiliteColor ^ BackColor);
 	VW_Hlin(CtlPanelSX + 3,CtlPanelEX - 3,CtlPanelEY - 7,HiliteColor ^ BackColor);
 	USL_PlayPong();
@@ -1304,9 +1245,9 @@ static void
 USL_DownLevel(UserItemGroup *group)
 {
 	if (!group)
-		Quit("USL_DownLevel() - nil card");
+		Quit("USL_DownLevel() - NULL card");
 	USL_PushCard(group);
-	if (group->custom && group->custom(uic_SetupCard,nil))
+	if (group->custom && group->custom(uic_SetupCard,NULL))
 		USL_PopCard();
 	USL_SetupCard();
 }
@@ -1365,7 +1306,6 @@ USL_SetControlValues(void)
 		rooti[5].flags |= ui_Disabled;  // End Game
 	}
 	rootgroup.cursor = ingame? 4 : 0;
-	USL_SetOptionsText();
 	// DEBUG - write the rest of this
 }
 
@@ -1384,18 +1324,17 @@ USL_SetUpCtlPanel(void)
 
 	// Cache in all of the stuff for the control panel
 	for (i = CONTROLS_LUMP_START;i <= CONTROLS_LUMP_END;i++)
-		CA_CacheGrChunk(i);
+		SPD_LoadGrChunk(i);
 	for (i = PADDLE_LUMP_START;i <= PADDLE_LUMP_END;i++)
-		CA_CacheGrChunk(i);
-	CA_CacheGrChunk(STARTFONT+1);            // Little font
-	CA_CacheGrChunk(CP_MENUMASKPICM);        // Mask for dialogs
+		SPD_LoadGrChunk(i);
+	SPD_LoadGrChunk(STARTFONT+1);            // Little font
+	SPD_LoadGrChunk(CP_MENUMASKPICM);        // Mask for dialogs
 
 	// Do some other setup
 	fontnumber = 1;
-	US_SetPrintRoutines(VW_MeasurePropString,VWB_DrawPropString);
+	US_SetPrintRoutines(VW_MeasurePropString,VW_DrawPropString);
 	fontcolor = F_BLACK;
 	VW_Bar (0,0,320,200,3); // CAT3D patch
-	RF_FixOfs();
 
 	Communication = uc_None;
 	USL_ClearFlags(&rootgroup);
@@ -1478,7 +1417,7 @@ USL_TearDownCtlPanel(void)
 		US_PrintCentered("Quitting...");
 		fontcolor = F_BLACK;
 		SPG_FlipBuffer();
-		Quit(nil);
+		Quit(NULL);
 	}
 
 	IN_ClearKeysDown();
@@ -1495,8 +1434,6 @@ USL_TearDownCtlPanel(void)
 void
 US_ControlPanel(void)
 {
-extern void HelpScreens(void);
-
 	boolean         resetitem,on;
 	word            i;
 	int                     ydelta;
@@ -1544,6 +1481,9 @@ extern void HelpScreens(void);
 		}
 
 		SPG_FlipBuffer();
+		if (SPG_PollRedraw()) {
+			USL_DrawCtlPanel();
+		}
 
 		if (SP_LastScan())
 		{
@@ -1566,7 +1506,6 @@ extern void HelpScreens(void);
 				resetitem = true;
 				break;
 			case sc_F1:
-				HelpScreens();
 				USL_DrawCtlPanel();
 				resetitem = true;
 				break;
