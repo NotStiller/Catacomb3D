@@ -92,11 +92,12 @@ enum {north,east,south,west,northeast,southeast,southwest,northwest,nodir};
 
 typedef int dirtype;
 
+typedef struct objstruct objtype; // defined right below
 typedef struct	statestruct
 {
 	int		shapenum;
 	int		tictime;
-	void	(*think) ();
+	void	(*think) (objtype*);
 	struct	statestruct	*next;
 } statetype;
 

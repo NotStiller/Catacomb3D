@@ -374,7 +374,7 @@ void PlayLoop (void)
 {
 	int		give;
 
-	void (*think)();
+	void (*think)(objtype*);
 
 	ingame = true;
 	SP_SetTimeCount(0);
