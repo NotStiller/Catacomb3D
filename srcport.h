@@ -29,8 +29,7 @@
 #include "sp_main.h"
 
 // the following defs are mostly accessed by the original sources
-#define CASTAT(type, where) (*(type*)&(where))
-#define RANDOM(max) (rand()%(max))
+int RANDOM(int Max);
 
 typedef void* memptr;
 
@@ -50,9 +49,7 @@ typedef	struct
 	long rawplaneslength[3];
 } maptype;
 
-extern int loadedmap;
 extern maptype *curmap;
-extern maptype mapheaderseg[30];
 
 
 //c3_draw and c4_draw

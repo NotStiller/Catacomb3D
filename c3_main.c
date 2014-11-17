@@ -20,7 +20,7 @@
 
 #include "c3_def.h"
 
-int C4Features=0;
+int EnableC4Features=0;
 int	showscorebox;
 boolean		compatability;
 extern statetype *statetypes[]; // c3_state.c
@@ -212,7 +212,7 @@ boolean	SaveTheGame(FILE *file)
 
 	for (i = 0;i < 2;i++)	// Write planes 0 and 2
 	{
-		int num=mapwidth*mapheight;
+		int num=curmap->width*curmap->height;
 		printf("Plane %i size %i\n", 2*i, num);
 		SPD_WriteU32(&p, num);
 		for (j = 0; j < num; j++) {
@@ -327,7 +327,6 @@ boolean	LoadTheGame(FILE *file)
 	}
 	assert((p-buffer) <= size);
 
-	loadedmap = gamestate.mapon;
 	SetupGameLevel ();		// load in and cache the base old level
 	assert((p-buffer) <= size);
 
@@ -336,20 +335,20 @@ boolean	LoadTheGame(FILE *file)
 // copy the wall data to a data segment array again, to handle doors and
 // bomb walls that are allready opened
 //
-	memset (tilemap,0,sizeof(tilemap));
-	memset (actorat,0,sizeof(actorat));
+	ClearTileMap();
+	ClearActorAt();
 	uint16_t *map;
 	int x,y;
 	map = gamestate.mapsegs[0];
-	for (y=0;y<mapheight;y++) {
-		for (x=0;x<mapwidth;x++) {
+	for (y=0;y<curmap->height;y++) {
+		for (x=0;x<curmap->width;x++) {
 			uint16_t tile;
 			tile = *map++;
 			if (tile<NUMFLOORS)
 			{
-				tilemap[x][y] = tile;
+				SetTileMap(x,y,tile);
 				if (tile>0) {
-					CASTAT(intptr_t, actorat[x][y]) = tile;
+					SetActorAtInt(x,y,tile);
 				}
 			}
 		}
@@ -362,6 +361,7 @@ boolean	LoadTheGame(FILE *file)
 	statetype	*state;
 	struct	objstruct	*next,*prev, *o;
 	InitObjList ();
+	objtype *new;
 	new = player;
 	while (true)
 	{
@@ -399,10 +399,10 @@ boolean	LoadTheGame(FILE *file)
 		
 		new->prev = prev;
 		new->next = next;
-		actorat[new->tilex][new->tiley] = new;	// drop a new marker
+		SetActorAt(new->tilex,new->tiley,new); // drop a new marker
 
 		if (followed)
-			GetNewObj (false);
+			new = GetNewObj (false);
 		else
 			break;
 	}
@@ -430,22 +430,6 @@ void ResetGame(void)
 //===========================================================================
 
 
-/*
-==========================
-=
-= ShutdownId
-=
-= Shuts down all ID_?? managers
-=
-==========================
-*/
-
-void ShutdownId (void)
-{
-  US_Shutdown ();
-  SD_Shutdown ();
-  IN_Shutdown ();
-}
 
 
 //===========================================================================
@@ -467,14 +451,7 @@ void InitGame (void)
 
 	memset (&gamestate,0,sizeof(gamestate));
 
-	IN_Startup ();
-	SD_Startup ();
-	US_Startup ();
-
-//	US_UpdateTextScreen();
-
 	US_Setup ();
-
 	US_SetLoadSaveHooks(LoadTheGame,SaveTheGame,ResetGame);
 
 //
@@ -488,7 +465,7 @@ void InitGame (void)
 	SPD_LoadGrChunk(HAND2PICM);
 	SPD_LoadGrChunk(ENTERPLAQUEPIC);
 
-	fontcolor = WHITE;
+	fontcolor = WHITE; 
 
 
 //
@@ -500,29 +477,6 @@ void InitGame (void)
 }
 
 //===========================================================================
-
-/*
-==========================
-=
-= Quit
-=
-==========================
-*/
-
-void Quit (char *error)
-{
-	unsigned	finscreen;
-
-
-	ShutdownId ();
-	if (error && *error)
-	{
-	  puts(error);
-	  exit(1);
-	}
-
-	SP_Exit();
-}
 
 //===========================================================================
 
@@ -545,21 +499,21 @@ void	DemoLoop (void)
 	while (1)
 	{
 		SPD_LoadGrChunk (TITLEPIC);
-		SPG_DrawPic(&guiSetup, grsegs[TITLEPIC],0,0);
+		SPG_DrawPic(&guiBuffer, grsegs[TITLEPIC],0,0);
 		FizzleFade (320,200,true);
 
 		if (!IN_UserInput(TickBase*3,false))
 		{
 			SPD_LoadGrChunk (CREDITSPIC);
-			SPG_DrawPic(&guiSetup, grsegs[CREDITSPIC],0,0);
-			FizzleFade (320,200,true);
+			SPG_DrawPic(&guiBuffer, grsegs[CREDITSPIC],0,0);
+			FizzleFade();
 
 		}
 
 		if (!IN_UserInput(TickBase*3,false))
 		{
 			DrawHighScores ();
-			FizzleFade (320,200,true);
+			FizzleFade();
 			IN_UserInput(TickBase*3,false);
 		}
 
@@ -571,7 +525,7 @@ void	DemoLoop (void)
 			{
 				GameLoop ();
 				DrawHighScores ();
-				FizzleFade (320,200,true);
+				FizzleFade();
 				IN_UserInput(TickBase*3,false);
 			}
 		}

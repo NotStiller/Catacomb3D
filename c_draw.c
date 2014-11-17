@@ -20,28 +20,7 @@
 
 #include "c3_def.h"
 
-/*
-=============================================================================
-
-						 LOCAL CONSTANTS
-
-=============================================================================
-*/
-
-/*
-=============================================================================
-
-						 GLOBAL VARIABLES
-
-=============================================================================
-*/
-
-//
-// calculate location of screens in video memory so they have the
-// maximum possible distance seperating them (for scaling overflow)
-//
-
-boolean		fizzlein;
+boolean fizzlein;
 /*
 =============================================================================
 
@@ -114,10 +93,7 @@ void	DrawHand (void);
 
 //==========================================================================
 
-
-
 long		wallscalesource;
-
 /*
 =====================
 =
@@ -342,7 +318,7 @@ void TraceRay (unsigned angle)
 		otx = tile.x;
 		oty = tile.y;
 		if (!CheckTileCoords(otx,oty)) { return; }
-		spotvis[otx][oty] = true;
+		SetSpotVis(otx,oty,true);
 		tracex += tracexstep;
 		tracey -= traceystep;
 		tile.x = tracex>>TILESHIFT;
@@ -379,7 +355,6 @@ void TraceRay (unsigned angle)
 				//
 				if (++searchsteps == 16)
 				{
-					printf("TraceRay: binary search reached 16 steps !\n");
 					tracex = (long)otx<<TILESHIFT;
 					tracey = (long)oty<<TILESHIFT;
 					if (tracexstep>0)
@@ -712,7 +687,7 @@ void DrawWallList (void)
 	for (i=0;i < renderSetup.Width;i++) {
 		wallwidth[i] = 0;
 	}
-	SPG_ClearScreen ();
+	SPG_DrawFloors (8, 0);
 
 	rightwall->x1 = renderSetup.Width;
 	rightwall->height1 = 32000;
@@ -786,20 +761,20 @@ void DrawScaleds (void)
 	for (obj = player->next;obj;obj=obj->next)
 	{
 		if (!CheckTileCoords(obj->tilex,obj->tiley)) { return; }
-		tilespot = &tilemap[0][0]+(obj->tilex<<6)+obj->tiley;
-		visspot = &spotvis[0][0]+(obj->tilex<<6)+obj->tiley;
 		//
 		// could be in any of the nine surrounding tiles
 		//
-		if (*visspot
-		|| ( *(visspot-1) && !*(tilespot-1) )
-		|| ( *(visspot+1) && !*(tilespot+1) )
-		|| ( *(visspot-65) && !*(tilespot-65) )
-		|| ( *(visspot-64) && !*(tilespot-64) )
-		|| ( *(visspot-63) && !*(tilespot-63) )
-		|| ( *(visspot+65) && !*(tilespot+65) )
-		|| ( *(visspot+64) && !*(tilespot+64) )
-		|| ( *(visspot+63) && !*(tilespot+63) ) )
+		int visible=GetSpotVis(obj->tilex,obj->tiley);
+		int x,y;
+		for (x = -1; x <= 1 && !visible; x++) {
+			for (y = -1; y <= 1 && !visible; y++) {
+				if (GetSpotVis(obj->tilex+x,obj->tiley+y) && !GetTileMap(obj->tilex+x,obj->tiley+y)) {
+					visible = true;
+					break;
+				}
+			}
+		}
+		if (visible)
 		{
 			if ((obj->active == noalways) || (obj->active == always))
 				obj->active = always;
@@ -815,7 +790,7 @@ void DrawScaleds (void)
 			*vislist++ = obj;
 			numvisable++;
 		}
-		else if (C4Features) {
+		else if (EnableC4Features) {
 			if ((obj->active != always) && (obj->active != noalways))
 				obj->active = no;
 		}
@@ -860,23 +835,29 @@ void DrawScaleds (void)
 
 void CalcTics (void)
 {
-	long	newtime,oldtimecount;
-
-
+	long	newtime;
 //
 // calculate tics since last refresh for adaptive timing
 //
-	if (lasttimecount > SP_TimeCount())
-		SP_SetTimeCount(lasttimecount);		// if the game was paused a LONG time
+	if (lasttimecount > SP_TimeCount()) {
+		printf("lasttimecount > TimeCount !\n");
+		lasttimecount = SP_TimeCount();	// if the game was paused a LONG time
+	}
 
 	newtime = SP_TimeCount();
-	tics = newtime-lasttimecount;
+	realtics = tics = newtime-lasttimecount;
 	lasttimecount = newtime;
 
 	if (tics>MAXTICS)
 	{
-		SP_SetTimeCount(tics-MAXTICS);
+// the sourceport needs not mirror behaviour on too slow computers, also did the following ever make sense ?
+//		TimeCount -= tics-MAXTICS;
+// It would be invalidated at the next CalcTics anyway.
 		tics = MAXTICS;
+	}
+
+	if (realtics>MAXREALTICS) {
+		realtics = MAXREALTICS;
 	}
 }
 
@@ -895,7 +876,6 @@ void CalcTics (void)
 void	ThreeDRefresh (void)
 {
 	int tracedir;
-
 restart:
 	restarttrace = false;
 	reallyabsolutelypositivelyaborttrace = false;
@@ -903,7 +883,7 @@ restart:
 //
 // clear out the traced array
 //
-	memset(spotvis, 0, mapwidth*32*2);
+	ClearSpotVis();
 
 //
 // set up variables for this view
@@ -1003,12 +983,13 @@ restart:
 	if (fizzlein)
 	{
 		fizzlein = false;
-		FizzleFade(renderSetup.Width,renderSetup.Height,true);
+//		FizzleFade(renderSetup.Width,renderSetup.Height,true);
+		FizzleFade();
 		lasttimecount = SP_TimeCount();
 		MouseDelta(NULL, NULL);	// Clear accumulated mouse movement
 	}
 
-	SPG_FlipBuffer();
+	FlipBuffer();
 	CalcTics ();
 
 

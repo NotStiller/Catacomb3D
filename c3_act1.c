@@ -112,7 +112,8 @@ void SpawnBonus (int tilex, int tiley, int number)
 	else if (number == B_GOAL)
 		state = &s_goalbonus;
 
-	SpawnNewObj (tilex,tiley,state,TILEGLOBAL/2);
+	objtype *new;
+	new = SpawnNewObj (tilex,tiley,state,TILEGLOBAL/2);
 	new->tileobject = true;
 	new->temp1 = number;
 	new->obclass = bonusobj;
@@ -155,11 +156,15 @@ statetype s_walldie6 = {0,-1,T_WallDie,NULL};
 
 void ExplodeWall (int tilex, int tiley)
 {
-	SpawnNewObj (tilex,tiley,&s_walldie1,0);
+	objtype *new;
+	new = SpawnNewObj (tilex,tiley,&s_walldie1,0);
 	new->obclass = inertobj;
 	new->active = true;
-	CASTAT(intptr_t,actorat[new->tilex][new->tiley]) = tilemap[new->tilex][new->tiley] =
-	*(gamestate.mapsegs[0]+new->tiley*mapwidth+new->tilex) = WALLEXP;
+	SetActorAtInt(new->tilex,new->tiley, WALLEXP);
+	SetTileMap(new->tilex,new->tiley, WALLEXP);
+	SetMapSegs(0, new->tilex,new->tiley, WALLEXP);
+//	CASTAT(intptr_t,actorat[new->tilex][new->tiley]) = tilemap[new->tilex][new->tiley] =
+//	*(gamestate.mapsegs[0]+new->tiley*mapwidth+new->tilex) = WALLEXP;
 }
 
 
@@ -180,24 +185,29 @@ void T_WallDie (objtype *ob)
 	else
 		tile = WALLEXP-1 + ob->temp1;
 
-	CASTAT(intptr_t,actorat[ob->tilex][ob->tiley]) = tilemap[ob->tilex][ob->tiley] =
-	*(gamestate.mapsegs[0]+ob->tiley*mapwidth+ob->tilex) = tile;
+	SetActorAtInt(ob->tilex,ob->tiley,tile);
+	SetTileMap(ob->tilex,ob->tiley,tile);
+	SetMapSegs(0, ob->tilex,ob->tiley,tile);
+/*
+	CASTAT(intptr_t,actorat[ob->tilex][ob->tiley]) = 
+		tilemap[ob->tilex][ob->tiley] =
+		*(gamestate.mapsegs[0]+ob->tiley*mapwidth+ob->tilex) = tile;*/
 
 	if (ob->temp1 == 1)
 	{
 	//
 	// blow up nearby walls
 	//
-		other = tilemap[ob->tilex-1][ob->tiley];
+		other = GetTileMap(ob->tilex-1,ob->tiley);
 		if ((unsigned)(other-EXPWALLSTART)<NUMEXPWALLS)
 			ExplodeWall (ob->tilex-1,ob->tiley);
-		other = tilemap[ob->tilex+1][ob->tiley];
+		other = GetTileMap(ob->tilex+1,ob->tiley);
 		if ((unsigned)(other-EXPWALLSTART)<NUMEXPWALLS)
 			ExplodeWall (ob->tilex+1,ob->tiley);
-		other = tilemap[ob->tilex][ob->tiley-1];
+		other = GetTileMap(ob->tilex,ob->tiley-1);
 		if ((unsigned)(other-EXPWALLSTART)<NUMEXPWALLS)
 			ExplodeWall (ob->tilex,ob->tiley-1);
-		other = tilemap[ob->tilex][ob->tiley+1];
+		other = GetTileMap(ob->tilex,ob->tiley+1);
 		if ((unsigned)(other-EXPWALLSTART)<NUMEXPWALLS)
 			ExplodeWall (ob->tilex,ob->tiley+1);
 	}
@@ -244,10 +254,11 @@ statetype s_fgate4 = {WARP4PIC,6,T_Gate,&s_fgate1};
 
 void SpawnWarp (int tilex, int tiley, int type)
 {
+	objtype *new;
 	if (type)
-		SpawnNewObj (tilex,tiley,&s_fgate1,TILEGLOBAL/3);
+		new = SpawnNewObj (tilex,tiley,&s_fgate1,TILEGLOBAL/3);
 	else
-		SpawnNewObj (tilex,tiley,&s_gate1,TILEGLOBAL/3);
+		new = SpawnNewObj (tilex,tiley,&s_gate1,TILEGLOBAL/3);
 	new->obclass = gateobj;
 	new->temp1 = type;
 }
@@ -274,7 +285,7 @@ void T_Gate (objtype *ob)
 	//
 	// warp
 	//
-		SPG_Bar(&hudSetup, 26, 148, 232, 9, STATUSCOLOR);
+		SPG_Bar(&bottomHUDBuffer, 26, 4, 232, 9, STATUSCOLOR);
 		IN_ClearKeysDown ();
 		if (ob->temp1)
 		{
@@ -299,7 +310,8 @@ void T_Gate (objtype *ob)
 		// teleport out of level
 		//
 			playstate = ex_warped;
-			spot = (int)*(gamestate.mapsegs[0]+ob->tiley*mapwidth+ob->tilex)-NAMESTART;
+			spot = (int)GetMapSegs(0,ob->tilex,ob->tiley)-NAMESTART; // make it signed first
+//			spot = (int)*(gamestate.mapsegs[0]+ob->tiley*mapwidth+ob->tilex)-NAMESTART;
 			if (spot<1)
 				gamestate.mapon++;
 			else
@@ -366,7 +378,8 @@ statetype s_trolldie3 = {TROLLDIE3PIC,0,NULL,&s_trolldie3};
 
 void SpawnTroll (int tilex, int tiley)
 {
-	SpawnNewObj(tilex,tiley,&s_troll1,40*PIXRADIUS);
+	objtype *new;
+	new = SpawnNewObj(tilex,tiley,&s_troll1,40*PIXRADIUS);
 	new->speed = 2500;
 	new->obclass = trollobj;
 	new->shootable = true;
@@ -451,7 +464,8 @@ statetype s_orcdie3 = {ORCDIE3PIC,0,NULL,&s_orcdie3};
 
 void SpawnOrc (int tilex, int tiley)
 {
-	SpawnNewObj(tilex,tiley,&s_orc1,PIXRADIUS*32);
+	objtype *new;
+	new = SpawnNewObj(tilex,tiley,&s_orc1,PIXRADIUS*32);
 	new->obclass = orcobj;
 	new->speed = 1536;
 	new->shootable = true;
@@ -536,7 +550,8 @@ statetype s_demondie3 = {DEMONDIE3PIC,0,NULL,&s_demondie3};
 
 void SpawnDemon (int tilex, int tiley)
 {
-	SpawnNewObj(tilex,tiley,&s_demon1,TILEGLOBAL/2);
+	objtype *new;
+	new = SpawnNewObj(tilex,tiley,&s_demon1,TILEGLOBAL/2);
 	new->obclass = demonobj;
 	new->speed = 2048;
 	new->shootable = true;
@@ -624,7 +639,7 @@ void T_Mshot (objtype *ob)
 	ob->tilex = ob->x>>TILESHIFT;
 	ob->tiley = ob->y>>TILESHIFT;
 
-	if (tilemap[ob->tilex][ob->tiley])
+	if (GetTileMap(ob->tilex,ob->tiley))
 	{
 		SD_PlaySound (SHOOTWALLSND);
 		ob->state = NULL;
@@ -712,7 +727,8 @@ statetype s_magedie2 = {MAGEDIE2PIC,0,NULL,&s_magedie2};
 
 void SpawnMage (int tilex, int tiley)
 {
-	SpawnNewObj(tilex,tiley,&s_mage1,TILEGLOBAL/2);
+	objtype *new;
+	new = SpawnNewObj(tilex,tiley,&s_mage1,TILEGLOBAL/2);
 	new->obclass = mageobj;
 	new->speed = 2048;
 	new->shootable = true;
@@ -760,7 +776,8 @@ void T_Mage (objtype *ob)
 
 void T_MageShoot (objtype *ob)
 {
-	SpawnNewObjFrac (ob->x,ob->y,&s_mshot1,PIXRADIUS*14);
+	objtype *new;
+	new = SpawnNewObjFrac (ob->x,ob->y,&s_mshot1,PIXRADIUS*14);
 	new->obclass = mshotobj;
 	new->speed = MSHOTSPEED;
 	if (ob->temp1)
@@ -840,7 +857,8 @@ statetype s_greldie6 = {GRELDIE6PIC,0,NULL,&s_greldie6};
 
 void SpawnNemesis (int tilex, int tiley)
 {
-	SpawnNewObj(tilex,tiley,&s_grel1,PIXRADIUS*56);
+	objtype *new;
+	new = SpawnNewObj(tilex,tiley,&s_grel1,PIXRADIUS*56);
 	new->obclass = grelmobj;
 	new->speed = 2048;
 	new->shootable = true;
@@ -885,7 +903,8 @@ void T_Nemesis (objtype *ob)
 
 void T_NemesisShoot (objtype *ob)
 {
-	SpawnNewObjFrac (ob->x,ob->y,&s_mshot1,PIXRADIUS*14);
+	objtype *new;
+	new = SpawnNewObjFrac (ob->x,ob->y,&s_mshot1,PIXRADIUS*14);
 	new->obclass = mshotobj;
 	new->speed = MSHOTSPEED;
 	if (ob->temp1)
@@ -946,7 +965,8 @@ statetype s_batdie2 = {BATDIE2PIC,8,NULL,NULL};
 
 void SpawnBat (int tilex, int tiley)
 {
-	SpawnNewObj(tilex,tiley,&s_bat1,PIXRADIUS*24);
+	objtype *new;
+	new = SpawnNewObj(tilex,tiley,&s_bat1,PIXRADIUS*24);
 	new->obclass =batobj;
 	new->shootable = true;
 
@@ -1064,7 +1084,8 @@ void T_Bat (objtype *ob)
 			break;
 		}
 
-		actorat[ob->tilex][ob->tiley] = 0;	// pick up marker from goal
+		SetActorAt(ob->tilex,ob->tiley,NULL);
+//		actorat[ob->tilex][ob->tiley] = 0;	// pick up marker from goal
 		if (ob->dir == nodir)
 			ob->dir = north;
 
@@ -1084,7 +1105,8 @@ void T_Bat (objtype *ob)
 		else
 			BatChaseThink (ob);		// head towards player
 
-		actorat[ob->tilex][ob->tiley] = ob;	// set down a new goal marker
+		SetActorAt(ob->tilex,ob->tiley,ob);
+//		actorat[ob->tilex][ob->tiley] = ob;	// set down a new goal marker
 	} while (0);	// just once
 	CalcBounds (ob);
 }
@@ -1112,7 +1134,8 @@ void T_BatPast (objtype *ob)
 			MoveObj (ob,move);
 			break;
 		}
-		actorat[ob->tilex][ob->tiley] = 0;	// pick up marker from goal
+		SetActorAt(ob->tilex,ob->tiley,NULL);
+//		actorat[ob->tilex][ob->tiley] = 0;	// pick up marker from goal
 
 		ob->x = ((long)ob->tilex<<TILESHIFT)+TILEGLOBAL/2;
 		ob->y = ((long)ob->tiley<<TILESHIFT)+TILEGLOBAL/2;
@@ -1120,7 +1143,8 @@ void T_BatPast (objtype *ob)
 
 		BatRunThink (ob);
 
-		actorat[ob->tilex][ob->tiley] = ob;	// set down a new goal marker
+		SetActorAt(ob->tilex,ob->tiley,ob);
+//		actorat[ob->tilex][ob->tiley] = ob;	// set down a new goal marker
 	} while (0);	//(move)
 	CalcBounds (ob);
 }
@@ -1159,7 +1183,8 @@ statetype s_bounce2 = {BIGPSHOT2PIC,8,T_Bounce,&s_bounce1};
 
 void SpawnBounce (int tilex, int tiley, boolean towest)
 {
-	SpawnNewObj(tilex,tiley,&s_bounce1,24*PIXRADIUS);
+	objtype *new;
+	new = SpawnNewObj(tilex,tiley,&s_bounce1,24*PIXRADIUS);
 	new->obclass = bounceobj;
 	if (towest)
 		new->dir = west;
@@ -1201,7 +1226,7 @@ void T_Bounce (objtype *ob)
 			MoveObj (ob,move);
 			break;
 		}
-		actorat[ob->tilex][ob->tiley] = 0;	// pick up marker from goal
+		SetActorAt(ob->tilex,ob->tiley,NULL); // pick up marker from goal
 
 		ob->x = ((long)ob->tilex<<TILESHIFT)+TILEGLOBAL/2;
 		ob->y = ((long)ob->tiley<<TILESHIFT)+TILEGLOBAL/2;
@@ -1213,7 +1238,7 @@ void T_Bounce (objtype *ob)
 		switch (ob->dir)
 		{
 		case north:
-			if (tilemap[ob->tilex][--ob->tiley])
+			if (GetTileMap(ob->tilex,--ob->tiley))
 			{
 				ob->dir = south;
 				ob->tiley+=2;
@@ -1221,7 +1246,7 @@ void T_Bounce (objtype *ob)
 			}
 			break;
 		case east:
-			if (tilemap[++ob->tilex][ob->tiley])
+			if (GetTileMap(++ob->tilex,ob->tiley))
 			{
 				ob->dir = west;
 				ob->tilex-=2;
@@ -1229,7 +1254,7 @@ void T_Bounce (objtype *ob)
 			}
 			break;
 		case south:
-			if (tilemap[ob->tilex][++ob->tiley])
+			if (GetTileMap(ob->tilex,++ob->tiley))
 			{
 				ob->dir = north;
 				ob->tiley-=2;
@@ -1237,7 +1262,7 @@ void T_Bounce (objtype *ob)
 			}
 			break;
 		case west:
-			if (tilemap[--ob->tilex][ob->tiley])
+			if (GetTileMap(--ob->tilex,ob->tiley))
 			{
 				ob->dir = east;
 				ob->tilex+=2;
@@ -1248,7 +1273,7 @@ void T_Bounce (objtype *ob)
 
 		ob->distance = TILEGLOBAL;
 
-		actorat[ob->tilex][ob->tiley] = ob;	// set down a new goal marker
+		SetActorAt(ob->tilex,ob->tiley,ob);	// set down a new goal marker
 	}
 	CalcBounds (ob);
 }

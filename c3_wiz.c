@@ -144,7 +144,7 @@ boolean ShotClipMove (objtype *ob, long xmove, long ymove);
 
 void DrawChar (unsigned x, unsigned y, unsigned tile)
 {
-	SPG_DrawTile8(&hudSetup, 8*x,y,(byte*)grsegs[STARTTILE8]+64*tile);
+	SPG_DrawTile8(&bottomHUDBuffer, 8*x,y,(byte*)grsegs[STARTTILE8]+64*tile);
 }
 
 
@@ -168,23 +168,23 @@ void RedrawStatusWindow (void)
 
 	j = gamestate.bolts < SHOWITEMS ? gamestate.bolts : SHOWITEMS;
 	for (i=0;i<j;i++)
-		DrawChar(7+i,144+20,BOLTCHAR);
+		DrawChar(7+i,20,BOLTCHAR);
 	j = gamestate.nukes < SHOWITEMS ? gamestate.nukes : SHOWITEMS;
 	for (i=0;i<j;i++)
-		DrawChar(7+i,144+30,NUKECHAR);
+		DrawChar(7+i,30,NUKECHAR);
 	j = gamestate.potions < SHOWITEMS ? gamestate.potions : SHOWITEMS;
 	for (i=0;i<j;i++)
-		DrawChar(7+i,144+40,POTIONCHAR);
+		DrawChar(7+i,40,POTIONCHAR);
 
 	x=24;
 	for (i=0;i<4;i++)
 		for (j=0;j<gamestate.keys[i];j++)
-			DrawChar(x++,144+20,KEYCHARS+i);
+			DrawChar(x++,20,KEYCHARS+i);
 
 	x=24;
 	for (i=0;i<8;i++)
 		if (gamestate.scrolls[i])
-			DrawChar(x++,144+30,SCROLLCHARS+i);
+			DrawChar(x++,30,SCROLLCHARS+i);
 
 	AddPoints(0);
 
@@ -206,7 +206,7 @@ void GiveBolt (void)
 {
 	SD_PlaySound (GETBOLTSND);
 	if (++gamestate.bolts<=9)
-		DrawChar(6+gamestate.bolts,144+20,BOLTCHAR);
+		DrawChar(6+gamestate.bolts,20,BOLTCHAR);
 }
 
 
@@ -222,7 +222,7 @@ void TakeBolt (void)
 {
 	SD_PlaySound (USEBOLTSND);
 	if (--gamestate.bolts<=9)
-		DrawChar(7+gamestate.bolts,144+20,BLANKCHAR);
+		DrawChar(7+gamestate.bolts,20,BLANKCHAR);
 }
 
 //===========================================================================
@@ -239,7 +239,7 @@ void GiveNuke (void)
 {
 	SD_PlaySound (GETNUKESND);
 	if (++gamestate.nukes<=9)
-		DrawChar(6+gamestate.nukes,144+30,NUKECHAR);
+		DrawChar(6+gamestate.nukes,30,NUKECHAR);
 }
 
 
@@ -255,7 +255,7 @@ void TakeNuke (void)
 {
 	SD_PlaySound (USENUKESND);
 	if (--gamestate.nukes<=9)
-		DrawChar(7+gamestate.nukes,144+30,BLANKCHAR);
+		DrawChar(7+gamestate.nukes,30,BLANKCHAR);
 }
 
 //===========================================================================
@@ -272,7 +272,7 @@ void GivePotion (void)
 {
 	SD_PlaySound (GETPOTIONSND);
 	if (++gamestate.potions<=9)
-		DrawChar(6+gamestate.potions,144+40,POTIONCHAR);
+		DrawChar(6+gamestate.potions,40,POTIONCHAR);
 }
 
 
@@ -288,7 +288,7 @@ void TakePotion (void)
 {
 	SD_PlaySound (USEPOTIONSND);
 	if (--gamestate.potions<=9)
-		DrawChar(7+gamestate.potions,144+40,BLANKCHAR);
+		DrawChar(7+gamestate.potions,40,BLANKCHAR);
 }
 
 //===========================================================================
@@ -311,7 +311,7 @@ void GiveKey (int keytype)
 	x=24;
 	for (i=0;i<4;i++)
 		for (j=0;j<gamestate.keys[i];j++)
-			DrawChar(x++,144+20,KEYCHARS+i);
+			DrawChar(x++,20,KEYCHARS+i);
 
 }
 
@@ -334,9 +334,9 @@ void TakeKey (int keytype)
 	x=24;
 	for (i=0;i<4;i++)
 		for (j=0;j<gamestate.keys[i];j++)
-			DrawChar(x++,144+20,KEYCHARS+i);
+			DrawChar(x++,20,KEYCHARS+i);
 
-	DrawChar(x,144+20,BLANKCHAR);
+	DrawChar(x,20,BLANKCHAR);
 }
 
 //===========================================================================
@@ -359,7 +359,7 @@ void GiveScroll (int scrolltype,boolean show)
 	x=24;
 	for (i=0;i<8;i++)
 		if (gamestate.scrolls[i])
-			DrawChar(x++,144+30,SCROLLCHARS+i);
+			DrawChar(x++,30,SCROLLCHARS+i);
 	if (show)
 		ReadScroll(scrolltype);
 }
@@ -403,7 +403,7 @@ void AddPoints (int points)
 
 	x=24+(8-len);
 	for (i=0;i<len;i++)
-		DrawChar(x++,144+40,NUMBERCHARS+str[i]-'0');
+		DrawChar(x++,40,NUMBERCHARS+str[i]-'0');
 }
 
 
@@ -456,9 +456,9 @@ void DrawLevelNumber (int number)
 {
 	char buf[100];
 
-	SPG_Bar(&hudSetup, 5, 148, 16, 9, STATUSCOLOR);
+	SPG_Bar(&bottomHUDBuffer, 5, 4, 16, 9, STATUSCOLOR);
 	sprintf(buf, "%i", number+1);
-	SPG_DrawString(&guiSetup, (number<9)?13:5, 148, buf, 0, TEXTCOLOR);
+	SPG_DrawString(&bottomHUDBuffer, (number<9)?13:5, 4, buf, 0, TEXTCOLOR);
 }
 
 
@@ -477,12 +477,12 @@ void DrawText (void)
 	unsigned	number;
 	char		str[80];
 	char 		*text;
-	unsigned	temp;
 
 	//
 	// draw a new text description if needed
 	//
-	number = *(byte*)(gamestate.mapsegs[0]+player->tiley*mapwidth+player->tilex)-NAMESTART;
+	number = (int)GetMapSegs(0, player->tilex, player->tiley) - NAMESTART;
+//	number = *(byte*)(gamestate.mapsegs[0]+player->tiley*mapwidth+player->tilex)-NAMESTART;
 
 	if ( number>26 )
 		number = 0;
@@ -491,7 +491,7 @@ void DrawText (void)
 		return;
 
 	lasttext = number;
-	text = mapheaderseg[loadedmap].texts[number];
+	text = curmap->texts[number];
 
 	if (text == NULL) {
 		memset(str, 0, 80);
@@ -499,10 +499,10 @@ void DrawText (void)
 		memcpy (str,text,80);
 	}
 
-	SPG_Bar(&hudSetup, 26, 148, 232, 9, STATUSCOLOR);
+	SPG_Bar(&bottomHUDBuffer, 26, 4, 232, 9, STATUSCOLOR);
 	int width;
 	SPG_MeasureString(str, 0, &width, NULL);
-	SPG_DrawString(&guiSetup, 26+(232-width)/2, 148, str, 0, TEXTCOLOR);
+	SPG_DrawString(&bottomHUDBuffer, 26+(232-width)/2, 4, str, 0, TEXTCOLOR);
 }
 
 //===========================================================================
@@ -535,7 +535,7 @@ void DrawCompass (void)
 
 	lastcompass = number;
 
-	SPG_DrawPic(&hudSetup, grsegs[COMPAS1PIC+15-number],8*COMPASSX,144+COMPASSY);
+	SPG_DrawPic(&bottomHUDBuffer, grsegs[COMPAS1PIC+15-number],8*COMPASSX,COMPASSY);
 }
 
 //===========================================================================
@@ -551,14 +551,14 @@ void DrawCompass (void)
 
 void DrawBars (void)
 {
-	SPG_Bar(&hudSetup, 34*8, POWERLINE, 40, MAXSHOTPOWER, 1);
+	SPG_Bar(&rightHUDBuffer, 8, POWERLINE, 40, MAXSHOTPOWER, 1);
 
 //
 // shot power
 //
 	if (gamestate.shotpower)
 	{
-		SPG_DrawPicSkip(&hudSetup, grsegs[SHOTPOWERPIC], 34*8, POWERLINE, MAXSHOTPOWER-gamestate.shotpower, MAXSHOTPOWER);
+		SPG_DrawPicSkip(&rightHUDBuffer, grsegs[SHOTPOWERPIC], 8, POWERLINE, MAXSHOTPOWER-gamestate.shotpower, MAXSHOTPOWER);
 	}
 
 //
@@ -566,13 +566,13 @@ void DrawBars (void)
 //
 	if (gamestate.body)
 	{
-		SPG_DrawPicSkip(&hudSetup, grsegs[BODYPIC], 34*8, BODYLINE, 0, gamestate.body);
+		SPG_DrawPicSkip(&rightHUDBuffer, grsegs[BODYPIC], 8, BODYLINE, 0, gamestate.body);
 	}
 
 
 	if (gamestate.body != MAXBODY)
 	{
-		SPG_DrawPicSkip(&hudSetup, grsegs[NOBODYPIC], 34*8, BODYLINE, gamestate.body, MAXBODY);
+		SPG_DrawPicSkip(&rightHUDBuffer, grsegs[NOBODYPIC], 8, BODYLINE, gamestate.body, MAXBODY);
 	}
 }
 
@@ -615,7 +615,8 @@ statetype s_bigpshot2 = {BIGPSHOT2PIC,8,&T_Pshot,&s_bigpshot1};
 
 void SpawnPShot (void)
 {
-	SpawnNewObjFrac (player->x,player->y,&s_pshot1,PIXRADIUS*14);
+	objtype *new;
+	new = SpawnNewObjFrac (player->x,player->y,&s_pshot1,PIXRADIUS*14);
 	new->obclass = pshotobj;
 	new->speed = SHOTSPEED;
 	new->angle = player->angle;
@@ -623,7 +624,8 @@ void SpawnPShot (void)
 
 void SpawnBigPShot (void)
 {
-	SpawnNewObjFrac (player->x,player->y,&s_bigpshot1,24*PIXRADIUS);
+	objtype *new;
+	new = SpawnNewObjFrac (player->x,player->y,&s_bigpshot1,24*PIXRADIUS);
 	new->obclass = bigpshotobj;
 	new->speed = SHOTSPEED;
 	new->angle = player->angle;
@@ -760,7 +762,7 @@ void ClearShotPower (void)
 	if (!gamestate.shotpower)
 		return;
 
-	SPG_DrawPic(&hudSetup, grsegs[NOSHOTPOWERPIC], 8*34, POWERLINE);
+	SPG_DrawPic(&rightHUDBuffer, grsegs[NOSHOTPOWERPIC], 8, POWERLINE);
 
 	gamestate.shotpower = 0;
 }
@@ -869,7 +871,8 @@ void CastNuke (void)
 
 	for (angle = 0; angle < ANGLES; angle+= ANGLES/16)
 	{
-		SpawnNewObjFrac (player->x,player->y,&s_bigpshot1,24*PIXRADIUS);
+		objtype *new;
+		new = SpawnNewObjFrac (player->x,player->y,&s_bigpshot1,24*PIXRADIUS);
 		new->obclass = bigpshotobj;
 		new->speed = SHOTSPEED;
 		new->angle = angle;
@@ -925,13 +928,13 @@ void ReadScroll (int scroll)
 //
 	SPD_LoadGrChunk (SCROLLTOPPIC);
 	SPD_LoadGrChunk (SCROLL1PIC + scroll);
-	SPG_DrawPic(&hudSetup, grsegs[SCROLLTOPPIC],0,0);
-	SPG_DrawPic(&hudSetup, grsegs[SCROLL1PIC+scroll],0,32);
+	SPG_DrawPic(&renderBufferText, grsegs[SCROLLTOPPIC],0,0);
+	SPG_DrawPic(&renderBufferText, grsegs[SCROLL1PIC+scroll],0,32);
 	MM_FreePtr (&grsegs[SCROLL1PIC + scroll]);
 	MM_FreePtr (&grsegs[SCROLLTOPPIC]);
 
 
-	SPG_FlipBuffer();
+	FlipBuffer();
 waitkey:
 	IN_ClearKeysDown ();
 	IN_Ack();
@@ -996,40 +999,39 @@ void TakeDamage (int points)
 void OpenDoor (uint16_t bx, uint16_t by, uint16_t doorbase)
 {
 	int x,y;
-	uint16_t *map;
 
 	x=bx;
 	y=by;
-	map = gamestate.mapsegs[0]+mapwidth*y+x;
-	while (tilemap[x][y]-doorbase>=0 && tilemap[x][y]-doorbase<4)
+	while (GetTileMap(x,y)-doorbase>=0 && GetTileMap(x,y)-doorbase<4)
 	{
-		tilemap[x][y] = CASTAT(intptr_t, actorat[x][y]) = *map = 0;
-		map--;
+		SetTileMap(x,y,0);
+		SetActorAt(x,y,NULL);
+		SetMapSegs(0,x,y,0);
 		x--;
 	}
 	x=bx+1;
-	map = gamestate.mapsegs[0]+mapwidth*y+x;
-	while (tilemap[x][y]-doorbase>=0 && tilemap[x][y]-doorbase<4)
+	while (GetTileMap(x,y)-doorbase>=0 && GetTileMap(x,y)-doorbase<4)
 	{
-		tilemap[x][y] = CASTAT(intptr_t,actorat[x][y]) = *map = 0;
-		map++;
+		SetTileMap(x,y,0);
+		SetActorAt(x,y,NULL);
+		SetMapSegs(0,x,y,0);
 		x++;
 	}
 	x=bx;
 	y=by-1;
-	map = gamestate.mapsegs[0]+mapwidth*y+x;
-	while (tilemap[x][y]-doorbase>=0 && tilemap[x][y]-doorbase<4)
+	while (GetTileMap(x,y)-doorbase>=0 && GetTileMap(x,y)-doorbase<4)
 	{
-		tilemap[x][y] = CASTAT(intptr_t,actorat[x][y]) = *map = 0;
-		map-=mapwidth;
+		SetTileMap(x,y,0);
+		SetActorAt(x,y,NULL);
+		SetMapSegs(0,x,y,0);
 		y--;
 	}
 	y=by+1;
-	map = gamestate.mapsegs[0]+mapwidth*y+x;
-	while (tilemap[x][y]-doorbase>=0 && tilemap[x][y]-doorbase<4)
+	while (GetTileMap(x,y)-doorbase>=0 && GetTileMap(x,y)-doorbase<4)
 	{
-		tilemap[x][y] = CASTAT(intptr_t,actorat[x][y]) = *map = 0;
-		map+=mapwidth;
+		SetTileMap(x,y,0);
+		SetActorAt(x,y,NULL);
+		SetMapSegs(0,x,y,0);
 		y++;
 	}
 }
@@ -1129,7 +1131,7 @@ boolean TouchActor (objtype *ob, objtype *check)
 			GiveChest ();
 		else if (check->temp1 == B_GOAL)
 			GiveGoal ();
-		CASTAT(intptr_t,actorat[check->tilex][check->tiley]) = 0;
+		SetActorAt(check->tilex, check->tiley, NULL);
 		RemoveObj (check);
 
 		return false;
@@ -1182,8 +1184,8 @@ boolean LocationInActor (objtype *ob)
 	for (x=xmin;x<xmax;x++)
 		for (y=ymin;y<ymax;y++)
 		{
-			if (CASTAT(intptr_t, actorat[x][y])>LASTSPECIALTILE) {
-				check = actorat[x][y];
+			if (GetActorAtInt(x,y) > LASTSPECIALTILE) {
+				check = GetActorAt(x,y);
 				if (check->shootable && ob->xl <= check->xh
 									 && ob->xh >= check->xl
 									 && ob->yl <= check->yh
@@ -1234,7 +1236,7 @@ void ClipMove (objtype *ob, long xmove, long ymove)
 	for (y=yl;y<=yh;y++)
 		for (x=xl;x<=xh;x++)
 		{
-			check = actorat[x][y];
+			check = GetActorAt(x,y);
 			if (!check)
 				continue;		// blank floor, walk ok
 
@@ -1269,7 +1271,6 @@ void ClipMove (objtype *ob, long xmove, long ymove)
 
 
 blockmove:
-
 	if (!SD_SoundPlaying())
 		SD_PlaySound (HITWALLSND);
 
@@ -1294,8 +1295,7 @@ blockmove:
 		yl = ob->yl>>TILESHIFT;
 		xh = ob->xh>>TILESHIFT;
 		yh = ob->yh>>TILESHIFT;
-		if (tilemap[xl][yl] || tilemap[xh][yl]
-		|| tilemap[xh][yh] || tilemap[xl][yh] )
+		if (GetTileMap(xl,yl) || GetTileMap(xh,yl) || GetTileMap(xh,yh) || GetTileMap(xl,yh))
 		{
 			moveok = false;
 			if (xmove>=-2048 && xmove <=2048 && ymove>=-2048 && ymove <=2048)
@@ -1356,7 +1356,7 @@ boolean ShotClipMove (objtype *ob, long xmove, long ymove)
 	for (y=yl;y<=yh;y++)
 		for (x=xl;x<=xh;x++)
 		{
-			tile = tilemap[x][y];
+			tile = GetTileMap(x,y);
 			if (tile)
 			{
 				if ((unsigned)(tile-EXPWALLSTART)<NUMEXPWALLS)
@@ -1392,8 +1392,7 @@ blockmove:
 		yl = ob->yl>>TILESHIFT;
 		xh = ob->xh>>TILESHIFT;
 		yh = ob->yh>>TILESHIFT;
-		if (tilemap[xl][yl] || tilemap[xh][yl]
-		|| tilemap[xh][yh] || tilemap[xl][yh] )
+		if (GetTileMap(xl,yl) || GetTileMap(xh,yl) || GetTileMap(xh,yh) || GetTileMap(xl,yh))
 		{
 			moveok = false;
 			if (xmove>=-2048 && xmove <=2048 && ymove>=-2048 && ymove <=2048)
@@ -1498,17 +1497,17 @@ void ControlMovement (objtype *ob)
 {
 	int	angle=0;
 	long	speed=0;
-
 	static int mouseAngleRem=0;
-	int mouseAngle = mousexmove+mouseAngleRem;
+	int mouseAngle;
+
+	int mousexmove, mouseymove;
+	MouseDelta(&mousexmove, &mouseymove);
+
+	mouseAngle = mousexmove+mouseAngleRem;
 	mouseAngleRem = mouseAngle%10;
 	mouseAngle = mouseAngle/10;
 
-	if (c.button1 || SP_StrafeOn())
-	{
-	//
-	// strafing
-	//
+	if (SP_StrafeOn()) {
 		//
 		// side to side move
 		//
@@ -1526,14 +1525,14 @@ void ControlMovement (objtype *ob)
 		else
 			speed = -(long)mousexmove*300;
 
-		if (c.xaxis == -1)
+		if (control.xaxis == -1)
 		{
 			if (running)
 				speed += RUNSPEED*tics;
 			else
 				speed += PLAYERSPEED*tics;
 		}
-		else if (c.xaxis == 1)
+		else if (control.xaxis == 1)
 		{
 			if (running)
 				speed -= RUNSPEED*tics;
@@ -1558,56 +1557,111 @@ void ControlMovement (objtype *ob)
 				angle += ANGLES;
 			Thrust (angle,-speed);				// move to right
 		}
-	}
-	else
-	{
-	//
-	// not strafing
-	//
 
 		//
-		// turning
+		// forward/backwards move
 		//
-		if (c.xaxis == 1)
-		{
-			ob->angle -= tics;
-			if (running)				// fast turn
-				ob->angle -= tics;
-		}
-		else if (c.xaxis == -1)
-		{
-			ob->angle+= tics;
-			if (running)				// fast turn
-				ob->angle += tics;
-		}
-
-		ob->angle -= mouseAngle;
-
-		if (ob->angle >= ANGLES)
-			ob->angle -= ANGLES;
-		if (ob->angle < 0)
-			ob->angle += ANGLES;
-
-	}
-
-	//
-	// forward/backwards move
-	//
-	if (!mouseymove || SP_StrafeOn())
 		speed = 0;
-	else if (mouseymove<0)
-		speed = -(long)mouseymove*500;
-	else
-		speed = -(long)mouseymove*200;
+	} else {
 
-	if (c.yaxis == -1)
+		if (control.button1)
+		{
+		//
+		// strafing
+		//
+			//
+			// side to side move
+			//
+			if (!mousexmove)
+				speed = 0;
+			else if (mousexmove<0)
+				speed = -(long)mousexmove*300;
+			else
+				speed = -(long)mousexmove*300;
+
+			if (control.xaxis == -1)
+			{
+				if (running)
+					speed += RUNSPEED*tics;
+				else
+					speed += PLAYERSPEED*tics;
+			}
+			else if (control.xaxis == 1)
+			{
+				if (running)
+					speed -= RUNSPEED*tics;
+				else
+					speed -= PLAYERSPEED*tics;
+			}
+			if (speed > 0)
+			{
+				if (speed >= TILEGLOBAL)
+					speed = TILEGLOBAL-1;
+				angle = ob->angle + ANGLES/4;
+				if (angle >= ANGLES)
+					angle -= ANGLES;
+				Thrust (angle,speed);				// move to left
+			}
+			else if (speed < 0)
+			{
+				if (speed <= -TILEGLOBAL)
+					speed = -TILEGLOBAL+1;
+				angle = ob->angle - ANGLES/4;
+				if (angle < 0)
+					angle += ANGLES;
+				Thrust (angle,-speed);				// move to right
+			}
+		}
+		else
+		{
+		//
+		// not strafing
+		//
+
+			//
+			// turning
+			//
+			if (control.xaxis == 1)
+			{
+				ob->angle -= tics;
+				if (running)				// fast turn
+					ob->angle -= tics;
+			}
+			else if (control.xaxis == -1)
+			{
+				ob->angle+= tics;
+				if (running)				// fast turn
+					ob->angle += tics;
+			}
+
+			ob->angle -= mouseAngle;
+
+			if (ob->angle >= ANGLES)
+				ob->angle -= ANGLES;
+			if (ob->angle < 0)
+				ob->angle += ANGLES;
+
+		}
+
+		//
+		// forward/backwards move
+		//
+		if (!mouseymove)
+			speed = 0;
+		else if (mouseymove<0)
+			speed = -(long)mouseymove*500;
+		else
+			speed = -(long)mouseymove*200;
+	}
+
+	if (control.yaxis == -1)
 	{
 		if (running)
 			speed += RUNSPEED*tics;
 		else
 			speed += PLAYERSPEED*tics;
 	}
-	else if (c.yaxis == 1)
+	else if (control.yaxis == 1)
 	{
 		if (running)
 			speed -= RUNSPEED*tics;
@@ -1630,6 +1684,7 @@ void ControlMovement (objtype *ob)
 			angle -= ANGLES;
 		Thrust (angle,-speed);				// move backwards
 	}
+
 }
 
 
@@ -1665,7 +1720,7 @@ void	T_Player (objtype *ob)
 	}
 	else
 	{
-		if (c.button0)
+		if (control.button0)
 		{
 			handheight+=(tics<<2);
 			if (handheight>MAXHANDHEIGHT)

@@ -70,6 +70,7 @@ extern	pictabletype	*pictable;
 extern	pictabletype	*picmtable;
 extern	spritetabletype *spritetable;
 
+extern	const int	StartFont, StartTile8, StartTile8M;
 extern	unsigned	fontnumber;		// 0 based font number for drawing
 extern	int			px,py;
 extern	byte		fontcolor;

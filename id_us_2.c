@@ -365,7 +365,7 @@ USL_DrawCtlPanelContents(void)
 	{
 		// Draw the title
 		MyLine(CtlPanelSY + 7);
-		SPG_DrawPic(&guiSetup, grsegs[topcard->title], (CtlPanelSX + 6)/8*8,CtlPanelSY);
+		SPG_DrawPic(&guiBuffer, grsegs[topcard->title], (CtlPanelSX + 6)/8*8,CtlPanelSY);
 
 	}
 
@@ -398,7 +398,7 @@ USL_DrawCtlPanel(void)
 	if (topcard->items || topcard->title)
 	{
 		// Draw the backdrop
-		SPG_DrawPic(&guiSetup, grsegs[CP_MENUSCREENPIC],0,0);
+		SPG_DrawPic(&guiBuffer, grsegs[CP_MENUSCREENPIC],0,0);
 
 		// Draw the contents
 		USL_DrawCtlPanelContents();
@@ -411,7 +411,7 @@ USL_DrawCtlPanel(void)
 static void
 USL_DialogSetup(word w,word h,word *x,word *y)
 {
-	SPG_DrawPic(&guiSetup, grsegs[CP_MENUMASKPICM], CtlPanelSX/8*8,CtlPanelSY);
+	SPG_DrawPic(&guiBuffer, grsegs[CP_MENUMASKPICM], CtlPanelSX/8*8,CtlPanelSY);
 
 
 	*x = CtlPanelSX + ((CtlPanelW - w) / 2);
@@ -875,7 +875,7 @@ USL_DoSaveGame(UserItem *item)
 	ok = US_LineInput(item->x + 2,item->y + 2,
 						game->name,game->present? game->name : NULL,
 						true,MaxGameName,
-						CtlPanelW - 22);
+						CtlPanelW - 22,0);
 	if (!strlen(game->name))
 		strcpy(game->name,"Untitled");
 	if (ok)
@@ -1018,8 +1018,8 @@ USL_PlayPong(void)
 				BallMaxX - BallMinX + 5,BallMaxY - BallMinY + 7,
 				BackColor);
 
-		SPG_DrawPic(&guiSetup, grsegs[PADDLESPR], cx&0xFFFE, CPaddleY);
-		SPG_DrawPic(&guiSetup, grsegs[PADDLESPR], kx&0xFFFE, KPaddleY);
+		SPG_DrawPic(&guiBuffer, grsegs[PADDLESPR], cx&0xFFFE, CPaddleY);
+		SPG_DrawPic(&guiBuffer, grsegs[PADDLESPR], kx&0xFFFE, KPaddleY);
 		if (ball)
 		{
 			if
@@ -1103,7 +1103,7 @@ USL_PlayPong(void)
 					revdir = false;
 				}
 			}
-			SPG_DrawPic(&guiSetup, grsegs[(x & 1)? BALL1PIXELTOTHERIGHTSPR : BALLSPR], x&0xFFFE, y);
+			SPG_DrawPic(&guiBuffer, grsegs[(x & 1)? BALL1PIXELTOTHERIGHTSPR : BALLSPR], x&0xFFFE, y);
 		}
 		else if (SP_TimeCount() >= balltime)
 		{
@@ -1129,8 +1129,8 @@ USL_PongCustom(UserCall call,struct UserItem *item)
 		return(false);
 
 
-	SPG_DrawPic(&guiSetup, grsegs[CP_MENUSCREENPIC],0,0);
-	SPG_DrawPic(&guiSetup, grsegs[CP_PADDLEWARPIC],(CtlPanelSX+56)/8*8,CtlPanelSY);
+	SPG_DrawPic(&guiBuffer, grsegs[CP_MENUSCREENPIC],0,0);
+	SPG_DrawPic(&guiBuffer, grsegs[CP_PADDLEWARPIC],(CtlPanelSX+56)/8*8,CtlPanelSY);
 	VW_Hlin(CtlPanelSX + 3,CtlPanelEX - 3,CtlPanelSY + 12,HiliteColor ^ BackColor);
 	VW_Hlin(CtlPanelSX + 3,CtlPanelEX - 3,CtlPanelEY - 7,HiliteColor ^ BackColor);
 	USL_PlayPong();

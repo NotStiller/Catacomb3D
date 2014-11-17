@@ -18,7 +18,7 @@
 
 #include "srcport.h"
 #include <SDL/SDL.h>
-#include "c3_def.h"
+#include "id_heads.h"
 
 // including opl.h is necessary for AdLibWrite and AdLibGetSample
 // opl.h in turn needs dosbox.h and a definition of bool, as this is compiled as a c source
@@ -226,6 +226,13 @@ void SPA_RenderSample(int SampleName, uint8_t *Data) {
 	byte *alCmds = (byte*)sound+23;
 	int numCmds = sound->common.length;
 	int alBlock = ((*((byte*)sound+22) & 7) << 2) | 0x20;
+
+	prerenderedSounds[SampleName] = NULL;
+	prerenderedSoundsLength[SampleName] = 0;
+
+	if (numCmds > 10000 || numCmds < 0) {
+		return;
+	}	
 
 	const int alCmdRate = 2*70;
 	int numSamples = (numCmds+1)*sampleRate/alCmdRate;

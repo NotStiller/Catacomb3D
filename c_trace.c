@@ -33,8 +33,7 @@ byte SafeTilemap(int x, int y) {
 		reallyabsolutelypositivelyaborttrace = true;
 		return 1;
 	}
-//	assert(!(x < 0 || y < 0 || x >= 64 || y >= 64));
-	return tilemap[x][y];
+	return GetTileMap(x,y);
 }
 
 
@@ -176,7 +175,7 @@ int FollowTrace (fixed tracex, fixed tracey, long deltax, long deltay, int max)
 
 	if (!CheckTileCoords(tx,ty)) { return 0; }
 
-	spotvis[tx][ty] = true;
+	SetSpotVis(tx,ty,true);
 
 	absdx=LABS(deltax);
 	absdy=LABS(deltay);
@@ -200,7 +199,7 @@ int FollowTrace (fixed tracex, fixed tracey, long deltax, long deltay, int max)
 			{
 				tx++;
 				if (!CheckTileCoords(tx,ty)) { return 0; }
-				spotvis[tx][ty] = true;
+				SetSpotVis(tx,ty,true);
 				tracey+=ystep;
 				ty = tracey>>TILESHIFT;
 
@@ -234,7 +233,7 @@ int FollowTrace (fixed tracex, fixed tracey, long deltax, long deltay, int max)
 			{
 				if (!CheckTileCoords(tx,ty)) { return 0; }
 				tx--;
-				spotvis[tx][ty] = true;
+				SetSpotVis(tx,ty,true);
 				tracey+=ystep;
 				ty = tracey>>TILESHIFT;
 
@@ -278,7 +277,7 @@ int FollowTrace (fixed tracex, fixed tracey, long deltax, long deltay, int max)
 			{
 				if (!CheckTileCoords(tx,ty)) { return 0; }
 				ty++;
-				spotvis[tx][ty] = true;
+				SetSpotVis(tx,ty,true);
 				tracex+=xstep;
 				tx = tracex>>TILESHIFT;
 
@@ -312,7 +311,7 @@ int FollowTrace (fixed tracex, fixed tracey, long deltax, long deltay, int max)
 			{
 				if (!CheckTileCoords(tx,ty)) { return 0; }
 				ty--;
-				spotvis[tx][ty] = true;
+				SetSpotVis(tx,ty,true);
 				tracex+=xstep;
 				tx = tracex>>TILESHIFT;
 

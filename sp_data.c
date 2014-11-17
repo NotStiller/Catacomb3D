@@ -23,7 +23,7 @@
 
 void **grsegs;
 
-int loadedmap=-1;
+maptype *curmap = NULL;
 maptype mapheaderseg[30];
 
 uint8_t *mapData=NULL;
@@ -36,7 +36,7 @@ uint8_t *auData=NULL;
 long auDataSize=0;
 
 
-huffnode *grhuffman = NULL, *audiohuffman = NULL;
+huffnode *grhuffman = NULL;
 int32_t *GrChunksPos;
 int32_t *GrChunksSize;
 int32_t *AudioChunksPos;
@@ -398,11 +398,15 @@ void loadSprite(int Chunk, int SpriteNum) {
 // This is a crippled version of the sprite loading function, but we need no bit
 // shifting functionality anyway. Now sprites are just replaced by masked pics,
 // which they really are.
-	memptr buffer = SPD_ReadAndHuffExpand(grData+GrChunksPos[Chunk], grhuffman, NULL);
+	long size;
+	memptr buffer = SPD_ReadAndHuffExpand(grData+GrChunksPos[Chunk], grhuffman, &size);
 	spritetabletype *spr = &spritetable[SpriteNum];
-	assert(spr->orgx == 0);
+	if (spr->orgx != 0 || spr->orgy != 0 || spr->shifts != 4) {
+		printf("Warning: I don't know how to handle this sprite !\n");
+	}
+/*	assert(spr->orgx == 0);
 	assert(spr->orgy == 0);
-	assert(spr->shifts == 4);
+	assert(spr->shifts == 4);*/
 	deplanePic(buffer, spr->width, spr->height, 1, &grsegs[Chunk]);
 	free(buffer);
 }
@@ -524,6 +528,16 @@ void loadMapHeader(uint8_t *Data, int HeaderOffset, int Map, uint16_t RLEWTag) {
 	}
 }
 
+void SPD_LoadGrChunk(int Chunk) {
+	if (grsegs[Chunk]) {
+		return;
+	}
+	if (GrChunksPos[Chunk] < 0) {
+		return;
+	}
+	SPD_CombinedLoader(Chunk);
+}
+
 void SPD_SetupScaleWall(int Chunk, int PicNum, int ScaleWallNum) {
 	loadPic(Chunk, PicNum);
 }
@@ -534,14 +548,7 @@ void SPD_SetupScalePic(int Chunk, int PicNum, int ScalePicNum) {
 
 
 void SPD_LoadMap(int ChunkNum, int MapNum) {
-	loadedmap = MapNum;
-
-// load the planes in
-// If a plane's pointer still exists it will be overwritten (levels are
-// allways reloaded, never cached)
-
-	int size = mapheaderseg[MapNum].width * mapheaderseg[MapNum].height * 2;
-
+	curmap = &mapheaderseg[MapNum];
 	loadMapTexts(ChunkNum,MapNum);
 }
 
@@ -636,7 +643,9 @@ void SPD_DumpDict(const char *Name, uint8_t *Buf, long Size) {
 	int i;
 	uint8_t *p = Buf;
 	for (i = 0; i < 256; i++) {
-		printf("{%3i, %3i}, ", (int)SPD_ReadU16(&p), (int)SPD_ReadU16(&p));
+		int bit0 = (int)SPD_ReadU16(&p);
+		int bit1 = (int)SPD_ReadU16(&p);
+		printf("{%3i, %3i}, ", bit0, bit1);
 		if (!(3&(i+1))) {
 			printf("\n");
 		}

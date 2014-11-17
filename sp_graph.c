@@ -18,38 +18,35 @@
 
 #include "srcport.h"
 #include <SDL/SDL.h>
-#include "c3_def.h"
+#include "id_heads.h"
 
-// Change this to get a bigger window.
+
+// Change this to get a bigger window at start.
 static int screenScaleUp=2; 		// 1 means 320x200, 2 means 640x400 window etc.
 int winWidth=1, winHeight=1;
 
-// Some constants, don't change them !
-static const int virtualWidth=320, virtualHeight=200;
-static int screenWidth=0, screenHeight=0;		// don't change these 2, otherwise the game will crash !
-static int screenOffsetX=0, screenOffsetY=0;
-static int redrawNeeded=0;
+/*// Some constants, don't change them !
+static const int virtualWidth=320, virtualHeight=200;*/
+
 
 // other stuff used by the backend
-static SDL_Surface* screen = NULL;
-static uint8_t *screenBuffer = NULL;
-#warning make screenBuffer static or remove entirely !
+BufferSetup guiBuffer;
+static int redrawNeeded=0;
 static int borderColor=0;
+static SDL_Surface* screen = NULL;
+int screenfaded;
 
 RenderSetup3D renderSetup;
-RenderSetup2D renderSetup2D;
-RenderSetup2D hudSetup;
-RenderSetup2D guiSetup;
 
-unsigned short *wallheight;
-unsigned short *wallwidth;
-uint8_t **wallpointer;
-fixed *zbuffer;	
+unsigned short *wallheight = NULL;
+unsigned short *wallwidth = NULL;
+uint8_t **wallpointer = NULL;
+fixed *zbuffer = NULL;	
 
 /* Source for the following is
 http://commons.wikimedia.org/w/index.php?title=File:EGA_Table.PNG&oldid=39767054
 */
-static unsigned long EGAPalette[64] = {
+static uint32_t EGAPalette[64] = {
 	0x000000, 0x0000AA, 0x00AA00, 0x00AAAA, //  0- 3
 	0xAA0000, 0xAA00AA, 0xAAAA00, 0xAAAAAA, //  4- 7
 	0x000055, 0x0000FF, 0x00AA55, 0x00AAFF, //  8-11
@@ -71,51 +68,52 @@ static unsigned long EGAPalette[64] = {
 	0xFF5555, 0xFF55FF, 0xFFFF55, 0xFFFFFF, // 60-63
 };
 
-static int EGADefaultColors[] = {0, 1, 2, 3, 4, 5, 20, 7, 56, 57, 58, 59, 60, 61, 62, 63};
+int CatacombColors[7][17]=
+{{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+ {0,0,0,0,0,0,0,0,0,1,2,3,4,5,6,7,0},
+ {0,0,0,0,0,0,0,0,0x18,0x19,0x1a,0x1b,0x1c,0x1d,0x1e,0x1f,0},
+ {0,1,2,3,4,5,6,7,0x18,0x19,0x1a,0x1b,0x1c,0x1d,0x1e,0x1f,0},
+ {0,1,2,3,4,5,6,7,0x1f,0x1f,0x1f,0x1f,0x1f,0x1f,0x1f,0x1f,0},
+ {0x1f,0x1f,0x1f,0x1f,0x1f,0x1f,0x1f,0x1f,0x1f,0x1f,0x1f,0x1f,0x1f,0x1f,0x1f,0x1f,0x1f}};
+
+static int EGADefaultColors[16] = {0, 1, 2, 3, 4, 5, 20, 7, 56, 57, 58, 59, 60, 61, 62, 63};
+static int *curColors = EGADefaultColors;
 
 void SPG_Init() {
-	renderSetup.BufferStart = NULL;
-	SPG_SetWindowSize(screenScaleUp*virtualWidth+50, screenScaleUp*virtualHeight+50);
+	SPG_SetWindowSize(screenScaleUp*320+50, screenScaleUp*200+50);
 	redrawNeeded = 0;
-/*// clear screen
-	SDL_Rect rect;
-	rect.x = 0;
-	rect.y = 0;
-	rect.w = winWidth;
-	rect.h = winHeight;
-	assert(SDL_FillRect(screen, &rect, 0) == 0);*/
 }
 
 
-static void putPixel(RenderSetup2D *Setup, unsigned x, unsigned y, unsigned color) {
+static void putPixel(BufferSetup *Setup, unsigned x, unsigned y, unsigned color) {
 	if (x < 0 || y < 0 || x >= Setup->Width || y >= Setup->Height) {
 		return;
 	}
-	y = Setup->OffsetY+Setup->Scale*y;
-	x = Setup->OffsetX+Setup->Scale*x;
+	y *= Setup->Scale;
+	x *= Setup->Scale;
 	int i;
 	for (i = 0; i < Setup->Scale; i++) {
-		memset(Setup->BufferStart+y++*Setup->Pitch+x, color, Setup->Scale);
+		memset(Setup->Buffer+y++*Setup->Pitch+x, color, Setup->Scale);
 	}
 }
 
-static void putPixelXOR(RenderSetup2D *Setup, unsigned x, unsigned y, unsigned color) {
+static void putPixelXOR(BufferSetup *Setup, unsigned x, unsigned y, unsigned color) {
 	if (x < 0 || y < 0 || x >= Setup->Width || y >= Setup->Height) {
 		return;
 	}
-	y = Setup->OffsetY+Setup->Scale*y;
-	x = Setup->OffsetX+Setup->Scale*x;
+	y *= Setup->Scale;
+	x *= Setup->Scale;
 	int i, j;
 	for (i = 0; i < Setup->Scale; i++) {
 		for (j = 0; j < Setup->Scale; j++) {
-			Setup->BufferStart[(y+i)*Setup->Pitch+x+j] ^= color;
+			Setup->Buffer[(y+i)*Setup->Pitch+x+j] ^= color;
 		}
 	}
 }
 
 
-//static int drawPropChar(RenderSetup2D *Setup, int X, int Y, int FontNumber, int Char) {
-static int drawPropChar(RenderSetup2D *Setup, int X, int Y, fontstruct *Font, int FontColor, int Char) {
+//static int drawPropChar(BufferSetup *Setup, int X, int Y, int FontNumber, int Char) {
+static int drawPropChar(BufferSetup *Setup, int X, int Y, fontstruct *Font, int FontColor, int Char) {
 	fontstruct *font = Font;
 	int width = font->width[Char];
 	uint8_t *c = (uint8_t*)font+font->location[Char];
@@ -136,182 +134,26 @@ static int drawPropChar(RenderSetup2D *Setup, int X, int Y, fontstruct *Font, in
 	return width;
 }
 
-static void flipBufferCentered(void) {
-	SDL_Rect rect;
-	rect.x = 0;
-	rect.y = 0;
-	rect.w = winWidth;
-	rect.h = winHeight;
-	assert(SDL_FillRect(screen, &rect, 0) == 0);
-
-	int bufOffsX, bufOffsY, bufWidth, bufHeight;
-	bufOffsX = screenWidth-screenScaleUp*virtualWidth;
-	bufOffsY = screenHeight-screenScaleUp*virtualHeight;
-	bufWidth = screenScaleUp*virtualWidth;
-	bufHeight = screenScaleUp*virtualHeight;
-
-	int winOffsX, winOffsY;
-	winOffsX = (winWidth-screenScaleUp*virtualWidth)/2;
-	winOffsY = (winHeight-screenScaleUp*virtualHeight)/2;
-
-	// the buffer will never be scaled down, so window can be too small !
-	if (winWidth < screenScaleUp*virtualWidth) {
-		winOffsX = 0;
-		bufWidth = winWidth;
-	}
-	if (winHeight < screenScaleUp*virtualHeight) {
-		winOffsY = 0;
-		bufHeight = winHeight;
-	}
-
-	
-	SDL_LockSurface(screen);
-	assert(screen->format->BytesPerPixel == 1);
-
-	int y;
-	for (y=0; y < bufHeight; y++) {
-		memcpy(screen->pixels+(y+winOffsY)*screen->pitch+winOffsX, screenBuffer+(y+bufOffsY)*screenWidth+bufOffsX, bufWidth);
-	}
-	SDL_UnlockSurface(screen);
-	assert(SDL_Flip(screen) == 0);
-	SP_PollEvents(false);
-}
-
-static void flipBufferOffset(void) {
-	SDL_LockSurface(screen);
-	assert(screen->format->BytesPerPixel == 1);
-	int drawWidth, drawHeight;
-	drawWidth = screenWidth;
-	drawHeight = screenHeight;
-	if (winWidth < screenWidth) {
-		drawWidth = winWidth;
-	}
-	if (winHeight < screenHeight) {
-		drawHeight = winHeight;
-	}
-	assert(screen->pitch >= drawWidth);
-	int y;
-	// write out the buffer, including renderer window and gui
-	for (y=0; y < drawHeight; y++) {
-		memcpy(screen->pixels+y*screen->pitch, screenBuffer+y*screenWidth, drawWidth);
-	}
-	if (winHeight == screenHeight && winWidth == screenWidth) {
-		// write background color at top right (if there is space)
-		for (y=0; y < screenOffsetY; y++) {
-			memset(screen->pixels+y*screen->pitch+renderSetup.Width, borderColor, screenWidth-renderSetup.Width);
-		}
-		// write background color at lower left (if there is space)
-		for (y=renderSetup.Height; y < screenHeight; y++) {
-			memset(screen->pixels+y*screen->pitch, borderColor, screenOffsetX);
-		}
-	}
-	SDL_UnlockSurface(screen);
-	assert(SDL_Flip(screen) == 0);
-	SP_PollEvents(false);
-}
-
-void SPG_FlipBuffer (void) {
-	if (!SP_GameActive()) {
-		flipBufferCentered();
-	} else {
-		flipBufferOffset();
-	}
-}
-
-void SPG_Bar(RenderSetup2D *Setup, int X, int Y, int Width, int Height, int Color)
+void spg_Fizzle (int Scale)
 {
-	if (X < 0) {
-		Width += X;
-		X = 0;
-	}
-	if (Y < 0) {
-		Height += Y;
-		Y = 0;
-	}
-	if (X+Width > Setup->Width) {
-		Width = Setup->Width-X;
-	}
-	if (Y+Height > Setup->Height) {
-		Height = Setup->Height-Y;
-	}
-	assert(X >= 0);
-	assert(Y >= 0);
-	assert(Width >= 0);
-	assert(Height >= 0);
-	X = Setup->OffsetX+Setup->Scale*X;
-	Y = Setup->OffsetY+Setup->Scale*Y;
-	Width *= Setup->Scale;
-	Height *= Setup->Scale;
-
-	int i;
-	for (i = 0; i < Height; i++) {
-		memset(&screenBuffer[(Y+i)*Setup->Pitch+X], Color, Width);
-	}
-}
-
-
-void SPG_MeasureString (char *String, int FontNumber, int *Width, int *Height) {
-	fontstruct *font = (fontstruct *)grsegs[STARTFONT+FontNumber];
-	byte *f = (byte*)font;
-
-	if (Height != NULL) {
-		*Height = font->height;
-	}
-
-	if (Width != NULL) {
-		for (*Width = 0;*String;String++)
-			*Width += font->width[*(byte*)String];
-	}
-}
-
-int SPG_DrawString(RenderSetup2D *Setup, int PX, int PY, char *String, int FontNum, int FontColor) {
-	fontstruct *font = (fontstruct*)grsegs[STARTFONT+FontNum];
-	while (*String) {
-		int w = drawPropChar(Setup, PX, PY, font, FontColor, *(unsigned char*)String++);
-		PX += w;
-	}
-	return PX;
-}
-
-
-static void flipPixel(unsigned x, unsigned y) { // this is used by FizzleFade
-	SDL_Rect rect;
-	x = screenOffsetX+screenScaleUp*x;
-	y = screenOffsetY+screenScaleUp*y;
-	rect.x = x;
-	rect.y = y;
-	rect.w = screenScaleUp;
-	rect.h = screenScaleUp;
-	assert(SDL_FillRect(screen, &rect, screenBuffer[x+y*screenWidth]) == 0);
-#warning this function is bullshit
-}
-
-void FizzleFade (unsigned width, unsigned height, boolean abortable)
-{
-	SPG_FlipBuffer();
-printf("Reimplement fizzle fade\n");
-//SPG_FlipBuffer();
-return;
 	unsigned        x,y,p,frame;
 	long            rndval;
-
+	boolean abortable = true;
+	int width = 320;
+	int height = 200;
 	rndval = 1;
 	y = 0;
-	SDL_Rect rect;
-
-	rect.w = 1;
-	rect.h = 1;
 	frame=0;
-	SP_SetTimeCount(0);
+	int start = SP_TimeCount();
 	do      // while (1)
 	{
 		SP_PollEvents(false);
 		if (abortable)
 		{
-			IN_ReadControl(0,&c);
-			if (c.button0 || c.button1 || SP_Keyboard(sc_Space) || SP_Keyboard(sc_Enter))
+extern	ControlInfo	control;
+			IN_ReadControl(0,&control);
+			if (control.button0 || control.button1 || SP_Keyboard(sc_Space) || SP_Keyboard(sc_Enter))
 			{
-				SPG_FlipBuffer();
 				return;
 			}
 		}
@@ -336,23 +178,232 @@ return;
 				continue;
 
 			
-			flipPixel(x, y);
+			SDL_UpdateRect(screen,Scale*x,Scale*y,Scale,Scale);
 
 			if (rndval == 1)                // entire sequence has been completed
 			{
-				SDL_Flip(screen);
 				return;
 			};
 		}
-		SDL_Flip(screen);
 		frame+=1;
-		while (SP_TimeCount()<frame) {        // don't go too fast
+		while (SP_TimeCount()<start+frame) {        // don't go too fast
 		}
 	} while (1);
 
 }
 
-void SPG_DrawTile8(RenderSetup2D *Setup, unsigned X, unsigned Y, uint8_t *Tile) {
+
+
+void spg_Blit(SDL_Surface *Screen, BufferSetup *RenderBuffers[]) {
+	SDL_LockSurface(Screen);
+	assert(Screen->format->BytesPerPixel == 1);
+	int i;
+	for (i = 0; RenderBuffers[i] != NULL; i++) {
+		BufferSetup *buf = RenderBuffers[i];
+		int width = buf->Width;
+		int height = buf->Height;
+		if (winWidth < buf->ScreenX+width) {
+			width = winWidth-buf->ScreenX;
+		}
+		if (winHeight < buf->ScreenY+height) {
+			height = winHeight-buf->ScreenY;
+		}
+		if (width <= 0 || height <= 0) {
+			continue;
+		}
+
+		// write out the buffer, including renderer window and gui
+		int y;
+		for (y=0; y < height; y++) {
+			memcpy((uint8_t*)Screen->pixels+(y+buf->ScreenY)*Screen->pitch+buf->ScreenX, &buf->Buffer[y*buf->Pitch], width);
+		}
+	}
+	SDL_UnlockSurface(Screen);
+}
+
+
+
+void SPG_ClearBlitAndFlip(int ClearColor, BufferSetup *RenderBuffers[]) {
+	if (ClearColor < 0) {
+		ClearColor = borderColor;
+	}
+	SDL_Rect rect;
+	rect.x = 0;
+	rect.y = 0;
+	rect.w = winWidth;
+	rect.h = winHeight;
+	assert(SDL_FillRect(screen, &rect, ClearColor) == 0);
+
+	spg_Blit(screen, RenderBuffers);
+
+	assert(SDL_Flip(screen) == 0);
+	SP_PollEvents(false);
+}
+
+
+void SPG_ClearBlitAndFizzle(int ClearColor, BufferSetup *RenderBuffers[]) {
+	if (ClearColor < 0) {
+		ClearColor = borderColor;
+	}
+	SDL_Rect rect;
+	rect.x = 0;
+	rect.y = 0;
+	rect.w = winWidth;
+	rect.h = winHeight;
+	assert(SDL_FillRect(screen, &rect, ClearColor) == 0);
+
+	spg_Blit(screen, RenderBuffers);
+
+	int scale = (winWidth+319)/320;
+	if ((winHeight+199)/200 > scale) {
+		scale = (winHeight+199)/200;
+	}
+	if (scale < 1) {
+		scale = 1;
+	}
+	spg_Fizzle(scale);
+	assert(SDL_Flip(screen) == 0);
+	SP_PollEvents(false);
+}
+
+void spg_Scale(SDL_Surface *Screen, BufferSetup *RenderBuffer) {
+	int scale = winWidth/RenderBuffer->Width, scaleV = winHeight/RenderBuffer->Height;
+	if (scaleV < scale) {
+		scale = scaleV;
+	}
+	if (scale < 1) {
+		scale = 1;
+	}
+	int width = scale*RenderBuffer->Width, height = scale*RenderBuffer->Height;
+	int offsX = (winWidth-width)/2;
+	int offsY = (winHeight-height)/2;
+	if (winWidth < width) {
+		offsX = 0;
+		width = winWidth;
+	}
+	if (winHeight < height) {
+		offsY = 0;
+		height = winHeight;
+	}
+
+	SDL_LockSurface(Screen);
+	assert(Screen->format->BytesPerPixel == 1);
+
+	int x,y;
+	for (y=0; y < height; y++) {
+		uint8_t *src = RenderBuffer->Buffer+(y/scale)*RenderBuffer->Pitch;
+		uint8_t *dst = Screen->pixels+(y+offsY)*Screen->pitch+offsX;
+		for (x=0; x < width; x++) {
+			dst[x] = src[x/scale];
+		}
+	}
+
+	SDL_UnlockSurface(Screen);
+}
+
+void SPG_ClearScaleAndFlip(int ClearColor, BufferSetup *RenderBuffer) {
+	if (ClearColor < 0) {
+		ClearColor = borderColor;
+	}
+	SDL_Rect rect;
+	rect.x = 0;
+	rect.y = 0;
+	rect.w = winWidth;
+	rect.h = winHeight;
+	assert(SDL_FillRect(screen, &rect, ClearColor) == 0);
+
+	spg_Scale(screen, RenderBuffer);
+
+	assert(SDL_Flip(screen) == 0);
+	SP_PollEvents(false);
+}
+
+void SPG_ClearScaleAndFizzle(int ClearColor, BufferSetup *RenderBuffer) {
+	if (ClearColor < 0) {
+		ClearColor = borderColor;
+	}
+	SDL_Rect rect;
+	rect.x = 0;
+	rect.y = 0;
+	rect.w = winWidth;
+	rect.h = winHeight;
+	assert(SDL_FillRect(screen, &rect, ClearColor) == 0);
+
+	spg_Scale(screen, RenderBuffer);
+
+	int scale = (winWidth+319)/320;
+	if ((winHeight+199)/200 > scale) {
+		scale = (winHeight+199)/200;
+	}
+	if (scale < 1) {
+		scale = 1;
+	}
+	spg_Fizzle(scale);
+	assert(SDL_Flip(screen) == 0);
+	SP_PollEvents(false);
+}
+
+void SPG_FlipBuffer(void) {
+	FlipBuffer();
+}
+
+void SPG_Bar(BufferSetup *Setup, int X, int Y, int Width, int Height, int Color)
+{
+	if (X < 0) {
+		Width += X;
+		X = 0;
+	}
+	if (Y < 0) {
+		Height += Y;
+		Y = 0;
+	}
+	if (X+Width > Setup->Width) {
+		Width = Setup->Width-X;
+	}
+	if (Y+Height > Setup->Height) {
+		Height = Setup->Height-Y;
+	}
+	assert(X >= 0);
+	assert(Y >= 0);
+	assert(Width >= 0);
+	assert(Height >= 0);
+	X *= Setup->Scale;
+	Y *= Setup->Scale;
+	Width *= Setup->Scale;
+	Height *= Setup->Scale;
+
+	int i;
+	for (i = 0; i < Height; i++) {
+		memset(&Setup->Buffer[(Y+i)*Setup->Pitch+X], Color, Width);
+	}
+}
+
+
+void SPG_MeasureString (char *String, int FontNumber, int *Width, int *Height) {
+	fontstruct *font = (fontstruct *)grsegs[StartFont+FontNumber];
+	byte *f = (byte*)font;
+
+	if (Height != NULL) {
+		*Height = font->height;
+	}
+
+	if (Width != NULL) {
+		for (*Width = 0;*String;String++)
+			*Width += font->width[*(byte*)String];
+	}
+}
+
+int SPG_DrawString(BufferSetup *Setup, int PX, int PY, char *String, int FontNum, int FontColor) {
+	fontstruct *font = (fontstruct*)grsegs[StartFont+FontNum];
+	while (*String) {
+		int w = drawPropChar(Setup, PX, PY, font, FontColor, *(unsigned char*)String++);
+		PX += w;
+	}
+	return PX;
+}
+
+
+void SPG_DrawTile8(BufferSetup *Setup, unsigned X, unsigned Y, uint8_t *Tile) {
 	uint8_t *t = Tile;
 	int x,y;
 	for (y = 0; y < 8; y++) {
@@ -366,7 +417,7 @@ void SPG_DrawTile8(RenderSetup2D *Setup, unsigned X, unsigned Y, uint8_t *Tile) 
 	}
 }
 
-void SPG_DrawPic(RenderSetup2D *Setup, uint8_t *Source, int ScrX, int ScrY) {
+void SPG_DrawPic(BufferSetup *Setup, uint8_t *Source, int ScrX, int ScrY) {
 	int width = *(uint32_t*)Source;
 	int height = *(1+(uint32_t*)Source);
 	byte *planes = Source+2*sizeof(uint32_t);
@@ -383,7 +434,7 @@ void SPG_DrawPic(RenderSetup2D *Setup, uint8_t *Source, int ScrX, int ScrY) {
 	}
 }
 
-void SPG_DrawPicSkip(RenderSetup2D *Setup, uint8_t *Source, int ScrX, int ScrY, int LowerV, int UpperV) {
+void SPG_DrawPicSkip(BufferSetup *Setup, uint8_t *Source, int ScrX, int ScrY, int LowerV, int UpperV) {
 	int width = *(uint32_t*)Source;
 	byte *planes = Source+2*sizeof(uint32_t)+LowerV*width;
 	int x,y;
@@ -400,22 +451,16 @@ void SPG_DrawPicSkip(RenderSetup2D *Setup, uint8_t *Source, int ScrX, int ScrY, 
 }
 
 
-// c_draw.c
-
-void SPG_ClearScreen (void)
+void SPG_DrawFloors (int Floor, int Ceiling)
 {
 	int y = 0;
 	for (; y < renderSetup.CenterY+1; y++) {
-		memset(renderSetup.BufferStart+y*renderSetup.Pitch, 0, renderSetup.Width);
+		memset(renderSetup.BufferStart+y*renderSetup.Pitch, Ceiling, renderSetup.Width);
 	}
 	for (; y < renderSetup.Height; y++) {
-		memset(renderSetup.BufferStart+y*renderSetup.Pitch, 8, renderSetup.Width);
+		memset(renderSetup.BufferStart+y*renderSetup.Pitch, Floor, renderSetup.Width);
 	}
 }
-
-
-
-// c_scale.c
 
 
 const	unsigned	screenbwide = 40;
@@ -556,6 +601,22 @@ void SPG_SetBorderColor(int Color) {
 	borderColor = Color;
 }
 
+void SPG_SetColors(int *Colors) {
+	if (Colors != NULL) {
+		curColors = Colors;
+	}
+	SDL_Color cols[256];
+	int i;
+	for (i = 0; i < 16; i++) {
+		unsigned long hash = EGAPalette[curColors[i]];
+		cols[i].r = (hash>>16)&0xFF;
+		cols[i].g = (hash>>8)&0xFF;
+		cols[i].b = hash&0xFF;
+	}
+	SDL_SetPalette(screen, SDL_LOGPAL|SDL_PHYSPAL, cols, 0, 16);
+}
+
+
 void SPG_SetWindowSize(int Width, int Height) {
 	winWidth = Width;
 	winHeight = Height;
@@ -567,35 +628,20 @@ void SPG_SetWindowSize(int Width, int Height) {
 	screen = SDL_SetVideoMode(winWidth, winHeight, 8, SDL_SWSURFACE|SDL_RESIZABLE);
 	assert(screen != NULL);
 
-// initialize the SDL palette to the original EGA palette
-	SDL_Color cols[256];
-	int i;
-	for (i = 0; i < 16; i++) {
-		unsigned long hash = EGAPalette[EGADefaultColors[i]];
-		cols[i].r = (hash>>16)&0xFF;
-		cols[i].g = (hash>>8)&0xFF;
-		cols[i].b = hash&0xFF;
-	}
-	SDL_SetPalette(screen, SDL_LOGPAL|SDL_PHYSPAL, cols, 0, 16);
+	SPG_SetColors(NULL);
 
-	int scale = Width/virtualWidth, scaleH = Height/virtualHeight;
-	screenWidth = Width;
-	screenHeight = Height;
-	if (scaleH < scale) {
-		scale = scaleH;
-	}
-	screenScaleUp = scale;
-	if (scale < 1) {
-		screenScaleUp = scale = 1;
-		screenWidth = virtualWidth;
-		screenHeight = virtualHeight;
-	}
-	screenOffsetX = screenWidth-screenScaleUp*virtualWidth;
-	screenOffsetY = screenHeight-screenScaleUp*virtualHeight;
-	
-	if (screenBuffer != NULL) {
-		free(screenBuffer);
-		screenBuffer = NULL;
+	GameWindowResizeHook(Width, Height);
+}
+
+void SPG_SetupRenderer(int Width, int Height, char *Buffer, int BufferPitch) {
+	renderSetup.Width = Width/2*2;
+	renderSetup.Height = Height/2*2;
+	renderSetup.Pitch = BufferPitch;
+	renderSetup.BufferStart = Buffer;
+	renderSetup.CenterX = renderSetup.Width/2-1;
+	renderSetup.CenterY = renderSetup.Height/2-1;
+
+	if (wallheight != NULL) {
 		free(wallheight);
 		wallheight = NULL;
 		free(wallwidth);
@@ -605,42 +651,6 @@ void SPG_SetWindowSize(int Width, int Height) {
 		free(zbuffer);
 		zbuffer = NULL;
 	}
-	screenBuffer = malloc(screenWidth*screenHeight);
-
-	hudSetup.BufferStart = screenBuffer;	
-	hudSetup.Pitch = screenWidth;
-	hudSetup.Width = virtualWidth;
-	hudSetup.Height = virtualHeight;
-	hudSetup.OffsetX = screenWidth-screenScaleUp*virtualWidth;
-	hudSetup.OffsetY = screenHeight-screenScaleUp*virtualHeight;
-	hudSetup.Scale = screenScaleUp;
-
-	guiSetup.BufferStart = screenBuffer;	
-	guiSetup.Pitch = screenWidth;
-	guiSetup.Width = virtualWidth;
-	guiSetup.Height = virtualHeight;
-	guiSetup.OffsetX = 0;
-	guiSetup.OffsetY = 0;
-	guiSetup.Scale = screenScaleUp;
-	guiSetup = hudSetup;
-
-	renderSetup.Width = (screenWidth-screenScaleUp*7*8)/2*2;
-	renderSetup.Height = (screenHeight-screenScaleUp*7*8)/2*2;
-	renderSetup.Pitch = screenWidth;
-	renderSetup.BufferStart = screenBuffer;
-	renderSetup.CenterX = renderSetup.Width/2-1;
-	renderSetup.CenterY = renderSetup.Height/2-1;
-	renderSetup.EnterPlaqueX = winWidth/2/screenScaleUp-screenOffsetX;
-	renderSetup.EnterPlaqueY = winHeight/2/screenScaleUp-screenOffsetY;
-
-	renderSetup2D.BufferStart = screenBuffer;	
-	renderSetup2D.Pitch = screenWidth;
-	renderSetup2D.Width = renderSetup.Width/screenScaleUp;
-	renderSetup2D.Height = renderSetup.Height/screenScaleUp;
-	renderSetup2D.Scale = screenScaleUp;
-	renderSetup2D.OffsetX = renderSetup.Width-screenScaleUp*renderSetup2D.Width;
-	renderSetup2D.OffsetY = renderSetup.Height-screenScaleUp*renderSetup2D.Height;
-
 
 	int widthplus = 2*renderSetup.Width+100;
 	wallheight = malloc(sizeof(unsigned short)*widthplus);
@@ -663,43 +673,39 @@ int SPG_PollRedraw (void) {
 
 void VW_Vlin(unsigned yl, unsigned yh, unsigned x, unsigned color) {
 	for (; yl <= yh; yl++) {
-		putPixel(&guiSetup, x, yl, color);
+		putPixel(&guiBuffer, x, yl, color);
 	}
 }
 
 
 void VW_DrawPropString(char *String) {
-	px = SPG_DrawString(&guiSetup, px, py, String, fontnumber, fontcolor);
+	px = SPG_DrawString(&guiBuffer, px, py, String, fontnumber, fontcolor);
 /*	while (*String) {
-		int w = drawPropChar(guiSetup, px, py, fontnumber, *(unsigned char*)String++);
+		int w = drawPropChar(&guiBuffer, px, py, fontnumber, *(unsigned char*)String++);
 		px += w;
 	}*/
 }
 
 
 void VW_Hlin(unsigned xl, unsigned xh, unsigned y, unsigned color) {
-	if (xh < 0 || xl >= screenWidth || xl > xh || y < 0 || y >= screenHeight) {
+	if (xh < 0 || xl >= 320 || xl > xh || y < 0 || y >= 200) {
 		return;
 	}
 	if (xl < 0) {
 		xl = 0;
 	}
-	if (xh >= screenWidth) {
-		xh = screenWidth-1;
+	if (xh >= 320) {
+		xh = 319;
 	}
-	y = screenOffsetY+screenScaleUp*y;
-	int width = screenScaleUp*(xh+1-xl);
-	xl = screenOffsetX+screenScaleUp*xl;
-	int i;
-	for (i = 0; i < screenScaleUp; i++) {
-		memset(&screenBuffer[(y+i)*screenWidth+xl], color, width);
+	for (; xl <= xh; xl++) {
+		putPixel(&guiBuffer, xl,y,color);
 	}
 }
 
 
 void	VW_MeasurePropString (char *string, word *width, word *height)
 {
-	fontstruct *font = (fontstruct *)grsegs[STARTFONT+fontnumber];
+	fontstruct *font = (fontstruct *)grsegs[StartFont+fontnumber];
 	byte *f = (byte*)font;
 
 	*height = font->height;
@@ -712,44 +718,166 @@ void VW_Bar (unsigned x, unsigned y, unsigned width, unsigned height, unsigned c
 	if (x < 0) {
 		width += x;
 		x = 0;
-	} else if (x >= virtualWidth) {
-		width += virtualWidth-1-x;
-		x = virtualWidth-1;
+	} else if (x >= 320) {
+		width += 320-1-x;
+		x = 320-1;
 	}
 	if (y < 0) {
 		height += y;
 		y = 0;
-	} else if (y >= virtualHeight) {
-		height += virtualHeight-1-y;
-		y = virtualHeight-1;
+	} else if (y >= 200) {
+		height += 200-1-y;
+		y = 200-1;
 	}
-	if (x+width > virtualWidth) {
-		width = virtualWidth-x;
+	if (x+width > 320) {
+		width = 320-x;
 	}
-	if (y+height > virtualHeight) {
-		height = virtualHeight-y;
+	if (y+height > 200) {
+		height = 200-y;
 	}
 	assert(x >= 0);
 	assert(y >= 0);
 	assert(width >= 0);
 	assert(height >= 0);
-	x = screenOffsetX+screenScaleUp*x;
-	y = screenOffsetY+screenScaleUp*y;
-	width *= screenScaleUp;
-	height *= screenScaleUp;
 
 	int i;
 	for (i = 0; i < height; i++) {
-		memset(&screenBuffer[(y+i)*screenWidth+x], color, width);
+		VW_Hlin(x,x+width-1,y+i,color);
 	}
 }
 
 void VW_DrawTile8(unsigned X, unsigned Y, unsigned Tile) {
-	SPG_DrawTile8(&guiSetup, 8*X,Y,(byte*)grsegs[STARTTILE8]+64*Tile);
+	SPG_DrawTile8(&guiBuffer, 8*X,Y,(byte*)grsegs[StartTile8]+64*Tile);
 }
 
 void VW_DrawTile8M(unsigned X, unsigned Y, unsigned Tile) {
-	SPG_DrawTile8(&guiSetup, 8*X,Y,(byte*)grsegs[STARTTILE8M]+64*Tile);
+	SPG_DrawTile8(&guiBuffer, 8*X,Y,(byte*)grsegs[StartTile8M]+64*Tile);
 }
 
+void VW_WaitVBL(int Ticks) {
+	int start = SDL_GetTicks();
+	while (70*(SDL_GetTicks()-start) < 1000*Ticks) {
+	}
+}
+
+
+
+void VW_SetDefaultColors(void)
+{
+extern int screenfaded;
+	SPG_SetColors(CatacombColors[3]);
+	screenfaded = false;
+}
+
+void VW_FadeOut(void)
+{
+extern int screenfaded;
+	int i;
+	for (i=3;i>=0;i--)
+	{
+		SPG_SetColors(CatacombColors[i]);
+		VW_WaitVBL(6);
+	}
+	screenfaded = true;
+}
+
+
+void VW_FadeIn(void)
+{
+extern int screenfaded;
+	int i;
+
+	for (i=0;i<4;i++)
+	{
+		SPG_SetColors(CatacombColors[i]);
+		VW_WaitVBL(6);
+	}
+	screenfaded = false;
+}
+
+
+
+#if 0
+static void flipPixel(unsigned x, unsigned y) { // this is used by FizzleFade
+return;
+#if 0
+	SDL_Rect rect;
+	x = screenOffsetX+screenScaleUp*x;
+	y = screenOffsetY+screenScaleUp*y;
+	rect.x = x;
+	rect.y = y;
+	rect.w = screenScaleUp;
+	rect.h = screenScaleUp;
+	assert(SDL_FillRect(screen, &rect, screenBuffer[x+y*screenWidth]) == 0);
+#endif
+#warning this function is bullshit
+}
+
+void FizzleFade (unsigned width, unsigned height, boolean abortable)
+{
+	SPG_FlipBuffer();
+printf("Reimplement fizzle fade\n");
+//SPG_FlipBuffer();
+return;
+	unsigned        x,y,p,frame;
+	long            rndval;
+
+	rndval = 1;
+	y = 0;
+	SDL_Rect rect;
+
+	rect.w = 1;
+	rect.h = 1;
+	frame=0;
+	int start = SP_TimeCount();
+	do      // while (1)
+	{
+		SP_PollEvents(false);
+		if (abortable)
+		{
+extern	ControlInfo	c;
+			IN_ReadControl(0,&c);
+			if (c.button0 || c.button1 || SP_Keyboard(sc_Space) || SP_Keyboard(sc_Enter))
+			{
+				SPG_FlipBuffer();
+				return;
+			}
+		}
+
+
+//#define PIXPERFRAME     1600
+#define PIXPERFRAME     1600
+		for (p=0;p<PIXPERFRAME;p++)
+		{
+			y = (rndval&0xFF)-1;
+			x = (rndval>>8)&0x1FF;
+			if (rndval&1) {
+				rndval = 
+				rndval = (rndval^0x24000)/2;
+			} else {
+				rndval = rndval/2;
+			}
+
+			assert(x >= 0);
+			assert(y >= 0);
+			if (x>=width || y>=height)
+				continue;
+
+			
+			flipPixel(x, y);
+
+			if (rndval == 1)                // entire sequence has been completed
+			{
+				SDL_Flip(screen);
+				return;
+			};
+		}
+		SDL_Flip(screen);
+		frame+=1;
+		while (SP_TimeCount()<start+frame) {        // don't go too fast
+		}
+	} while (1);
+
+}
+#endif
 

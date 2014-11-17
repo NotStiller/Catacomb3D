@@ -45,6 +45,7 @@ void SPD_WriteS32(uint8_t **Buffer, int32_t Value);
 
 
 void SPD_SetupCatacomb3DData();
+void SPD_SetupCatacombAbyssData();
 
 #endif
 

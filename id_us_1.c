@@ -504,6 +504,31 @@ US_CPrint(char *S)
 	}
 }
 
+
+///////////////////////////////////////////////////////////////////////////
+//
+// US_Printxy()
+//
+///////////////////////////////////////////////////////////////////////////
+
+void US_Printxy(word x, word y, char *text)
+{
+	word orgx, orgy;
+
+	orgx = PrintX;
+	orgy = PrintY;
+
+//	PrintX = WindowX+x;
+//	PrintY = WindowY+y;
+	PrintX = x;
+	PrintY = y;
+	US_Print(text);
+
+	PrintX = orgx;
+	PrintY = orgy;
+}
+
+
 ///////////////////////////////////////////////////////////////////////////
 //
 //      US_ClearWindow() - Clears the current window to white and homes the
@@ -616,7 +641,7 @@ US_RestoreWindow(WindowRec *win)
 //
 ///////////////////////////////////////////////////////////////////////////
 static void
-USL_XORICursor(int x,int y,char *s,word cursor, boolean draw)
+USL_XORICursor(int x,int y,char *s,word cursor, int color)
 {
 	char    buf[MaxString];
 	word    w,h;
@@ -628,9 +653,7 @@ USL_XORICursor(int x,int y,char *s,word cursor, boolean draw)
 	px = x + w - 1;
 	py = y;
 	int temp = fontcolor;
-	if (!draw) {
-		fontcolor = 0;
-	}
+	fontcolor = color;
 	USL_DrawString("\x80");
 	fontcolor = temp;
 }
@@ -647,7 +670,7 @@ USL_XORICursor(int x,int y,char *s,word cursor, boolean draw)
 ///////////////////////////////////////////////////////////////////////////
 boolean
 US_LineInput(int x,int y,char *buf,char *def,boolean escok,
-				int maxchars,int maxwidth)
+				int maxchars,int maxwidth,int bgcolor)
 {
 	boolean         redraw,
 				cursorvis,cursormoved,
@@ -676,7 +699,7 @@ US_LineInput(int x,int y,char *buf,char *def,boolean escok,
 	while (!done)
 	{
 		if (cursorvis)
-			USL_XORICursor(x,y,s,cursor,false);
+			USL_XORICursor(x,y,s,cursor,bgcolor);
 //	asm     pushf
 //	asm     cli
 
@@ -781,7 +804,7 @@ US_LineInput(int x,int y,char *buf,char *def,boolean escok,
 			px = x;
 			py = y;
 			int temp=fontcolor;
-			fontcolor = 0;
+			fontcolor = bgcolor;
 			USL_DrawString(olds);
 			fontcolor = temp;
 			strcpy(olds,s);
@@ -807,13 +830,13 @@ US_LineInput(int x,int y,char *buf,char *def,boolean escok,
 			cursorvis ^= true;
 		}
 		if (cursorvis)
-			USL_XORICursor(x,y,s,cursor,true);
+			USL_XORICursor(x,y,s,cursor,fontcolor);
 
 		SPG_FlipBuffer();
 	}
 
 	if (cursorvis)
-		USL_XORICursor(x,y,s,cursor,false);
+		USL_XORICursor(x,y,s,cursor,bgcolor);
 	if (!result)
 	{
 		px = x;

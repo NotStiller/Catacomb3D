@@ -49,6 +49,9 @@ void loadSprite(int Chunk, int SpriteNum);
 pictabletype *loadPicTable(uint8_t *Data, long DataSize, int NumElements);
 spritetabletype *loadSpriteTable(uint8_t *Data, long DataSize, int NumElements);
 
+void SPD_CombinedLoader(int Chunk);
+
+
 void SPD_DumpHexChar(const uint8_t *Buffer, long Size);
 void SPD_DumpU8Hex(const uint8_t *Buffer, long Size);
 uint8_t *SPD_ParseObj(const char *Filename, char ObjName[256], long *ObjSize);

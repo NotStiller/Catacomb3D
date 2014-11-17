@@ -133,7 +133,7 @@ extern	void	US_Startup(void),
 				US_DisplayHighScores(int which);
 extern	boolean	US_UpdateCursor(void),
 				US_LineInput(int x,int y,char *buf,char *def,boolean escok,
-								int maxchars,int maxwidth);
+								int maxchars,int maxwidth,int bgcolor);
 extern	int		US_CheckParm(char *parm,char **strings),
 				US_RndT(void);
 

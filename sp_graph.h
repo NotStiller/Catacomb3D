@@ -20,27 +20,35 @@
 #define SP_GRAPH_H
 
 typedef struct {
-	uint8_t *BufferStart;
-	int Width, Height, Pitch;
-	int OffsetX, OffsetY;
-	int Scale;
-} RenderSetup2D;
+	uint8_t *Buffer;
+	int Pitch, Width, Height, Scale;
+	int ScreenX, ScreenY;
+} BufferSetup;
+
+extern BufferSetup guiBuffer;
+
+/*dep
+void SPG_FlipBuffer();
+void SPG_ClearScreen (int Color);
+void SPG_DrawFloors (int Floor, int Ceiling);
+*/
 
 void SPG_Init();
-void SPG_FlipBuffer();
-void SPG_SetBorderColor(int Color);
 void SPG_SetWindowSize(int Width, int Height);
+void SPG_SetupRenderer(int Width, int Height, char *Buffer, int BufferPitch);
+void SPG_ClearBlitAndFlip(int ClearColor, BufferSetup *RenderBuffers[]);
+void SPG_ClearBlitAndFizzle(int ClearColor, BufferSetup *RenderBuffers[]);
+void SPG_ClearScaleAndFlip(int ClearColor, BufferSetup *RenderBuffer);
+void SPG_SetBorderColor(int Color);
 
-void SPG_ClearScreen (void);
 void SPG_DrawScaleShape (int XCenter, int Height, uint8_t *Pic, int ColorKey);
 int SPG_PollRedraw (void);
 
-
-void SPG_Bar(RenderSetup2D *Setup, int X, int Y, int Width, int Height, int Color);
-void SPG_DrawPic(RenderSetup2D *Setup, uint8_t *Source, int ScrX, int ScrY);
-void SPG_DrawPicSkip(RenderSetup2D *Setup, uint8_t *Source, int ScrX, int ScrY, int LowerV, int UpperV);
+void SPG_Bar(BufferSetup *Setup, int X, int Y, int Width, int Height, int Color);
+void SPG_DrawPic(BufferSetup *Setup, uint8_t *Source, int ScrX, int ScrY);
+void SPG_DrawPicSkip(BufferSetup *Setup, uint8_t *Source, int ScrX, int ScrY, int LowerV, int UpperV);
 void SPG_MeasureString (char *String, int FontNumber, int *Width, int *Height);
-int SPG_DrawString(RenderSetup2D *Setup, int PX, int PY, char *String, int FontNum, int FontColor);
+int SPG_DrawString(BufferSetup *Setup, int PX, int PY, char *String, int FontNum, int FontColor);
 
 #endif
 

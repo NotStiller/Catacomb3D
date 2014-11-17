@@ -53,7 +53,11 @@ int main(int argc, char **argv) {
 	SPG_Init();
 	SPA_Init();
 
-	SPD_SetupCatacomb3DData();
+	SPD_SetupGameData();
+
+	IN_Startup ();
+	SD_Startup ();
+	US_Startup ();
 
 	InitGame ();
 	LoadLatchMem ();
@@ -76,21 +80,21 @@ void SP_PollEvents() {
 			boolean down = event.type == SDL_KEYDOWN;
 			if (down && event.key.keysym.sym == SDLK_m) { // override mouse grabbing
 				toggleMouseGrab();
-			} else {
-				int idKey = translateKey(event.key.keysym.sym);
-				if (idKey != 0) {
-					keyboard[idKey] = down;
-					if (down) {
-						lastScan = idKey;
-					}
+			}
+
+			int idKey = translateKey(event.key.keysym.sym);
+			if (idKey != 0) {
+				keyboard[idKey] = down;
+				if (down) {
+					lastScan = idKey;
 				}
-				char c=0;
-				if ((event.key.keysym.unicode&0xFF80) == 0) {
-					c = event.key.keysym.unicode&0x7F;
-				}
-				if (down && c != 0) {
-					lastASCII = c;
-				}
+			}
+			char c=0;
+			if ((event.key.keysym.unicode&0xFF80) == 0) {
+				c = event.key.keysym.unicode&0x7F;
+			}
+			if (down && c != 0) {
+				lastASCII = c;
 			}
 		} else if (event.type == SDL_MOUSEMOTION) {
 			mouseDX += event.motion.xrel;
@@ -234,10 +238,6 @@ void SP_GameLeave() {
 
 int SP_StrafeOn() {
 	return mouseGrabEnabled;
-}
-
-void SP_SetTimeCount(long Ticks) { // set timeCountStart such that SP_TimeCount == Ticks
-	timeCountStart = SDL_GetTicks()*70/1000-Ticks;
 }
 
 long SP_TimeCount() { // Global time in 70Hz ticks
@@ -446,4 +446,32 @@ int US_RndT(void) {
 	return rndtable[(rndindex++)&0xFF];
 }
 
+
+
+int RANDOM(int Max) {
+	if (Max != 0) {
+		return rand()%Max;
+	}
+	return 0;
+}
+
+
+/*
+==========================
+=
+= Quit
+=
+==========================
+*/
+
+void Quit (char *error)
+{
+	US_Shutdown ();
+	SD_Shutdown ();
+	IN_Shutdown ();
+	if (error && *error) {
+		printf("ERROR: %s\n", error);
+	}
+	SP_Exit();
+}
 

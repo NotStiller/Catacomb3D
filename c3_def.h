@@ -77,19 +77,19 @@ typedef enum
 
 
 
-typedef	struct
-{
-	int32_t		difficulty;
-	int32_t		mapon;
-	int32_t		bolts, nukes, potions, keys[4], scrolls[8];
-	int32_t		score;
-	int32_t		body, shotpower;
+/*
+=============================================================================
 
-	uint16_t	*mapsegs[3];
-} gametype;
 
-typedef	enum	{ex_stillplaying,ex_died,ex_warped,ex_resetgame
-	,ex_loadedgame,ex_victorious,ex_abort} exittype;
+						   C3 VARS
+
+=============================================================================
+*/
+
+
+extern BufferSetup renderBuffer, renderBufferText; // for "entering level" text
+extern BufferSetup rightHUDBuffer, bottomHUDBuffer;
+extern BufferSetup guiBuffer; 
 
 
 /*
@@ -100,18 +100,13 @@ typedef	enum	{ex_stillplaying,ex_died,ex_warped,ex_resetgame
 =============================================================================
 */
 
-extern	char		str[80],str2[20];
-extern	gametype	gamestate;
 extern	exittype	playstate;
-
 
 void NewGame (void);
 boolean	SaveTheGame(FILE *file);
 boolean	LoadTheGame(FILE *file);
 void ResetGame(void);
-void ShutdownId (void);
 void InitGame (void);
-void Quit (char *error);
 void DemoLoop (void);
 int main (int argc, char *argv[]);
 
@@ -123,17 +118,13 @@ int main (int argc, char *argv[]);
 =============================================================================
 */
 
-void ScanInfoPlane (void);
-void ScanText (void);
 void SetupGameLevel (void);
 void Victory (void);
 void Died (void);
 void NormalScreen (void);
 void DrawPlayScreen (void);
 void LoadLatchMem (void);
-void FizzleFade (unsigned width,unsigned height, boolean abortable);
-void FizzleOut (int showlevel);
-void FreeUpMemory (void);
+//void FizzleFade (unsigned width,unsigned height, boolean abortable);
 void GameLoop (void);
 
 
@@ -145,34 +136,11 @@ void GameLoop (void);
 =============================================================================
 */
 
-extern	ControlInfo	c;
-extern	boolean		running,slowturn;
-
 extern	int			bordertime;
-
-extern	byte		tilemap[MAPSIZE][MAPSIZE];
-extern	objtype		*actorat[MAPSIZE][MAPSIZE];
-extern	byte		spotvis[MAPSIZE][MAPSIZE];
-
-extern	objtype 	objlist[MAXACTORS],*new,*obj,*player;
-
 extern	boolean		godmode;
-
-extern	int			mousexmove,mouseymove;
 extern	int			pointcount,pointsleft;
 
-
-void CenterWindow(word w,word h);
-void DebugMemory (void);
-void PicturePause (void);
-int  DebugKeys (void);
-void CheckKeys (void);
-void InitObjList (void);
-void GetNewObj (boolean usedummy);
-void RemoveObj (objtype *gone);
-void PollControlls (void);
 void PlayLoop (void);
-
 
 /*
 =============================================================================
@@ -182,8 +150,8 @@ void PlayLoop (void);
 =============================================================================
 */
 
-void SpawnNewObj (unsigned short x, unsigned short y, statetype *state, unsigned size);
-void SpawnNewObjFrac (long x, long y, statetype *state, unsigned size);
+objtype *SpawnNewObj (unsigned short x, unsigned short y, statetype *state, unsigned size);
+objtype *SpawnNewObjFrac (long x, long y, statetype *state, unsigned size);
 boolean CheckHandAttack (objtype *ob);
 void T_DoDamage (objtype *ob);
 boolean Walk (objtype *ob);

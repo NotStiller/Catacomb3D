@@ -228,8 +228,6 @@ SD_Startup(void)
 	ssIsTandy = false;
 	alNoCheck = false;
 
-	SP_SetTimeCount(0);
-
 	SD_SetSoundMode(sdm_Off);
 	SD_SetMusicMode(smm_Off);
 

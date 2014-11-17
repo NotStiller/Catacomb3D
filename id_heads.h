@@ -35,7 +35,7 @@
 //--------------------------------------------------------------------------
 
 extern const char *GamespecificExtension; // C3D, ABS etc.
-extern int C4Features;
+extern int EnableC4Features;
 
 //#define	EXTENSION	"C3D"
 //#define	EXTENSION	"ABS"
@@ -60,6 +60,11 @@ extern int C4Features;
 #define SIGN(x) ((x)>0?1:-1)
 #define ABS(x) ((int)(x)>0?(x):-(x))
 #define LABS(x) ((long)(x)>0?(x):-(x))
+
+
+#define TILEGLOBAL	(1l<<16)
+#define TILESHIFT	16l
+#define PIXRADIUS		512
 
 
 
@@ -92,12 +97,11 @@ enum {north,east,south,west,northeast,southeast,southwest,northwest,nodir};
 
 typedef int dirtype;
 
-typedef struct objstruct objtype; // defined right below
 typedef struct	statestruct
 {
 	int		shapenum;
 	int		tictime;
-	void	(*think) (objtype*);
+	void	(*think) ();
 	struct	statestruct	*next;
 } statetype;
 
@@ -140,7 +144,6 @@ typedef struct {
 	uint8_t *BufferStart;
 	int Width, Height, Pitch;
 	int CenterX, CenterY;
-	int EnterPlaqueX, EnterPlaqueY;
 
 	fixed MinDist;
 	fixed FocalLength;
@@ -149,15 +152,8 @@ typedef struct {
 } RenderSetup3D;
 
 extern RenderSetup3D renderSetup;
-extern RenderSetup2D renderSetup2D;
-extern RenderSetup2D guiSetup;
-extern RenderSetup2D hudSetup;
 
-
-#define TILEGLOBAL	(1l<<16)
-#define TILESHIFT	16l
-#define STATUSLINES		(200-144)
-#define PIXRADIUS		512
+void GameWindowResizeHook(int NewWidth, int NewHeight);
 
 
 void	Quit (char *error);		// defined in user program
@@ -176,12 +172,9 @@ extern	tilept	tile,focal,right;
 extern	fixed *zbuffer;
 extern	walltype	walls[],*rightwall;
 
-extern	unsigned	mapwidth,mapheight,tics,realtics;
+extern	unsigned	tics,realtics;
 extern	long lasttimecount;
 extern	boolean		fizzlein;
-
-
-
 
 
 extern	int	walllight1[];
@@ -254,7 +247,51 @@ extern	uint8_t*		*wallpointer;
 void	ScaleWalls (void);
 
 
+// c_game.c
 
+typedef	struct
+{
+	int		difficulty;
+	int		mapon;
+	int		bolts,nukes,potions,keys[4],scrolls[8];
+
+	int		gems[5];				// "int allgems[5]" is used for 1:1 comparison
+										// in play loop for radar... CHANGE IT, TOO!
+
+	long	score;
+	int		body,shotpower;
+
+	uint16_t	*mapsegs[3];
+} gametype;
+
+typedef	enum	{ex_stillplaying,ex_died,ex_warped,ex_resetgame,ex_loadedgame,ex_victorious,ex_abort} exittype;
+
+extern	ControlInfo	control;
+extern	boolean		running;
+
+extern	gametype	gamestate;
+extern	objtype 	objlist[MAXACTORS],*player;
+
+void ClearTileMap();
+uint8_t GetTileMap(int X, int Y);
+void SetTileMap(int X, int Y, uint8_t Value);
+
+void ClearActorAt();
+objtype *GetActorAt(int X, int Y);
+intptr_t GetActorAtInt(int X, int Y);
+void SetActorAt(int X, int Y, objtype *Value);
+void SetActorAtInt(int X, int Y, intptr_t Value);
+
+uint16_t GetMapSegs(int Plane, int X, int Y);
+void SetMapSegs(int Plane, int X, int Y, uint16_t Value);
+
+void ClearSpotVis();
+boolean GetSpotVis(int X, int Y);
+void SetSpotVis(int X, int Y, boolean Value);
+
+void InitObjList (void);
+objtype *GetNewObj (boolean usedummy);
+void RemoveObj (objtype *gone);
 
 
 #endif

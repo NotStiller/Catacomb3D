@@ -142,9 +142,9 @@ void ScanInfoPlane (void)
 	memset (lumpneeded,0,sizeof(lumpneeded));
 
 	start = gamestate.mapsegs[2];
-	for (y=0;y<mapheight;y++)
+	for (y=0;y<curmap->height;y++)
 	{
-		for (x=0;x<mapwidth;x++)
+		for (x=0;x<curmap->width;x++)
 		{
 			tile = *start++;
 			if (!tile)
@@ -319,17 +319,18 @@ void DrawEnterScreen (void)
 		memset(renderSetup.BufferStart+y*renderSetup.Pitch, 9, renderSetup.Width);
 	}
 
-	x = (renderSetup2D.Width-18*8)/2;
-	y = (renderSetup2D.Height-5*8)/2;
-	SPG_DrawPic(&renderSetup2D, grsegs[ENTERPLAQUEPIC],x,y);
+	x = (renderBufferText.Width-18*8)/2;
+	y = (renderBufferText.Height-5*8)/2;
+	SPG_DrawPic(&renderBufferText, grsegs[ENTERPLAQUEPIC],x,y);
 
 	int width;
 	SPG_MeasureString(levelnames[gamestate.mapon], 0, &width, NULL);
-	SPG_DrawString(&renderSetup2D, x+(18*8-width)/2, y+23, levelnames[gamestate.mapon], 0, 8);
+	SPG_DrawString(&renderBufferText, x+(18*8-width)/2, y+23, levelnames[gamestate.mapon], 0, 8);
 
-	if (1) {
-		SPG_FlipBuffer();
-		IN_ClearKeysDown ();
+	FlipBuffer();
+	IN_ClearKeysDown ();
+	fizzlein = true;
+	if (0) {
 		IN_Ack();
 	}
 }
@@ -366,40 +367,37 @@ void SetupGameLevel (void)
 	int plane;
 	for (plane = 0; plane<MAPPLANES; plane++)
 	{
-		int size=mapheaderseg[gamestate.mapon].rawplaneslength[plane];
+		int size=curmap->rawplaneslength[plane];
 		if (!size)
 			continue;
 		MM_GetPtr (&gamestate.mapsegs[plane], size);
-		memcpy(gamestate.mapsegs[plane], mapheaderseg[gamestate.mapon].rawplanes[plane], size);
+		memcpy(gamestate.mapsegs[plane], curmap->rawplanes[plane], size);
 	}
-
-	mapwidth = mapheaderseg[gamestate.mapon].width;
-	mapheight = mapheaderseg[gamestate.mapon].height;
 
 //
 // copy the wall data to a data segment array
 //
 	memset (tileneeded,0,sizeof(tileneeded));
-	memset (tilemap,0,sizeof(tilemap));
-	memset (actorat,0,sizeof(actorat));
+	ClearTileMap();
+	ClearActorAt();
 	map = gamestate.mapsegs[0];
-	for (y=0;y<mapheight;y++) 
+	for (y=0;y<curmap->height;y++) 
 	{
-		for (x=0;x<mapwidth;x++)
+		for (x=0;x<curmap->width;x++)
 		{
 			tile = *map++;
 			if (tile<NUMFLOORS)
 			{
 				printf("%c", 'a'+tile);
 				tileneeded[tile] = true;
-				tilemap[x][y] = tile;
+				SetTileMap(x,y,tile);
 				if (tile>=EXPWALLSTART && tile<EXPWALLSTART+NUMEXPWALLS)
 				{
 					tileneeded[WALLEXP] = tileneeded[WALLEXP+1] = tileneeded[WALLEXP+2] = true;
 				}
 
 				if (tile>0)
-					CASTAT(intptr_t,actorat[x][y]) = tile;
+					SetActorAtInt(x,y,tile);
 			} else if (tile >= NAMESTART) {
 				printf(" ");
 			} else {
@@ -454,8 +452,8 @@ void SetupGameLevel (void)
 void Victory (void)
 {
 	SPD_LoadGrChunk(FINALEPIC);
-	SPG_DrawPic(&guiSetup, grsegs[FINALEPIC], 0, 0);
-	SPG_FlipBuffer();
+	SPG_DrawPic(&guiBuffer, grsegs[FINALEPIC], 0, 0);
+	FlipBuffer();
 	SD_PlaySound (GETBOLTSND);
 	SD_WaitSoundDone ();
 	SD_PlaySound (GETNUKESND);
@@ -489,7 +487,7 @@ void Died (void)
 // fizzle fade screen to grey
 //
 	SD_PlaySound (GAMEOVERSND);
-	SPG_DrawPic(&guiSetup, grsegs[DEADPIC],0,0);
+	SPG_DrawPic(&guiBuffer, grsegs[DEADPIC],0,0);
 	FizzleFade(renderSetup.Width,renderSetup.Height,false);
 	IN_ClearKeysDown();
 	IN_Ack();
@@ -512,9 +510,8 @@ void DrawPlayScreen (void)
 	SPD_LoadGrChunk (STATUSPIC);
 	SPD_LoadGrChunk (SIDEBARSPIC);
 
-	SPG_DrawPic(&hudSetup, grsegs[STATUSPIC],0,144+0);
-
-	SPG_DrawPic(&hudSetup, grsegs[SIDEBARSPIC],8*33,0);
+	SPG_DrawPic(&bottomHUDBuffer, grsegs[STATUSPIC],0,0);
+	SPG_DrawPic(&rightHUDBuffer, grsegs[SIDEBARSPIC],0,0);
 
 	RedrawStatusWindow ();
 }
@@ -585,8 +582,9 @@ void    DrawHighScores(void)
 
 	SPD_LoadGrChunk (HIGHSCORESPIC);
 
-	SPG_DrawPic(&guiSetup, grsegs[HIGHSCORESPIC], 0, 0);
+	SPG_DrawPic(&guiBuffer, grsegs[HIGHSCORESPIC], 0, 0);
 
+	fontcolor = WHITE^14; // white xor'd on yellow is blue ! 
 	for (i = 0,s = Scores;i < MaxScores;i++,s++)
 	{
 		PrintY = 68 + (16 * i);
@@ -669,7 +667,9 @@ void    CheckHighScore (long score,word other)
 		DrawHighScores ();
 		PrintY = 68 + (16 * n);
 		PrintX = 60;
-		US_LineInput(PrintX,PrintY,Scores[n].name,NULL,true,MaxHighName,100);
+		fontcolor = 1;
+		US_LineInput(PrintX,PrintY,Scores[n].name,NULL,true,MaxHighName,100,14);
+		fontcolor = WHITE;
 	}
 }
 
@@ -684,61 +684,59 @@ void    CheckHighScore (long score,word other)
 ===================
 */
 
-void GameLoop (void)
-{
+void GameLoop (void) {
 	int i,xl,yl,xh,yh;
 	char num[20];
 
 	SP_GameEnter();
 	DrawPlayScreen ();
 
-restart:
-	if (!loadedgame)
-	{
-		gamestate.difficulty = restartgame;
-		restartgame = gd_Continue;
-		DrawEnterScreen ();
-	}
-
-	do
-	{
-		playstate = gd_Continue;
-		if (!loadedgame)
-			SetupGameLevel ();
-		else
-			loadedgame = false;
-
-		PlayLoop ();
-
-		switch (playstate)
-		{
-		case ex_died:
-			SP_GameLeave();
-			Died ();
-			CheckHighScore (gamestate.score,gamestate.mapon+1);
-			return;
-		case ex_warped:
-			FizzleOut (true);
-			if (gamestate.mapon >= NUMLEVELS)
-			{
-				Victory ();
-				CheckHighScore(gamestate.score,gamestate.mapon+1);
-				return;
-			}
-			break; // break out of switch, not out of loop !
-		case ex_abort:
-			SP_GameLeave();
-			return;
-		case ex_resetgame:
-		case ex_loadedgame:
-			goto restart;
-		case ex_victorious:
-			SP_GameLeave();
-			Victory ();
-			CheckHighScore(gamestate.score,gamestate.mapon+1);
-			return;
+	boolean restart=true;
+	while (restart) {
+		restart = false;
+		if (!loadedgame) {
+			gamestate.difficulty = restartgame;
+			restartgame = gd_Continue;
+			DrawEnterScreen ();
 		}
 
-	} while (1);
+		boolean nextLevel=true;
+		while (!restart) {
+			playstate = gd_Continue;
+			if (!loadedgame)
+				SetupGameLevel();
+			else
+				loadedgame = false;
 
+			PlayLoop();
+
+			switch (playstate) {
+			case ex_resetgame:
+			case ex_loadedgame:
+				restart = true;
+				break; // repeat outermost loop
+			case ex_warped:
+				FizzleOut (true);
+				if (gamestate.mapon >= NUMLEVELS) {
+					Victory();
+					CheckHighScore(gamestate.score, gamestate.mapon+1);
+					return;
+				}
+				break; // repeat innermost loop
+			case ex_died:
+				SP_GameLeave();
+				Died();
+				CheckHighScore(gamestate.score, gamestate.mapon+1);
+				return; // back to DemoLoop
+			case ex_victorious:
+				SP_GameLeave();
+				Victory();
+				CheckHighScore(gamestate.score, gamestate.mapon+1);
+				return; // back to DemoLoop
+			case ex_abort:
+				SP_GameLeave();
+				return; // back to DemoLoop
+			}
+		}
+	}
 }

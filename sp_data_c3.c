@@ -26,6 +26,10 @@ pictabletype	*pictable;
 pictabletype	*picmtable;
 spritetabletype *spritetable;
 
+const int StartFont = STARTFONT;
+const int StartTile8 = STARTTILE8;
+const int StartTile8M = STARTTILE8M;
+
 
 int	walllight1[NUMFLOORS] = {0,
 	WALL1LPIC,WALL2LPIC,WALL3LPIC,WALL4LPIC,WALL5LPIC,WALL6LPIC,WALL7LPIC,
@@ -313,30 +317,31 @@ void loadAdlibSounds(uint8_t *Data) {
 
 	int i;
 	for (i = 0; i < NUMSOUNDS; i++) {
-		memptr buffer = SPD_ReadAndHuffExpand(Data+AudioChunksPos[STARTADLIBSOUNDS+i], audiohuffman, NULL);
+		memptr buffer = SPD_ReadAndHuffExpand(Data+AudioChunksPos[STARTADLIBSOUNDS+i], C3_audiohuffman, NULL);
 		SoundCommon *s =  buffer;
 		SPA_RenderSample(i, buffer);
 		free(buffer);
 	}
 	{
 		int i=0;
-		memptr buffer = SPD_ReadAndHuffExpand(Data+AudioChunksPos[STARTMUSIC+i], audiohuffman, NULL);
+		memptr buffer = SPD_ReadAndHuffExpand(Data+AudioChunksPos[STARTMUSIC+i], C3_audiohuffman, NULL);
 		SPA_RenderMusic(i, buffer);
 		free(buffer);
 	}
 }
 
 static void loadMapHeaders(uint8_t *Data) {
+extern maptype mapheaderseg[30];
 	memset(&mapheaderseg, 0, sizeof(mapheaderseg));
 	int i;
+printf("Was the last map loaded correctly ? %s %i\n", __FILE__, __LINE__);
 	for (i = APPROACH_MAP; i < NEMESISSLAIR_MAP; i++) {
 		loadMapHeader(Data,maphead_headeroffsets[i], i, maphead_RLEWtag);
 	}	
 }
 
-void SPD_SetupCatacomb3DData() {
+void SPD_SetupGameData() {
 	grhuffman = C3_grhuffman;
-	audiohuffman = C3_audiohuffman;
 	GrChunksPos = C3_GrChunksPos;
 	GrChunksSize = C3_GrChunksSize;
 	AudioChunksPos = C3_AudioChunksPos;
@@ -356,7 +361,7 @@ void SPD_SetupCatacomb3DData() {
 	spritetable = loadSpriteTable(grData+GrChunksPos[STRUCTSPRITE], GrChunksSize[STRUCTSPRITE], NUMSPRITES);
 }
 
-void SPD_C3_CombinedLoader(int Chunk) {
+void SPD_CombinedLoader(int Chunk) {
 	if (Chunk >= STARTFONT && Chunk < STARTFONT+NUMFONT) {
 		loadFont(Chunk);
 	} else if (Chunk >= STARTPICS && Chunk < STARTPICS+NUMPICS) {
@@ -388,36 +393,25 @@ void SPD_C3_CombinedLoader(int Chunk) {
 }
 
 
-void SPD_LoadGrChunk(int Chunk) {
-	if (grsegs[Chunk]) {
-		return;
-	}
-	if (GrChunksPos[Chunk] < 0) {
-		return;
-	}
-	SPD_C3_CombinedLoader(Chunk);
-}
-
-
 void SPD_ExtractC3Data() {
 	char name[256];
 	long size;
 	uint8_t *buf;
 
-	buf = SPD_ParseObj("Catacomb3D/C3DADICT.OBJ", name, &size);
+	buf = SPD_ParseObj("C3DADICT.OBJ", name, &size);
 	SPD_DumpDict("C3_audiohuffman", buf, size);
 	free(buf);
-	buf = SPD_ParseObj("Catacomb3D/C3DEDICT.OBJ", name, &size);
+	buf = SPD_ParseObj("C3DEDICT.OBJ", name, &size);
 	SPD_DumpDict("C3_grhuffman", buf, size);
 	free(buf);
 
-	buf = SPD_ParseObj("Catacomb3D/C3DAHEAD.OBJ", name, &size);
+	buf = SPD_ParseObj("C3DAHEAD.OBJ", name, &size);
 	SPD_DumpLongArray("C3_Audio", buf, size, 4);
 	free(buf);
-	buf = SPD_ParseObj("Catacomb3D/C3DEHEAD.OBJ", name, &size);
+	buf = SPD_ParseObj("C3DEHEAD.OBJ", name, &size);
 	SPD_DumpLongArray("C3_Gr", buf, size, 3);
 	free(buf);
-	buf = SPD_ParseObj("Catacomb3D/C3DMHEAD.OBJ", name, &size);
+	buf = SPD_ParseObj("C3DMHEAD.OBJ", name, &size);
 	SPD_DumpMapfiletype("C3_", buf, size);
 }
 
