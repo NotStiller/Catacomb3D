@@ -31,8 +31,10 @@
 		ScanCode        firescan;
 
 //      Global variables
-		boolean         ingame,abortgame,loadedgame;
-		GameDiff        restartgame = gd_Continue;
+static ControlPanelExitType panelExit;
+static		boolean         ingame;
+//,abortgame,loadedgame;
+//static		GameDiff        restartgame = gd_Continue;
 
 //      Internal variables
 static  boolean         GameIsDirty,
@@ -117,25 +119,19 @@ static  char            *BottomS1,*BottomS2,*BottomS3;
 static  UComm           Communication;
 static  ScanCode        *KeyMaps[] =
 					{
-						&KbdDefs[0].button0,
-						&KbdDefs[0].button1,
+						&KbdDefs.button0,
+						&KbdDefs.button1,
 						&firescan,
-						&KbdDefs[0].upleft,
-						&KbdDefs[0].up,
-						&KbdDefs[0].upright,
-						&KbdDefs[0].right,
-						&KbdDefs[0].downright,
-						&KbdDefs[0].down,
-						&KbdDefs[0].downleft,
-						&KbdDefs[0].left
+						&KbdDefs.up,
+						&KbdDefs.right,
+						&KbdDefs.down,
+						&KbdDefs.left
 					};
 
 // Custom routine prototypes
 static  boolean USL_ConfigCustom(UserCall call,struct UserItem *item),
 				USL_KeyCustom(UserCall call,struct UserItem *item),
 				USL_KeySCustom(UserCall call,struct UserItem *item),
-				USL_Joy1Custom(UserCall call,struct UserItem *item),
-				USL_Joy2Custom(UserCall call,struct UserItem *item),
 				USL_LoadCustom(UserCall call,struct UserItem *item),
 				USL_SaveCustom(UserCall call,struct UserItem *item),
 				USL_PongCustom(UserCall call,struct UserItem *item);
@@ -198,13 +194,9 @@ static  boolean USL_ConfigCustom(UserCall call,struct UserItem *item),
 	// Keyboard menu
 	UserItem keyi[] =
 	{
-		{DefButton(sc_None,"UP & LEFT")},
 		{DefButton(sc_None,"UP")},
-		{DefButton(sc_None,"UP & RIGHT")},
 		{DefButton(sc_None,"RIGHT")},
-		{DefButton(sc_None,"DOWN & RIGHT")},
 		{DefButton(sc_None,"DOWN")},
-		{DefButton(sc_None,"DOWN & LEFT")},
 		{DefButton(sc_None,"LEFT")},
 		{uii_Bad}
 	};
@@ -224,18 +216,12 @@ static  boolean USL_ConfigCustom(UserCall call,struct UserItem *item),
 	};
 	UserItemGroup   keysgroup = {8,0,CP_KEYBOARDMENUPIC,sc_None,keysi,USL_KeySCustom};
 
-	// Joystick #1 & #2
-	UserItemGroup   joy1group = {CustomGroup(CP_JOYSTICKMENUPIC,sc_None,USL_Joy1Custom)};
-	UserItemGroup   joy2group = {CustomGroup(CP_JOYSTICKMENUPIC,sc_None,USL_Joy2Custom)};
-
 	// Config menu
 	UserItem configi[] =
 	{
 		{DefFolder(sc_S,"SOUND",&soundgroup)},
 		{DefFolder(sc_M,"MUSIC",&musicgroup)},
-		{uii_Folder,ui_Separated,sc_K,"USE KEYBOARD",uc_None,&keysgroup},
-		{DefFolder(sc_None,"USE JOYSTICK #1",&joy1group)},
-		{DefFolder(sc_None,"USE JOYSTICK #2",&joy2group)},
+		{uii_Folder,ui_Separated,sc_K,"SETUP CONTROLS",uc_None,&keysgroup},
 		{uii_Bad}
 	};
 	UserItemGroup   configgroup = {8,0,CP_CONFIGMENUPIC,sc_None,configi,USL_ConfigCustom};
@@ -397,6 +383,8 @@ USL_DrawCtlPanel(void)
 {
 	if (topcard->items || topcard->title)
 	{
+		SPG_ClearBuffer(0);
+
 		// Draw the backdrop
 		SPG_DrawPic(&guiBuffer, grsegs[CP_MENUSCREENPIC],0,0);
 
@@ -446,7 +434,7 @@ USL_ShowLoadSave(char *s,char *name)
 	USL_DrawString(msg);
 
 	SPG_FlipBuffer();
-	IN_UserInput(100, true);
+	SPI_WaitFor(100);
 }
 
 static boolean
@@ -456,7 +444,6 @@ USL_CtlDialog(char *s1,char *s2,char *s3)
 				w1,w2,w3,
 				x,y;
 	ScanCode        c;
-	CursorInfo      cursorinfo;
 
 	USL_MeasureString(s1,&w1,&h);
 	USL_MeasureString(s2,&w2,&h);
@@ -493,23 +480,18 @@ USL_CtlDialog(char *s1,char *s2,char *s3)
 
 	SPG_FlipBuffer();
 
-	IN_ClearKeysDown();
+	SPI_ClearKeysDown();
 	do
 	{
-		IN_ReadCursor(&cursorinfo);
-		if (cursorinfo.button0)
+		c = SPI_GetLastKey();
+		if (c == but_Mouse1) {
 			c = sc_Y;
-		else if (cursorinfo.button1)
+		} else if (c == but_Mouse2) {
 			c = sc_Escape;
-		else
-			c = SP_LastScan();
+		}
 	} while (c == sc_None);
-	do
-	{
-		IN_ReadCursor(&cursorinfo);
-	} while (cursorinfo.button0 || cursorinfo.button1);
 
-	IN_ClearKeysDown();
+	SPI_ClearKeysDown();
 	USL_DrawCtlPanel();
 	return(c == sc_Y);
 }
@@ -585,8 +567,8 @@ USL_HandleError(int num)
 	USL_CtlDialog(buf,"PRESS ANY KEY",NULL);
 	SPG_FlipBuffer();
 
-	IN_ClearKeysDown();
-	IN_Ack();
+	SPI_ClearKeysDown();
+	SPI_WaitForever();
 
 	SPG_FlipBuffer();
 }
@@ -594,7 +576,6 @@ USL_HandleError(int num)
 static boolean
 USL_ConfigCustom(UserCall call,UserItem *item)
 {
-static  char    *CtlNames[] = {"KEYBOARD","KEYBOARD","JOYSTICK #1","JOYSTICK #2","MOUSE"};
 		char    *s;
 		word    w,h,
 				tw;
@@ -604,13 +585,13 @@ static  char    *CtlNames[] = {"KEYBOARD","KEYBOARD","JOYSTICK #1","JOYSTICK #2"
 		s = "CONTROL: ";
 		USL_MeasureString(s,&w,&h);
 		tw = w;
-		USL_MeasureString(CtlNames[Controls[0]],&w,&h);
+		USL_MeasureString("KEYBOARD",&w,&h);
 		tw += w;
 		py = CtlPanelEY - 18 - h;
 		px = CtlPanelSX + ((CtlPanelW - tw) / 2);
 		fontcolor = NohiliteColor;
 		USL_DrawString(s);
-		USL_DrawString(CtlNames[Controls[0]]);
+		USL_DrawString("KEYBOARD");
 	}
 	item++; // Shut the compiler up
 	return(false);
@@ -623,11 +604,10 @@ USL_CKSetKey(UserItem *item,word i)
 	word            j;
 	ScanCode        scan;
 	longword        time;
-	CursorInfo      cursorinfo;
 
 	on = false;
 	time = 0;
-	IN_ClearKeysDown();
+	SPI_ClearKeysDown();
 	fontcolor = HiliteColor;
 	do
 	{
@@ -644,46 +624,31 @@ USL_CKSetKey(UserItem *item,word i)
 			time = SP_TimeCount() + (TickBase / 2);
 		}
 
-		IN_ReadCursor(&cursorinfo);
-		while (cursorinfo.button0 || cursorinfo.button1)
-		{
-			IN_ReadCursor(&cursorinfo);
-			IN_ClearKeysDown();
+		if (SPI_GetLastKey() == sc_LShift) {
+			SPI_ClearKeysDown();
 		}
-
-//	asm     pushf
-//	asm     cli
-		if (SP_LastScan() == sc_LShift) {
-			IN_ClearKeysDown();
-		}
-//	asm     popf
-	} while (!(scan = SP_LastScan()));
+	} while (!(scan = SPI_GetLastKey()));
 
 	if (scan != sc_Escape)
 	{
-		for (j = 0,on = false;j < 11;j++)
+		for (j = 0;j < 7;j++)
 		{
 			if (j == i)
 				continue;
-			if (*(KeyMaps[j]) == scan)
-			{
-				on = true;
-				break;
+			if (*(KeyMaps[j]) == scan) {
+				*KeyMaps[j] = 0;
 			}
 		}
-		if (on)
-			USL_CtlDialog("Key already used","Press a key",NULL);
-		else
-			*(KeyMaps[i]) = scan;
+		*KeyMaps[i] = scan;
+	} else {
+		*KeyMaps[i] = 0;
 	}
-	IN_ClearKeysDown();
+	SPI_ClearKeysDown();
 }
 
 static boolean
 USL_KeySCustom(UserCall call,UserItem *item)
 {
-	if (call == uic_SetupCard)
-		Controls[0] = ctrl_Keyboard;
 	return(false);
 }
 
@@ -698,7 +663,6 @@ USL_KeyCustom(UserCall call,UserItem *item)
 	switch (call)
 	{
 	case uic_SetupCard:
-		Controls[0] = ctrl_Keyboard;
 		break;
 	case uic_Draw:
 		VW_Bar(CtlPanelSX + 1,item->y,
@@ -712,7 +676,7 @@ USL_KeyCustom(UserCall call,UserItem *item)
 		VW_Bar(item->x + 90 + 1,item->y + 1,40 - 2,8 - 2,BackColor);
 		px = item->x + 90 + 6;
 		py = item->y + 1;
-		USL_DrawString(IN_GetScanName(*KeyMaps[i]));
+		USL_DrawString(SPI_GetScanName(*KeyMaps[i]));
 		result = true;
 		break;
 	case uic_Hit:
@@ -723,30 +687,6 @@ USL_KeyCustom(UserCall call,UserItem *item)
 		break;
 	}
 	return(result);
-}
-
-static boolean
-USL_Joy1Custom(UserCall call,UserItem *item)
-{
-	if (call == uic_SetupCard)
-	{
-		assert(0);
-		return(true);
-	}
-	else
-		return(false);
-}
-
-static boolean
-USL_Joy2Custom(UserCall call,UserItem *item)
-{
-	if (call == uic_SetupCard)
-	{
-		assert(0);
-		return(true);
-	}
-	else
-		return(false);
 }
 
 static void
@@ -789,7 +729,7 @@ USL_DoLoadGame(UserItem *item)
 		if (fread(game,1,sizeof(*game),file) == sizeof(*game))
 		{
 			if (USL_LoadGame)
-				if (!USL_LoadGame(file))
+				if (!USL_LoadGame(file, &panelExit.LoadedGame))
 					USL_HandleError(err = errno);
 		}
 		else
@@ -800,12 +740,13 @@ USL_DoLoadGame(UserItem *item)
 		USL_HandleError(err = errno);
 	if (err)
 	{
-		abortgame = true;
+		panelExit.Result = CPE_ABORTGAME;
 		Communication = uc_None;
 		CtlPanelDone = false;
 	}
-	else
-		loadedgame = true;
+	else {
+		panelExit.Result = CPE_LOADEDGAME;
+	}
 	game->present = true;
 
 	USL_DrawCtlPanel();
@@ -973,7 +914,7 @@ USL_PlayPong(void)
 				speedup;
 	int                     bdx,bdy;
 	longword        balltime,waittime;
-	CursorInfo      cursorinfo;
+	int 		dx;
 
 	kx = cx = PaddleMinX + ((PaddleMaxX - PaddleMinX) / 2);
 	bx = by = bdx = bdy = 0;
@@ -988,10 +929,10 @@ USL_PlayPong(void)
 	{
 		waittime = SP_TimeCount();
 
-		IN_ReadCursor(&cursorinfo);
-		if (((cursorinfo.x < 0) || SP_Keyboard(sc_LeftArrow)) && (kx > PaddleMinX))
+		SPI_GetMouseDelta(&dx,NULL);
+		if (((dx < 0) || SPI_GetKeyDown(sc_LeftArrow)) && (kx > PaddleMinX))
 			kx -= 2;
-		else if (((cursorinfo.x > 0) || SP_Keyboard(sc_RightArrow)) && (kx < PaddleMaxX))
+		else if (((dx > 0) || SPI_GetKeyDown(sc_RightArrow)) && (kx < PaddleMaxX))
 			kx += 2;
 
 		if (killball)
@@ -1028,7 +969,7 @@ USL_PlayPong(void)
 			||      (((bx + bdx) >> 2) < BallMinX)
 			)
 			{
-				SD_PlaySound(BALLBOUNCESND);
+				SPA_PlaySound(BALLBOUNCESND);
 				bdx = -bdx;
 			}
 			bx += bdx;
@@ -1038,7 +979,7 @@ USL_PlayPong(void)
 				killball = true;
 				lastscore = false;
 				cscore++;
-				SD_PlaySound(COMPSCOREDSND);
+				SPA_PlaySound(COMPSCOREDSND);
 				USL_DrawPongScore(kscore,cscore);
 				if (cscore == 21)
 				{
@@ -1052,7 +993,7 @@ USL_PlayPong(void)
 				killball = true;
 				lastscore = true;
 				kscore++;
-				SD_PlaySound(KEENSCOREDSND);
+				SPA_PlaySound(KEENSCOREDSND);
 				USL_DrawPongScore(kscore,cscore);
 				if (kscore == 21)
 				{
@@ -1076,7 +1017,7 @@ USL_PlayPong(void)
 				{
 					rx = cx;
 					revdir = true;
-					SD_PlaySound(COMPPADDLESND);
+					SPA_PlaySound(COMPPADDLESND);
 				}
 				else if
 				(
@@ -1092,7 +1033,7 @@ USL_PlayPong(void)
 					}
 					rx = kx;
 					revdir = true;
-					SD_PlaySound(KEENPADDLESND);
+					SPA_PlaySound(KEENPADDLESND);
 				}
 				if (revdir)
 				{
@@ -1118,8 +1059,8 @@ USL_PlayPong(void)
 		SPG_FlipBuffer();
 		while (waittime == SP_TimeCount())
 			;       // DEBUG - do adaptiveness
-	} while ((SP_LastScan() != sc_Escape) && !done);
-	IN_ClearKeysDown();
+	} while ((SPI_GetLastKey() != sc_Escape) && !done);
+	SPI_ClearKeysDown();
 }
 
 static boolean
@@ -1275,7 +1216,7 @@ USL_DoItem(void)
 
 	item = &topcard->items[topcard->cursor];
 	if (item->flags & ui_Disabled)
-		SD_PlaySound(NOWAYSND);
+		SPA_PlaySound(NOWAYSND);
 	else
 	{
 		switch (item->type)
@@ -1297,6 +1238,10 @@ USL_DoItem(void)
 static void
 USL_SetControlValues(void)
 {
+	int SoundMode = SPA_GetSoundSource();
+	int MusicMode = SPA_GetMusicSource();
+	assert(SoundMode >= 0 && SoundMode <= 1);
+	assert(MusicMode >= 0 && MusicMode <= 1);
 	USL_PushItem(&soundgroup,SoundMode,false);
 	USL_PushItem(&musicgroup,MusicMode,false);
 	rooti[4].text = ingame? "RETURN TO GAME" : "RETURN TO DEMO";
@@ -1334,7 +1279,7 @@ USL_SetUpCtlPanel(void)
 	fontnumber = 1;
 	US_SetPrintRoutines(VW_MeasurePropString,VW_DrawPropString);
 	fontcolor = F_BLACK;
-	VW_Bar (0,0,320,200,3); // CAT3D patch
+//	VW_Bar (0,0,320,200,3); // CAT3D patch
 
 	Communication = uc_None;
 	USL_ClearFlags(&rootgroup);
@@ -1345,7 +1290,7 @@ USL_SetUpCtlPanel(void)
 	if (ingame)
 		GameIsDirty = true;
 
-	IN_ClearKeysDown();
+	SPI_ClearKeysDown();
 }
 
 static void
@@ -1357,19 +1302,22 @@ USL_HandleComm(UComm comm)
 	case uc_Return:
 		break;
 	case uc_Abort:
-		abortgame = true;
+		panelExit.Result = CPE_ABORTGAME;
 		break;
 	case uc_Quit:
 		QuitToDos = true;
 		break;
 	case uc_SEasy:
-		restartgame = gd_Easy;
+		panelExit.Result = CPE_NEWGAME;
+		panelExit.Difficulty = gd_Easy;
 		break;
 	case uc_SNormal:
-		restartgame = gd_Normal;
+		panelExit.Result = CPE_NEWGAME;
+		panelExit.Difficulty = gd_Normal;
 		break;
 	case uc_SHard:
-		restartgame = gd_Hard;
+		panelExit.Result = CPE_NEWGAME;
+		panelExit.Difficulty = gd_Hard;
 		break;
 
 	default:
@@ -1382,15 +1330,12 @@ static void
 USL_GetControlValues(void)
 {
 	int     i;
-
 	// DEBUG - write the rest of this
 	i = USL_FindPushedItem(&soundgroup);
-	if (i != SoundMode)
-		SD_SetSoundMode(i);
+	SPA_SetSoundSource(i);
 
 	i = USL_FindPushedItem(&musicgroup);
-	if (i != MusicMode)
-		SD_SetMusicMode(i);
+	SPA_SetMusicSource(i);
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -1408,9 +1353,7 @@ USL_TearDownCtlPanel(void)
 
 	fontnumber = 0; // Normal font
 	fontcolor = F_BLACK;
-	if (restartgame && USL_ResetGame)
-		USL_ResetGame();
-	else if (QuitToDos)
+	if (QuitToDos)
 	{
 		US_CenterWindow(20,3);
 		fontcolor = F_SECONDCOLOR;
@@ -1420,8 +1363,8 @@ USL_TearDownCtlPanel(void)
 		Quit(NULL);
 	}
 
-	IN_ClearKeysDown();
-	SD_WaitSoundDone();
+	SPI_ClearKeysDown();
+	SPA_WaitUntilSoundIsDone();
 	VW_Bar (0,0,320,200,3); // CAT3D patch
 }
 
@@ -1431,31 +1374,20 @@ USL_TearDownCtlPanel(void)
 //
 ///////////////////////////////////////////////////////////////////////////
 #define MoveMin 40
-void
-US_ControlPanel(void)
+ControlPanelExitType US_ControlPanel(boolean Ingame)
 {
 	boolean         resetitem,on;
 	word            i;
 	int                     ydelta;
 	longword        flashtime;
 	UserItem        *item;
-	CursorInfo      cursorinfo;
+	int				dy;
 
-#if 0
-	// DEBUG!!!
-	{
-		USL_SetUpCtlPanel();
-		Communication = uc_Loaded;
-		CtlPanelDone = true;
-		loadedgame = true;
-		USL_TearDownCtlPanel();
-		return;
-	}
-#endif
+	if ((SPI_GetLastKey() < sc_F1) || (SPI_GetLastKey() > sc_F10))
+		SPI_ClearKeysDown();
 
-	if ((SP_LastScan() < sc_F1) || (SP_LastScan() > sc_F10))
-		IN_ClearKeysDown();
-
+	panelExit.Result = CPE_NOTHING;
+	ingame = Ingame;
 	USL_SetUpCtlPanel();
 	USL_DrawCtlPanel();
 
@@ -1481,13 +1413,13 @@ US_ControlPanel(void)
 		}
 
 		SPG_FlipBuffer();
-		if (SPG_PollRedraw()) {
+		if (SPG_ResizeNow()) {
 			USL_DrawCtlPanel();
 		}
 
-		if (SP_LastScan())
+		if (SPI_GetLastKey())
 		{
-			switch (SP_LastScan())
+			switch (SPI_GetLastKey())
 			{
 			case sc_UpArrow:
 				USL_PrevItem();
@@ -1509,16 +1441,17 @@ US_ControlPanel(void)
 				USL_DrawCtlPanel();
 				resetitem = true;
 				break;
+			case but_Mouse1:
+				USL_DoItem();
+				resetitem = true;
+				break;
+			case but_Mouse2:
+				USL_UpLevel();
+				resetitem = true;
+				break;
 			}
 
-			if
-			(
-				(!resetitem)
-			&&      (
-					(SP_LastScan() == KbdDefs[0].button0)
-				||      (SP_LastScan() == KbdDefs[0].button1)
-				)
-			)
+			if (!resetitem && ((SPI_GetLastKey() == KbdDefs.button0) || (SPI_GetLastKey() == KbdDefs.button1) ) )
 			{
 				USL_DoItem();
 				resetitem = true;
@@ -1528,7 +1461,7 @@ US_ControlPanel(void)
 			{
 				for (item = topcard->items,i = 0;item->type != uii_Bad;item++,i++)
 				{
-					if (item->hotkey == SP_LastScan())
+					if (item->hotkey == SPI_GetLastKey())
 					{
 						USL_SelectItem(topcard,i,true);
 						resetitem = true;
@@ -1537,31 +1470,13 @@ US_ControlPanel(void)
 				}
 			}
 
-			IN_ClearKeysDown();
+			SPI_ClearKeysDown();
 		}
 		else
 		{
-			IN_ReadCursor(&cursorinfo);
-			ydelta += cursorinfo.y;
-			if (cursorinfo.button0)
-			{
-				do
-				{
-					IN_ReadCursor(&cursorinfo);
-				} while (cursorinfo.button0);
-				USL_DoItem();
-				resetitem = true;
-			}
-			else if (cursorinfo.button1)
-			{
-				do
-				{
-					IN_ReadCursor(&cursorinfo);
-				} while (cursorinfo.button1);
-				USL_UpLevel();
-				resetitem = true;
-			}
-			else if (ydelta < -MoveMin)
+			SPI_GetMouseDelta(NULL,&dy);
+			ydelta += dy;
+			if (ydelta < -MoveMin)
 			{
 				ydelta += MoveMin;
 				USL_PrevItem();
@@ -1577,4 +1492,6 @@ US_ControlPanel(void)
 	}
 
 	USL_TearDownCtlPanel();
+
+	return panelExit;
 }

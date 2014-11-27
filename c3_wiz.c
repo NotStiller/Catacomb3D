@@ -162,33 +162,35 @@ void RedrawStatusWindow (void)
 {
 	int	i,j,x;
 
-	DrawLevelNumber (gamestate.mapon);
+	DrawLevelNumber (gamestate->mapon);
 	lasttext = -1;
 	lastcompass = -1;
 
-	j = gamestate.bolts < SHOWITEMS ? gamestate.bolts : SHOWITEMS;
+	j = gamestate->bolts < SHOWITEMS ? gamestate->bolts : SHOWITEMS;
 	for (i=0;i<j;i++)
 		DrawChar(7+i,20,BOLTCHAR);
-	j = gamestate.nukes < SHOWITEMS ? gamestate.nukes : SHOWITEMS;
+	j = gamestate->nukes < SHOWITEMS ? gamestate->nukes : SHOWITEMS;
 	for (i=0;i<j;i++)
 		DrawChar(7+i,30,NUKECHAR);
-	j = gamestate.potions < SHOWITEMS ? gamestate.potions : SHOWITEMS;
+	j = gamestate->potions < SHOWITEMS ? gamestate->potions : SHOWITEMS;
 	for (i=0;i<j;i++)
 		DrawChar(7+i,40,POTIONCHAR);
 
 	x=24;
 	for (i=0;i<4;i++)
-		for (j=0;j<gamestate.keys[i];j++)
+		for (j=0;j<gamestate->keys[i];j++)
 			DrawChar(x++,20,KEYCHARS+i);
 
 	x=24;
 	for (i=0;i<8;i++)
-		if (gamestate.scrolls[i])
+		if (gamestate->scrolls[i])
 			DrawChar(x++,30,SCROLLCHARS+i);
 
 	AddPoints(0);
 
-	DrawBars ();
+	DrawBars();
+	DrawText();
+	DrawCompass();
 }
 
 
@@ -204,9 +206,9 @@ void RedrawStatusWindow (void)
 
 void GiveBolt (void)
 {
-	SD_PlaySound (GETBOLTSND);
-	if (++gamestate.bolts<=9)
-		DrawChar(6+gamestate.bolts,20,BOLTCHAR);
+	SPA_PlaySound (GETBOLTSND);
+	if (++gamestate->bolts<=9)
+		DrawChar(6+gamestate->bolts,20,BOLTCHAR);
 }
 
 
@@ -220,9 +222,9 @@ void GiveBolt (void)
 
 void TakeBolt (void)
 {
-	SD_PlaySound (USEBOLTSND);
-	if (--gamestate.bolts<=9)
-		DrawChar(7+gamestate.bolts,20,BLANKCHAR);
+	SPA_PlaySound (USEBOLTSND);
+	if (--gamestate->bolts<=9)
+		DrawChar(7+gamestate->bolts,20,BLANKCHAR);
 }
 
 //===========================================================================
@@ -237,9 +239,9 @@ void TakeBolt (void)
 
 void GiveNuke (void)
 {
-	SD_PlaySound (GETNUKESND);
-	if (++gamestate.nukes<=9)
-		DrawChar(6+gamestate.nukes,30,NUKECHAR);
+	SPA_PlaySound (GETNUKESND);
+	if (++gamestate->nukes<=9)
+		DrawChar(6+gamestate->nukes,30,NUKECHAR);
 }
 
 
@@ -253,9 +255,9 @@ void GiveNuke (void)
 
 void TakeNuke (void)
 {
-	SD_PlaySound (USENUKESND);
-	if (--gamestate.nukes<=9)
-		DrawChar(7+gamestate.nukes,30,BLANKCHAR);
+	SPA_PlaySound (USENUKESND);
+	if (--gamestate->nukes<=9)
+		DrawChar(7+gamestate->nukes,30,BLANKCHAR);
 }
 
 //===========================================================================
@@ -270,9 +272,9 @@ void TakeNuke (void)
 
 void GivePotion (void)
 {
-	SD_PlaySound (GETPOTIONSND);
-	if (++gamestate.potions<=9)
-		DrawChar(6+gamestate.potions,40,POTIONCHAR);
+	SPA_PlaySound (GETPOTIONSND);
+	if (++gamestate->potions<=9)
+		DrawChar(6+gamestate->potions,40,POTIONCHAR);
 }
 
 
@@ -286,9 +288,9 @@ void GivePotion (void)
 
 void TakePotion (void)
 {
-	SD_PlaySound (USEPOTIONSND);
-	if (--gamestate.potions<=9)
-		DrawChar(7+gamestate.potions,40,BLANKCHAR);
+	SPA_PlaySound (USEPOTIONSND);
+	if (--gamestate->potions<=9)
+		DrawChar(7+gamestate->potions,40,BLANKCHAR);
 }
 
 //===========================================================================
@@ -305,12 +307,12 @@ void GiveKey (int keytype)
 {
 	int	i,j,x;
 
-	SD_PlaySound (GETKEYSND);
-	gamestate.keys[keytype]++;
+	SPA_PlaySound (GETKEYSND);
+	gamestate->keys[keytype]++;
 
 	x=24;
 	for (i=0;i<4;i++)
-		for (j=0;j<gamestate.keys[i];j++)
+		for (j=0;j<gamestate->keys[i];j++)
 			DrawChar(x++,20,KEYCHARS+i);
 
 }
@@ -328,12 +330,12 @@ void TakeKey (int keytype)
 {
 	int	i,j,x;
 
-	SD_PlaySound (USEKEYSND);
-	gamestate.keys[keytype]--;
+	SPA_PlaySound (USEKEYSND);
+	gamestate->keys[keytype]--;
 
 	x=24;
 	for (i=0;i<4;i++)
-		for (j=0;j<gamestate.keys[i];j++)
+		for (j=0;j<gamestate->keys[i];j++)
 			DrawChar(x++,20,KEYCHARS+i);
 
 	DrawChar(x,20,BLANKCHAR);
@@ -353,12 +355,12 @@ void GiveScroll (int scrolltype,boolean show)
 {
 	int	i,x;
 
-	SD_PlaySound (GETSCROLLSND);
-	gamestate.scrolls[scrolltype] = true;
+	SPA_PlaySound (GETSCROLLSND);
+	gamestate->scrolls[scrolltype] = true;
 
 	x=24;
 	for (i=0;i<8;i++)
-		if (gamestate.scrolls[i])
+		if (gamestate->scrolls[i])
 			DrawChar(x++,30,SCROLLCHARS+i);
 	if (show)
 		ReadScroll(scrolltype);
@@ -396,9 +398,9 @@ void AddPoints (int points)
 	char	str[10];
 	int		len,x,i;
 
-	gamestate.score += points;
+	gamestate->score += points;
 
-	sprintf(str, "%i", gamestate.score);
+	sprintf(str, "%i", gamestate->score);
 	len = strlen (str);
 
 	x=24+(8-len);
@@ -419,8 +421,8 @@ void AddPoints (int points)
 
 void GiveChest (void)
 {
-	SD_PlaySound (GETPOINTSSND);
-	GivePoints ((gamestate.mapon+1)*100);
+	SPA_PlaySound (GETPOINTSSND);
+	GivePoints ((gamestate->mapon+1)*100);
 }
 
 
@@ -436,9 +438,9 @@ void GiveChest (void)
 
 void GiveGoal (void)
 {
-	SD_PlaySound (GETPOINTSSND);
+	SPA_PlaySound (GETPOINTSSND);
 	GivePoints (100000);
-	playstate = ex_victorious;
+	PlayLoop_Victory();
 }
 
 
@@ -482,7 +484,7 @@ void DrawText (void)
 	// draw a new text description if needed
 	//
 	number = (int)GetMapSegs(0, player->tilex, player->tiley) - NAMESTART;
-//	number = *(byte*)(gamestate.mapsegs[0]+player->tiley*mapwidth+player->tilex)-NAMESTART;
+//	number = *(byte*)(gamestate->mapsegs[0]+player->tiley*mapwidth+player->tilex)-NAMESTART;
 
 	if ( number>26 )
 		number = 0;
@@ -556,23 +558,23 @@ void DrawBars (void)
 //
 // shot power
 //
-	if (gamestate.shotpower)
+	if (gamestate->shotpower)
 	{
-		SPG_DrawPicSkip(&rightHUDBuffer, grsegs[SHOTPOWERPIC], 8, POWERLINE, MAXSHOTPOWER-gamestate.shotpower, MAXSHOTPOWER);
+		SPG_DrawPicSkip(&rightHUDBuffer, grsegs[SHOTPOWERPIC], 8, POWERLINE, MAXSHOTPOWER-gamestate->shotpower, MAXSHOTPOWER);
 	}
 
 //
 // body
 //
-	if (gamestate.body)
+	if (gamestate->body)
 	{
-		SPG_DrawPicSkip(&rightHUDBuffer, grsegs[BODYPIC], 8, BODYLINE, 0, gamestate.body);
+		SPG_DrawPicSkip(&rightHUDBuffer, grsegs[BODYPIC], 8, BODYLINE, 0, gamestate->body);
 	}
 
 
-	if (gamestate.body != MAXBODY)
+	if (gamestate->body != MAXBODY)
 	{
-		SPG_DrawPicSkip(&rightHUDBuffer, grsegs[NOBODYPIC], 8, BODYLINE, gamestate.body, MAXBODY);
+		SPG_DrawPicSkip(&rightHUDBuffer, grsegs[NOBODYPIC], 8, BODYLINE, gamestate->body, MAXBODY);
 	}
 }
 
@@ -655,7 +657,7 @@ void T_Pshot (objtype *ob)
 		&& ob->yl <= check->yh
 		&& ob->yh >= check->yl)
 		{
-			SD_PlaySound (SHOOTMONSTERSND);
+			SPA_PlaySound (SHOOTMONSTERSND);
 			if (ob->obclass == bigpshotobj)
 				ShootActor (check,BIGSHOTDAMAGE);
 			else
@@ -727,21 +729,21 @@ void BuildShotPower (void)
 	long	i;
 	byte *source;
 
-	if (gamestate.shotpower == MAXSHOTPOWER)
+	if (gamestate->shotpower == MAXSHOTPOWER)
 		return;
 
 	newlines = 0;
 	for (i=lasttimecount-tics;i<lasttimecount;i++)
 		newlines += (i&1);
 
-	gamestate.shotpower += newlines;
+	gamestate->shotpower += newlines;
 
-	if (gamestate.shotpower > MAXSHOTPOWER)
+	if (gamestate->shotpower > MAXSHOTPOWER)
 	{
-		newlines -= (gamestate.shotpower - MAXSHOTPOWER);
-		gamestate.shotpower = MAXSHOTPOWER;
+		newlines -= (gamestate->shotpower - MAXSHOTPOWER);
+		gamestate->shotpower = MAXSHOTPOWER;
 	}
-	topline = MAXSHOTPOWER - gamestate.shotpower;
+	topline = MAXSHOTPOWER - gamestate->shotpower;
 
 	DrawBars();
 }
@@ -759,12 +761,12 @@ void BuildShotPower (void)
 
 void ClearShotPower (void)
 {
-	if (!gamestate.shotpower)
+	if (!gamestate->shotpower)
 		return;
 
 	SPG_DrawPic(&rightHUDBuffer, grsegs[NOSHOTPOWERPIC], 8, POWERLINE);
 
-	gamestate.shotpower = 0;
+	gamestate->shotpower = 0;
 }
 
 //===========================================================================
@@ -780,7 +782,7 @@ void ClearShotPower (void)
 void Shoot (void)
 {
 	ClearShotPower ();
-	SD_PlaySound (SHOOTSND);
+	SPA_PlaySound (SHOOTSND);
 	SpawnPShot ();
 }
 
@@ -797,7 +799,7 @@ void Shoot (void)
 void BigShoot (void)
 {
 	ClearShotPower ();
-	SD_PlaySound (BIGSHOOTSND);
+	SPA_PlaySound (BIGSHOOTSND);
 	SpawnBigPShot ();
 }
 
@@ -813,9 +815,9 @@ void BigShoot (void)
 
 void CastBolt (void)
 {
-	if (!gamestate.bolts)
+	if (!gamestate->bolts)
 	{
-		SD_PlaySound (NOITEMSND);
+		SPA_PlaySound (NOITEMSND);
 		return;
 	}
 
@@ -860,9 +862,9 @@ void CastNuke (void)
 {
 	int	angle;
 
-	if (!gamestate.nukes)
+	if (!gamestate->nukes)
 	{
-		SD_PlaySound (NOITEMSND);
+		SPA_PlaySound (NOITEMSND);
 		return;
 	}
 
@@ -894,14 +896,14 @@ void DrinkPotion (void)
 	byte	*source;
 	unsigned topline;
 
-	if (!gamestate.potions)
+	if (!gamestate->potions)
 	{
-		SD_PlaySound (NOITEMSND);
+		SPA_PlaySound (NOITEMSND);
 		return;
 	}
 
 	TakePotion ();
-	gamestate.body = MAXBODY;
+	gamestate->body = MAXBODY;
 	DrawBars();
 }
 
@@ -921,23 +923,25 @@ extern	boolean	tileneeded[NUMFLOORS];
 
 void ReadScroll (int scroll)
 {
-	int	i;
-
-//
-// make wall pictures purgable
-//
+	int w = renderBufferText.Width;
+	int h = renderBufferText.Height;
+	int scrollW = 33*8;
+	int scrollH = 18*8;
+	SPG_Bar(&renderBufferText, 0,0, w, h, 0);
 	SPD_LoadGrChunk (SCROLLTOPPIC);
 	SPD_LoadGrChunk (SCROLL1PIC + scroll);
-	SPG_DrawPic(&renderBufferText, grsegs[SCROLLTOPPIC],0,0);
-	SPG_DrawPic(&renderBufferText, grsegs[SCROLL1PIC+scroll],0,32);
+	SPG_DrawPic(&renderBufferText, grsegs[SCROLLTOPPIC],(w-scrollW)/2,(h-scrollH)/2);
+	SPG_DrawPic(&renderBufferText, grsegs[SCROLL1PIC+scroll],(w-scrollW)/2,32+(h-scrollH)/2);
 	MM_FreePtr (&grsegs[SCROLL1PIC + scroll]);
 	MM_FreePtr (&grsegs[SCROLLTOPPIC]);
 
 
-	FlipBuffer();
-waitkey:
-	IN_ClearKeysDown ();
-	IN_Ack();
+	SPG_FlipBuffer();
+
+	SPI_ClearKeysDown ();
+	printf("WAIT\n");
+	SPI_WaitForever();
+	printf("WAIT END\n");
 
 }
 
@@ -956,24 +960,24 @@ void TakeDamage (int points)
 	byte *source;
 	unsigned	topline;
 
-	if (!gamestate.body || bordertime || godmode)
+	if (!gamestate->body || bordertime || godmode)
 		return;
 
-	if (points >= gamestate.body)
+	if (points >= gamestate->body)
 	{
-		points = gamestate.body;
-		playstate = ex_died;
+		points = gamestate->body;
+		PlayLoop_Died();
 	}
 
 	bordertime = points*FLASHTICS;
 	SPG_SetBorderColor(FLASHCOLOR);
 
-	if (gamestate.body<MAXBODY/3)
-		SD_PlaySound (TAKEDMGHURTSND);
+	if (gamestate->body<MAXBODY/3)
+		SPA_PlaySound (TAKEDMGHURTSND);
 	else
-		SD_PlaySound (TAKEDAMAGESND);
+		SPA_PlaySound (TAKEDAMAGESND);
 
-	gamestate.body -= points;
+	gamestate->body -= points;
 	DrawBars();
 }
 
@@ -1055,7 +1059,7 @@ boolean HitSpecialTile (unsigned x, unsigned y, unsigned tile)
 	case 1:
 	case 2:
 	case 3:
-		if (!gamestate.keys[0])
+		if (!gamestate->keys[0])
 			return true;
 		TakeKey(0);
 		OpenDoor (x,y,SPECTILESTART+0);
@@ -1065,7 +1069,7 @@ boolean HitSpecialTile (unsigned x, unsigned y, unsigned tile)
 	case 5:
 	case 6:
 	case 7:
-		if (!gamestate.keys[1])
+		if (!gamestate->keys[1])
 			return true;
 		TakeKey(1);
 		OpenDoor (x,y,SPECTILESTART+4);
@@ -1075,7 +1079,7 @@ boolean HitSpecialTile (unsigned x, unsigned y, unsigned tile)
 	case 9:
 	case 10:
 	case 11:
-		if (!gamestate.keys[2])
+		if (!gamestate->keys[2])
 			return true;
 		TakeKey(2);
 		OpenDoor (x,y,SPECTILESTART+8);
@@ -1085,7 +1089,7 @@ boolean HitSpecialTile (unsigned x, unsigned y, unsigned tile)
 	case 13:
 	case 14:
 	case 15:
-		if (!gamestate.keys[3])
+		if (!gamestate->keys[3])
 			return true;
 		TakeKey(3);
 		OpenDoor (x,y,SPECTILESTART+12);
@@ -1271,8 +1275,8 @@ void ClipMove (objtype *ob, long xmove, long ymove)
 
 
 blockmove:
-	if (!SD_SoundPlaying())
-		SD_PlaySound (HITWALLSND);
+	if (!SPA_IsAnySoundPlaying())
+		SPA_PlaySound (HITWALLSND);
 
 	moveok = false;
 
@@ -1369,7 +1373,7 @@ boolean ShotClipMove (objtype *ob, long xmove, long ymove)
 
 blockmove:
 
-	SD_PlaySound (SHOOTWALLSND);
+	SPA_PlaySound (SHOOTWALLSND);
 
 	moveok = false;
 
@@ -1470,9 +1474,9 @@ void Thrust (int angle, unsigned speed)
 	// walk sound
 	//
 		if (lasttimecount&32)
-			SD_PlaySound (WALK1SND);
+			SPA_PlaySound (WALK1SND);
 		else
-			SD_PlaySound (WALK2SND);
+			SPA_PlaySound (WALK2SND);
 	}
 
 	xmove = FixedByFrac(speed,costable[angle]);
@@ -1501,7 +1505,8 @@ void ControlMovement (objtype *ob)
 	int mouseAngle;
 
 	int mousexmove, mouseymove;
-	MouseDelta(&mousexmove, &mouseymove);
+	mousexmove = control.x;
+	mouseymove = control.y;
 
 	mouseAngle = mousexmove+mouseAngleRem;
 	mouseAngleRem = mouseAngle%10;
@@ -1527,14 +1532,14 @@ void ControlMovement (objtype *ob)
 
 		if (control.xaxis == -1)
 		{
-			if (running)
+			if (control.run)
 				speed += RUNSPEED*tics;
 			else
 				speed += PLAYERSPEED*tics;
 		}
 		else if (control.xaxis == 1)
 		{
-			if (running)
+			if (control.run)
 				speed -= RUNSPEED*tics;
 			else
 				speed -= PLAYERSPEED*tics;
@@ -1564,7 +1569,7 @@ void ControlMovement (objtype *ob)
 		speed = 0;
 	} else {
 
-		if (control.button1)
+		if (control.strafe)
 		{
 		//
 		// strafing
@@ -1581,14 +1586,14 @@ void ControlMovement (objtype *ob)
 
 			if (control.xaxis == -1)
 			{
-				if (running)
+				if (control.run)
 					speed += RUNSPEED*tics;
 				else
 					speed += PLAYERSPEED*tics;
 			}
 			else if (control.xaxis == 1)
 			{
-				if (running)
+				if (control.run)
 					speed -= RUNSPEED*tics;
 				else
 					speed -= PLAYERSPEED*tics;
@@ -1624,13 +1629,13 @@ void ControlMovement (objtype *ob)
 			if (control.xaxis == 1)
 			{
 				ob->angle -= tics;
-				if (running)				// fast turn
+				if (control.run)				// fast turn
 					ob->angle -= tics;
 			}
 			else if (control.xaxis == -1)
 			{
 				ob->angle+= tics;
-				if (running)				// fast turn
+				if (control.run)				// fast turn
 					ob->angle += tics;
 			}
 
@@ -1656,14 +1661,14 @@ void ControlMovement (objtype *ob)
 
 	if (control.yaxis == -1)
 	{
-		if (running)
+		if (control.run)
 			speed += RUNSPEED*tics;
 		else
 			speed += PLAYERSPEED*tics;
 	}
 	else if (control.yaxis == 1)
 	{
-		if (running)
+		if (control.run)
 			speed -= RUNSPEED*tics;
 		else
 			speed -= PLAYERSPEED*tics;
@@ -1720,7 +1725,7 @@ void	T_Player (objtype *ob)
 	}
 	else
 	{
-		if (control.button0)
+		if (control.fire)
 		{
 			handheight+=(tics<<2);
 			if (handheight>MAXHANDHEIGHT)
@@ -1739,12 +1744,12 @@ void	T_Player (objtype *ob)
 					handheight = 0;
 			}
 
-			if (gamestate.shotpower == MAXSHOTPOWER)
+			if (gamestate->shotpower == MAXSHOTPOWER)
 			{
 				lastfiretime = (unsigned)SP_TimeCount()/FIRETIME;
 				BigShoot ();
 			}
-			else if (gamestate.shotpower)
+			else if (gamestate->shotpower)
 			{
 				lastfiretime = (unsigned)SP_TimeCount()/FIRETIME;
 				Shoot ();
@@ -1756,21 +1761,19 @@ void	T_Player (objtype *ob)
 	// special actions
 	//
 
-	if ( (SP_Keyboard(sc_Space) || SP_Keyboard(sc_H)) && gamestate.body != MAXBODY)
-		DrinkPotion ();
+	if ( control.potion && gamestate->body != MAXBODY)
+		DrinkPotion();
 
-	if (SP_Keyboard(sc_B) && !boltsleft)
-		CastBolt ();
+	if (control.bolt && !boltsleft)
+		CastBolt();
 
-	if ( (SP_Keyboard(sc_Enter) || SP_Keyboard(sc_N)) && SP_TimeCount()-lastnuke > NUKETIME)
-		CastNuke ();
+	if (control.nuke && SP_TimeCount()-lastnuke > NUKETIME)
+		CastNuke();
 
-	scroll = SP_LastScan()-2;
-	if ( scroll>=0 && scroll<NUMSCROLLS && gamestate.scrolls[scroll])
+	scroll = SPI_GetLastKey()-2;
+	if ( scroll>=0 && scroll<NUMSCROLLS && gamestate->scrolls[scroll])
 		ReadScroll (scroll);
 
-	DrawText ();
-	DrawCompass ();
 
 }
 

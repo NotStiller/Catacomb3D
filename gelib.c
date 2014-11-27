@@ -414,7 +414,7 @@ return false;
 	boolean GettingFilename=true,rt_code=false;
 	int handle;
 
-	IN_ClearKeysDown();
+	SPI_ClearKeysDown();
 	memset(ID,0,sizeof(ID));
 	memset(VER,0,sizeof(VER));
 	VW_FixRefreshBuffer();
@@ -530,7 +530,7 @@ char GetKeyChoice(char *choices,boolean clear)
 	boolean waiting;
 	char *s,*ss;
 
-	IN_ClearKeysDown();
+	SPI_ClearKeysDown();
 
 	waiting = true;
 	while (waiting)
@@ -538,7 +538,7 @@ char GetKeyChoice(char *choices,boolean clear)
 		s = choices;
 		while (*s)
 		{
-			if (SP_Keyboard(*s++))
+			if (SPI_GetKeyDown(*s++))
 			{
 				waiting=false;
 				break;
@@ -546,7 +546,7 @@ char GetKeyChoice(char *choices,boolean clear)
 		}
 	}
 
-	IN_ClearKeysDown();
+	SPI_ClearKeysDown();
 
 	return(*(--s));
 }
@@ -708,14 +708,14 @@ void InitTextFile(textinfo *textinfo)
 /*
 ===================
 =
-= FizzleFade
+= SPG_FizzleFadeBuffer
 =
 ===================
 */
 
 #define PIXPERFRAME     10000	//1600
 
-void FizzleFade (unsigned source, unsigned dest,
+void SPG_FizzleFadeBuffer (unsigned source, unsigned dest,
 	unsigned width,unsigned height, boolean abortable)
 {
 	unsigned        drawofs,pagedelta;

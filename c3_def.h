@@ -100,15 +100,7 @@ extern BufferSetup guiBuffer;
 =============================================================================
 */
 
-extern	exittype	playstate;
-
-void NewGame (void);
-boolean	SaveTheGame(FILE *file);
-boolean	LoadTheGame(FILE *file);
-void ResetGame(void);
-void InitGame (void);
 void DemoLoop (void);
-int main (int argc, char *argv[]);
 
 /*
 =============================================================================
@@ -118,14 +110,12 @@ int main (int argc, char *argv[]);
 =============================================================================
 */
 
-void SetupGameLevel (void);
+
 void Victory (void);
 void Died (void);
 void NormalScreen (void);
 void DrawPlayScreen (void);
-void LoadLatchMem (void);
-//void FizzleFade (unsigned width,unsigned height, boolean abortable);
-void GameLoop (void);
+boolean GameLoop ();
 
 
 /*
@@ -136,11 +126,18 @@ void GameLoop (void);
 =============================================================================
 */
 
+extern	gametype	*gamestate;
 extern	int			bordertime;
 extern	boolean		godmode;
 extern	int			pointcount,pointsleft;
 
-void PlayLoop (void);
+typedef enum {PLE_STILLPLAYING, PLE_MENU, PLE_WARPED, PLE_DEATH, PLE_VICTORY} PlayLoopExitType;
+
+PlayLoopExitType PlayLoop (gametype *Gamestate, boolean DrawEnterScreen);
+void PlayLoop_Died(void);
+boolean PlayLoop_IsDone(void);
+void PlayLoop_Victory(void);
+void PlayLoop_Warp(int NewMap);
 
 /*
 =============================================================================

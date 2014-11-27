@@ -16,7 +16,6 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#include "srcport.h"
 #include <SDL/SDL.h>
 #include "id_heads.h"
 
@@ -25,24 +24,42 @@
 #define INCLUDED_FROM_SOURCEPORT
 #include "dosbox.h" 
 
+#define	sqMaxTracks	10
+
+// 	Registers for the AdLib card
+// Operator stuff
+#define	alChar		0x20
+#define	alScale		0x40
+#define	alAttack	0x60
+#define	alSus		0x80
+#define	alWave		0xe0
+// Channel stuff
+#define	alFreqL		0xa0
+#define	alFreqH		0xb0
+// Global stuff
+#define	alEffects	0xbd
+
+
 // Change this to change sound quality.
 static const int sampleRate = 44100;	// the audio output sample rate
 
 // stuff used by the backend for sound prerendering and playing
-int prerenderedSoundsNum=0;
+int prerenderedSoundsNum=0, prerenderedSoundsDone=0;
 signed short **prerenderedSounds=NULL;
 int *prerenderedSoundsLength=NULL;
-int prerenderedMusicNum=0;
+int prerenderedMusicNum=0, prerenderedMusicDone=0;
 signed short **prerenderedMusic=NULL;
 int *prerenderedMusicLength=NULL;
 
 signed short *curSnd = NULL;
-int curSndLength, curSndHead=0, musicOn=0;
+int curSndLength, curSndHead=0, curSndPriority=0;
 signed short *curMusic = NULL;
-int curMusicLength, curMusicHead=0;
+int curMusicLength, curMusicHead=0, musicOn=0;
+
+SoundSource soundSource = SND_OFF, musicSource = SND_OFF;
 
 // this function does the sampling
-static void audioCallback(void *userdata, uint8_t *stream, int len) {
+static void spa_AudioCallback(void *userdata, uint8_t *stream, int len) {
 	len /= 2;
 	int i;
 
@@ -83,84 +100,8 @@ static void audioCallback(void *userdata, uint8_t *stream, int len) {
 	}
 }
 
-void SPA_Init() {
-	AdLibInit(sampleRate);
-	SDL_AudioSpec desired;
-	desired.freq = sampleRate;
-	desired.format = AUDIO_S16;
-	desired.channels = 1;
-	desired.samples = 1024;
-	desired.callback = audioCallback;
-	desired.userdata = NULL;
-	assert(SDL_OpenAudio(&desired, NULL) == 0);
 
-}
-
-void SPA_MusicOff(void) {
-	SDL_LockAudio();
-	musicOn = 0;
-	SDL_UnlockAudio();
-}
-
-void SPA_MusicOn(void) {
-	SDL_LockAudio();
-	musicOn = 1;
-	SDL_UnlockAudio();
-}
-
-int SPA_PlaySound(int SoundName) {
-// priority is not loaded, it's anyway always 0.
-	if (SoundName < 0 || SoundName >= prerenderedSoundsNum) {
-		return false;
-	}
-	SDL_LockAudio();
-	curSnd = prerenderedSounds[SoundName];
-	curSndLength = prerenderedSoundsLength[SoundName];
-	curSndHead = 0;
-	SDL_UnlockAudio();
-	return true;
-}
-
-void SPA_WaitUntilSoundIsDone() {
-	long end = SDL_GetTicks()+2000;
-	while (SDL_GetTicks() < end) {
-		if (curSnd == NULL) {
-			return;
-		}
-	}
-}
-
-
-void SPA_StartMusic(int MusicName) {
-	if (MusicName < 0 || MusicName >= prerenderedMusicNum) {
-		return;
-	}
-	SDL_LockAudio();
-	curMusic = prerenderedMusic[MusicName];
-	curMusicLength = prerenderedMusicLength[MusicName];
-	assert(curMusic != NULL);
-	curMusicHead = 0;
-	SDL_UnlockAudio();
-}
-
-
-void SPA_InitSamples(int NumSamples, int NumMusic) {
-	assert(prerenderedSounds == NULL);
-	prerenderedSoundsNum = NumSamples;
-	prerenderedSounds = malloc(sizeof(signed short*)*NumSamples);
-	prerenderedSoundsLength = malloc(sizeof(int)*NumSamples);
-
-	prerenderedMusicNum = NumMusic;
-	prerenderedMusic = malloc(sizeof(signed short*)*NumMusic);
-	prerenderedMusicLength = malloc(sizeof(int)*NumMusic);
-}
-
-void SPA_RenderMusic(int MusicName, uint8_t *Data) {
-#ifdef NOMUSIC
-	prerenderedMusicNum = 0;
-	return;
-#endif
-	MusicGroup *Music = (MusicGroup*)Data;
+void spa_RenderAMusic(int MusicName, MusicSample *Music) {
 	int	i;
 
 	AdLibWrite(alEffects,0);
@@ -168,12 +109,9 @@ void SPA_RenderMusic(int MusicName, uint8_t *Data) {
 		AdLibWrite(alFreqH + i + 1,0);
 
 	
-	word *musicAlCmds = Music->values;
-	int numAlCmds = Music->length/4;
-
 	long long musicLength=0;
-	for (i = 0; i < numAlCmds; i++) {
-		int len = musicAlCmds[2*i+1];
+	for (i = 0; i < Music->Count; i++) {
+		int len = Music->Data[2*i+1];
 		musicLength += len;
 	}
 
@@ -183,9 +121,9 @@ void SPA_RenderMusic(int MusicName, uint8_t *Data) {
 
 	long long j=0;
 	long offset=0;
-	for (i = 0; i < numAlCmds; i++) {
-		word w = musicAlCmds[2*i+0];
-		word len = musicAlCmds[2*i+1];
+	for (i = 0; i < Music->Count; i++) {
+		word w = Music->Data[2*i+0];
+		word len = Music->Data[2*i+1];
 		AdLibWrite(w&0xFF,(w>>8)&0xFF);
 		if (len > 0) {
 			long newOffset = (j+(long long)len)*sampleRate/alCmdRate;
@@ -202,30 +140,40 @@ void SPA_RenderMusic(int MusicName, uint8_t *Data) {
 	prerenderedMusicLength[MusicName] = numSamples;
 }
 
+void spa_RenderMusic() {
+	if (prerenderedMusicDone) {
+		return;
+	} else {
+		prerenderedMusicDone = 1;
+	}
 
-void SPA_RenderSample(int SampleName, uint8_t *Data) {
+	printf("Rendering music.\n");
+	int i;
+	for (i = 0; i < prerenderedMusicNum; i++) {
+		spa_RenderAMusic(i, SPD_GetMusic(i));
+	}
+}
 
-	AdLibSound *sound = (AdLibSound*)Data;
-	Instrument	*inst = (Instrument*)((char*)sound+6);
-	assert(inst->mSus || inst->cSus);
+void spa_RenderASample(int SampleName, SoundSample *Sample) {
+
+	assert(Sample->mSus || Sample->cSus);
 
 	AdLibWrite(alFreqH + 0,0);
 
 	byte		c=3,m=0;
-	AdLibWrite(m + alChar,inst->mChar);
-	AdLibWrite(m + alScale,inst->mScale);
-	AdLibWrite(m + alAttack,inst->mAttack);
-	AdLibWrite(m + alSus,inst->mSus);
-	AdLibWrite(m + alWave,inst->mWave);
-	AdLibWrite(c + alChar,inst->cChar);
-	AdLibWrite(c + alScale,inst->cScale);
-	AdLibWrite(c + alAttack,inst->cAttack);
-	AdLibWrite(c + alSus,inst->cSus);
-	AdLibWrite(c + alWave,inst->cWave);
+	AdLibWrite(m + alChar,Sample->mChar);
+	AdLibWrite(m + alScale,Sample->mScale);
+	AdLibWrite(m + alAttack,Sample->mAttack);
+	AdLibWrite(m + alSus,Sample->mSus);
+	AdLibWrite(m + alWave,Sample->mWave);
+	AdLibWrite(c + alChar,Sample->cChar);
+	AdLibWrite(c + alScale,Sample->cScale);
+	AdLibWrite(c + alAttack,Sample->cAttack);
+	AdLibWrite(c + alSus,Sample->cSus);
+	AdLibWrite(c + alWave,Sample->cWave);
 
-	byte *alCmds = (byte*)sound+23;
-	int numCmds = sound->common.length;
-	int alBlock = ((*((byte*)sound+22) & 7) << 2) | 0x20;
+	int numCmds = Sample->Length;
+	int alBlock = ((Sample->Block & 7) << 2) | 0x20;
 
 	prerenderedSounds[SampleName] = NULL;
 	prerenderedSoundsLength[SampleName] = 0;
@@ -239,7 +187,7 @@ void SPA_RenderSample(int SampleName, uint8_t *Data) {
 	signed short *samples = (signed short*)malloc(numSamples*2);
 	int i;
 	for (i = 0; i < numCmds; i++) {
-		byte s = *alCmds++;
+		byte s = Sample->Data[i];
 		if (!s) {
 			AdLibWrite(alFreqH + 0,0);
 		} else {
@@ -252,6 +200,148 @@ void SPA_RenderSample(int SampleName, uint8_t *Data) {
 
 	prerenderedSounds[SampleName] = samples;
 	prerenderedSoundsLength[SampleName] = numSamples;
+}
+
+void spa_RenderSounds() {
+	if (prerenderedSoundsDone) {
+		return;
+	} else {
+		prerenderedSoundsDone = 1;
+	}
+	printf("Rendering sound.\n");
+	int i;
+	for (i = 0; i < prerenderedSoundsNum; i++) {
+		spa_RenderASample(i, SPD_GetSound(i));
+	}
+}
+
+int SPA_IsAnySoundPlaying() {
+	int playing;
+	SDL_LockAudio();
+	playing = curSnd != NULL;
+	curSndPriority = 0;
+	SDL_UnlockAudio();
+	return playing;
+}
+
+int SPA_GetSoundSource(void) {
+	return soundSource;
+}
+
+int SPA_GetMusicSource(void) {
+	return musicSource;
+}
+
+void SPA_MusicOff(void) {
+printf("MUSIC OFF!\n");
+	SDL_LockAudio();
+	musicOn = 0;
+	SDL_UnlockAudio();
+}
+
+void SPA_MusicOn(void) {
+printf("MUSIC ON! music source %i\n", musicSource);
+	SDL_LockAudio();
+	musicOn = (musicSource != SND_OFF) && 1;
+	SDL_UnlockAudio();
+}
+
+int SPA_PlaySound(int SoundName) {
+// priority is not loaded, it's anyway always 0.
+	if (soundSource == SND_OFF || SoundName < 0 || SoundName >= prerenderedSoundsNum) {
+		return false;
+	}
+	int prio = SPD_GetSound(SoundName)->Priority;
+	SDL_LockAudio();
+	if (curSnd == NULL || prio >= curSndPriority) {
+		curSnd = prerenderedSounds[SoundName];
+		curSndLength = prerenderedSoundsLength[SoundName];
+		curSndPriority = prio;
+		curSndHead = 0;
+	} else {
+		printf("Sound rejected because of priority (%i < %i) !\n", prio, curSndPriority);
+	}
+	SDL_UnlockAudio();
+	return true;
+}
+
+
+void SPA_SetMusicSource(SoundSource Source) {
+	printf("music source %i wanted %i\n", musicSource, Source);
+	if (Source == SND_OFF && musicSource != SND_OFF) {
+		musicSource = SND_OFF;
+		SPA_MusicOff();
+	} else if (Source == SND_ADLIB && musicSource == SND_OFF) {
+		musicSource = SND_ADLIB;
+		spa_RenderMusic();
+		SPA_MusicOn();
+	}
+	printf("music source %i wanted %i\n", musicSource, Source);
+}
+
+void SPA_SetSoundSource(SoundSource Source) {
+	printf("sound source %i wanted %i\n", soundSource, Source);
+	if (Source == SND_OFF && soundSource != SND_OFF) {
+		soundSource = SND_OFF;
+		SDL_LockAudio();
+		curSnd = NULL;
+		SDL_UnlockAudio();
+	} else if (Source == SND_ADLIB && soundSource == SND_OFF) {
+		soundSource = SND_ADLIB;
+		spa_RenderSounds();
+	}
+	printf("sound source %i wanted %i\n", soundSource, Source);
+}
+
+void SPA_StartMusic(int MusicName) {
+	if (musicSource == SND_OFF || MusicName < 0 || MusicName >= prerenderedMusicNum) {
+		return;
+	}
+	SDL_LockAudio();
+	curMusic = prerenderedMusic[MusicName];
+	curMusicLength = prerenderedMusicLength[MusicName];
+	assert(curMusic != NULL);
+	curMusicHead = 0;
+	musicOn = 1;
+	SDL_UnlockAudio();
+}
+
+void SPA_WaitUntilSoundIsDone() {
+	long end = SDL_GetTicks()+2000;
+	while (SDL_GetTicks() < end) {
+		if (!SPA_IsAnySoundPlaying()) {
+			return;
+		}
+	}
+}
+
+void SPA_Init() {
+	AdLibInit(sampleRate);
+	SDL_AudioSpec desired;
+	desired.freq = sampleRate;
+	desired.format = AUDIO_S16;
+	desired.channels = 1;
+	desired.samples = 1024;
+	desired.callback = spa_AudioCallback;
+	desired.userdata = NULL;
+	assert(SDL_OpenAudio(&desired, NULL) == 0);
+
+}
+
+
+void SPA_InitSamples(int NumSamples, int NumMusic) {
+	assert(prerenderedSounds == NULL);
+	prerenderedSoundsNum = NumSamples;
+	prerenderedSounds = malloc(sizeof(signed short*)*NumSamples);
+	prerenderedSoundsLength = malloc(sizeof(int)*NumSamples);
+	memset(prerenderedSounds, 0, sizeof(signed short*)*NumSamples);
+	memset(prerenderedSoundsLength, 0, sizeof(int)*NumSamples);
+
+	prerenderedMusicNum = NumMusic;
+	prerenderedMusic = malloc(sizeof(signed short*)*NumMusic);
+	prerenderedMusicLength = malloc(sizeof(int)*NumMusic);
+	memset(prerenderedMusic, 0, sizeof(signed short*)*NumMusic);
+	memset(prerenderedMusicLength, 0, sizeof(int)*NumMusic);
 }
 
 

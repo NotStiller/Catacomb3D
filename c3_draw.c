@@ -23,30 +23,10 @@ BufferSetup rightHUDBuffer,
 			bottomHUDBuffer;
 
 const int hudWidth=7*8, hudHeight=7*8;
-#if 0
-	fullSetup.BufferStart = NULL;
-#endif
 
 
 void GameWindowResizeHook(int NewWidth, int NewHeight) {
 	static int firstcall = 1;
-	if (firstcall) {
-		firstcall = 0;
-		guiBuffer.Buffer = malloc(320*200);
-		guiBuffer.Pitch = guiBuffer.Width = 320;
-		guiBuffer.Height = 200;
-		guiBuffer.Scale = 1;
-		guiBuffer.ScreenX = 0;
-		guiBuffer.ScreenY = 0;
-	} else {
-		free(renderBuffer.Buffer);
-		free(bottomHUDBuffer.Buffer);
-		free(rightHUDBuffer.Buffer);
-		renderBuffer.Buffer = NULL;
-		renderBufferText.Buffer = NULL;
-		bottomHUDBuffer.Buffer = NULL;
-		rightHUDBuffer.Buffer = NULL;
-	}
 
 	int scale = NewWidth/320, scaleH = NewHeight/200;
 	if (scaleH < scale) {
@@ -58,68 +38,47 @@ void GameWindowResizeHook(int NewWidth, int NewHeight) {
 		NewHeight = 200;
 	}
 
-	bottomHUDBuffer.Pitch =
-	bottomHUDBuffer.Width = scale*320;
-	bottomHUDBuffer.Height = scale*56;
-	bottomHUDBuffer.Buffer = malloc(bottomHUDBuffer.Height*bottomHUDBuffer.Pitch);
+	bottomHUDBuffer.Width = 320;
+	bottomHUDBuffer.Height = 56;
 	bottomHUDBuffer.Scale = scale;
-	bottomHUDBuffer.ScreenX = NewWidth-bottomHUDBuffer.Width;
-	bottomHUDBuffer.ScreenY = NewHeight-bottomHUDBuffer.Height;
+	bottomHUDBuffer.ScreenX = NewWidth-scale*bottomHUDBuffer.Width;
+	bottomHUDBuffer.ScreenY = NewHeight-scale*bottomHUDBuffer.Height;
 
-	rightHUDBuffer.Pitch =
-	rightHUDBuffer.Width = scale*56;
-	rightHUDBuffer.Height = scale*144;
-	rightHUDBuffer.Buffer = malloc(rightHUDBuffer.Height*rightHUDBuffer.Pitch);
+	rightHUDBuffer.Width = 56;
+	rightHUDBuffer.Height = 144;
 	rightHUDBuffer.Scale = scale;
-	rightHUDBuffer.ScreenX = NewWidth-rightHUDBuffer.Width;
+	rightHUDBuffer.ScreenX = NewWidth-scale*rightHUDBuffer.Width;
 	rightHUDBuffer.ScreenY = NewHeight-scale*200;
 
-	renderBuffer.Pitch = 
-	renderBuffer.Width = (NewWidth-rightHUDBuffer.Width)/2*2;
-	renderBuffer.Height = (NewHeight-bottomHUDBuffer.Height)/2*2;
-	renderBuffer.Buffer = malloc(renderBuffer.Pitch*renderBuffer.Height);
+	guiBuffer.Width = 320;
+	guiBuffer.Height = 200;
+	guiBuffer.Scale = scale;
+	guiBuffer.ScreenX = (NewWidth-scale*320)/2;
+	guiBuffer.ScreenY = (NewHeight-scale*200)/2;
+
+	renderBuffer.Width = (NewWidth-scale*rightHUDBuffer.Width)/2*2;
+	renderBuffer.Height = (NewHeight-scale*bottomHUDBuffer.Height)/2*2;
 	renderBuffer.Scale = 1; // should never be used
-	renderBuffer.ScreenX = 0;
-	renderBuffer.ScreenY = 0;
+	renderBuffer.ScreenX = (NewWidth-scale*rightHUDBuffer.Width)&1;
+	renderBuffer.ScreenY = (NewHeight-scale*bottomHUDBuffer.Height)&1;
 
 	renderBufferText.Width = renderBuffer.Width/scale;
 	renderBufferText.Height = renderBuffer.Height/scale;
-	renderBufferText.Pitch = renderBuffer.Pitch;
-	renderBufferText.Buffer = renderBuffer.Buffer;
 	renderBufferText.Scale = scale;
-	renderBufferText.ScreenX = -1; // will not be blitted
-	renderBufferText.ScreenY = -1;
+	renderBufferText.ScreenX = renderBuffer.ScreenX+renderBuffer.Width%scale; // will not be blitted
+	renderBufferText.ScreenY = renderBuffer.ScreenY+renderBuffer.Height%scale;
 
-	SPG_SetupRenderer(renderBuffer.Width, renderBuffer.Height, renderBuffer.Buffer, renderBuffer.Pitch); 
+	SPG_SetupRenderer(&renderBuffer); 
 }
-
-void FlipBuffer(void) {
-	if (!SP_GameActive()) {
-		SPG_ClearScaleAndFlip(0, &guiBuffer);
-	} else {
-		BufferSetup *bufs[4] = {&renderBuffer, &rightHUDBuffer, &bottomHUDBuffer, NULL};
-		SPG_ClearBlitAndFlip(-1, bufs);
-	}
-}
-
-void FizzleFade(void) {
-	if (!SP_GameActive()) {
-		SPG_ClearScaleAndFizzle(0, &guiBuffer);
-	} else {
-		BufferSetup *bufs[4] = {&renderBuffer, &rightHUDBuffer, &bottomHUDBuffer, NULL};
-		SPG_ClearBlitAndFizzle(-1, bufs);
-	}
-}
-
 
 void	DrawHand (void)
 {
 	int	picnum;
 
 	picnum = HAND1PICM;
-	if (gamestate.shotpower || boltsleft)
+	if (gamestate->shotpower || boltsleft)
 		picnum += (((unsigned)SP_TimeCount()>>3)&1);
 
-	SPG_DrawPicSkip(&renderBuffer, grsegs[picnum], renderBuffer.Width/2-32, renderBuffer.Height-handheight, 0, handheight);
+	SPG_DrawPicSkip(&renderBufferText, grsegs[picnum], renderBufferText.Width/2-32, renderBufferText.Height-handheight, 0, handheight);
 }
 

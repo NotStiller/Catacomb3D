@@ -106,6 +106,7 @@ NEMESISPIC
 };
 
 
+
 /*
 =============================================================================
 
@@ -121,6 +122,104 @@ boolean lumpneeded[NUMLUMPS];
 //===========================================================================
 
 
+extern statetype
+	s_boltbonus, s_boltbonus2, 
+	s_nukebonus, s_nukebonus2,
+	s_potionbonus,
+	s_rkeybonus, s_ykeybonus, s_gkeybonus, s_bkeybonus,
+	s_scrollbonus, s_chestbonus, s_goalbonus,
+	s_walldie1, s_walldie2, s_walldie3, s_walldie4, s_walldie5, s_walldie6,
+	s_gate1, s_gate2, s_gate3, s_gate4,
+	s_fgate1, s_fgate2, s_fgate3, s_fgate4,
+	s_trollpause, s_troll1, s_troll2, s_troll3, s_troll4,
+	s_trollattack1, s_trollattack2, s_trollattack3,
+	s_trollouch, s_trolldie1, s_trolldie2, s_trolldie3,
+	s_orcpause, s_orc1, s_orc2, s_orc3, s_orc4,
+	s_orcattack1, s_orcattack2, s_orcattack3,
+	s_orcouch, s_orcdie1, s_orcdie2, s_orcdie3,
+	s_demonpause, s_demon1, s_demon2, s_demon3, s_demon4,
+	s_demonattack1, s_demonattack2, s_demonattack3,
+	s_demonouch, s_demondie1, s_demondie2, s_demondie3,
+	s_mshot1, s_mshot2, s_magepause, s_mage1, s_mage2,
+	s_mageattack1, s_mageattack2, s_mageattack3,
+	s_mageouch, s_magedie1, s_magedie2,
+	s_grelpause, s_grel1, s_grel2,
+	s_grelattack1, s_grelattack2, s_grelattack3, s_grelouch,
+	s_greldie1, s_greldie2, s_greldie3, s_greldie4, s_greldie5, s_greldie6,
+	s_bat1, s_bat2, s_bat3, s_bat4,
+	s_batpast, s_batdie1, s_batdie2,
+	s_bounce1, s_bounce2,
+	s_pshot1, s_pshot2,
+	s_shotexplode,
+	s_bigpshot1, s_bigpshot2,
+	s_player;
+
+statetype *statetypes[] = { NULL,
+&s_boltbonus, &s_boltbonus2, &s_nukebonus, &s_nukebonus2,
+&s_potionbonus, &s_rkeybonus, &s_ykeybonus, &s_gkeybonus, &s_bkeybonus,
+&s_scrollbonus, &s_chestbonus, &s_goalbonus,
+&s_walldie1, &s_walldie2, &s_walldie3, &s_walldie4, &s_walldie5, &s_walldie6,
+&s_gate1, &s_gate2, &s_gate3, &s_gate4,
+&s_fgate1, &s_fgate2, &s_fgate3, &s_fgate4,
+&s_trollpause, &s_troll1, &s_troll2, &s_troll3, &s_troll4,
+&s_trollattack1, &s_trollattack2, &s_trollattack3,
+&s_trollouch, &s_trolldie1, &s_trolldie2, &s_trolldie3,
+&s_orcpause, &s_orc1, &s_orc2, &s_orc3, &s_orc4,
+&s_orcattack1, &s_orcattack2, &s_orcattack3, &s_orcouch,
+&s_orcdie1, &s_orcdie2, &s_orcdie3,
+&s_demonpause, &s_demon1, &s_demon2, &s_demon3, &s_demon4,
+&s_demonattack1, &s_demonattack2, &s_demonattack3, &s_demonouch,
+&s_demondie1, &s_demondie2, &s_demondie3,
+&s_mshot1, &s_mshot2, &s_magepause, &s_mage1, &s_mage2,
+&s_mageattack1, &s_mageattack2, &s_mageattack3,
+&s_mageouch, &s_magedie1, &s_magedie2, &s_grelpause,
+&s_grel1, &s_grel2, &s_grelattack1, &s_grelattack2, &s_grelattack3, &s_grelouch,
+&s_greldie1, &s_greldie2, &s_greldie3, &s_greldie4, &s_greldie5, &s_greldie6,
+&s_bat1, &s_bat2, &s_bat3, &s_bat4, &s_batpast, &s_batdie1, &s_batdie2,
+&s_bounce1, &s_bounce2,
+&s_pshot1, &s_pshot2, &s_shotexplode, &s_bigpshot1, &s_bigpshot2, &s_player,
+NULL,
+	};
+
+
+static uint32_t StateToInt(statetype *StateType) {
+	printf("StateToInt(%p)\n", StateType);
+	if (StateType == NULL) {
+		return 0;
+	} else {
+		uint32_t i;
+		for (i = 1; statetypes[i] != NULL; i++) {
+			if (statetypes[i] == StateType) {
+				printf("Resolves to %i.\n", i);
+				return i;
+			}
+		}
+	}
+	printf("ERROR: the state %p did not match anything !\n", StateType);
+	assert(NULL);
+}
+
+static statetype *IntToState(uint32_t StateNum) {
+	printf("IntToState(%i)\n", StateNum);
+	if (StateNum == 0) {
+		return NULL;
+	}
+// I can't remember myself, why not just statetypes[StateNum] ?
+// To prevent memory violation I guess.
+	uint32_t i;
+	for (i = 1; statetypes[i] != NULL; i++) {
+		if (i == StateNum) { 
+			printf("resolves to %p.\n", statetypes[i]);
+			return statetypes[i];
+		}
+	}
+	printf("ERROR: invalid enumerated state type %i\n", StateNum);
+	assert(NULL);
+}
+
+
+//===========================================================================
+
 /*
 ==========================
 =
@@ -131,17 +230,16 @@ boolean lumpneeded[NUMLUMPS];
 ==========================
 */
 
-void ScanInfoPlane (void)
+void ScanInfoPlane (gametype *Gamestate)
 {
 	uint16_t        x,y,i,j;
 	int             tile;
 	uint16_t        *start;
 
-	InitObjList();                  // start spawning things with a clean slate
 
 	memset (lumpneeded,0,sizeof(lumpneeded));
 
-	start = gamestate.mapsegs[2];
+	start = Gamestate->mapsegs[2];
 	for (y=0;y<curmap->height;y++)
 	{
 		for (x=0;x<curmap->width;x++)
@@ -199,10 +297,10 @@ void ScanInfoPlane (void)
 				break;
 //------
 			case 41:
-				if (gamestate.difficulty <gd_Hard)
+				if (Gamestate->difficulty <gd_Hard)
 					break;
 			case 36:
-				if (gamestate.difficulty <gd_Normal)
+				if (Gamestate->difficulty <gd_Normal)
 					break;
 			case 22:
 				lumpneeded[TROLLLUMP] = true;
@@ -210,10 +308,10 @@ void ScanInfoPlane (void)
 				break;
 
 			case 42:
-				if (gamestate.difficulty <gd_Hard)
+				if (Gamestate->difficulty <gd_Hard)
 					break;
 			case 37:
-				if (gamestate.difficulty <gd_Normal)
+				if (Gamestate->difficulty <gd_Normal)
 					break;
 			case 23:
 				lumpneeded[ORCLUMP] = true;
@@ -221,10 +319,10 @@ void ScanInfoPlane (void)
 				break;
 
 			case 43:
-				if (gamestate.difficulty <gd_Hard)
+				if (Gamestate->difficulty <gd_Hard)
 					break;
 			case 38:
-				if (gamestate.difficulty <gd_Normal)
+				if (Gamestate->difficulty <gd_Normal)
 					break;
 			case 25:
 				lumpneeded[BATLUMP] = true;
@@ -232,10 +330,10 @@ void ScanInfoPlane (void)
 				break;
 
 			case 44:
-				if (gamestate.difficulty <gd_Hard)
+				if (Gamestate->difficulty <gd_Hard)
 					break;
 			case 39:
-				if (gamestate.difficulty <gd_Normal)
+				if (Gamestate->difficulty <gd_Normal)
 					break;
 			case 26:
 				lumpneeded[DEMONLUMP] = true;
@@ -243,10 +341,10 @@ void ScanInfoPlane (void)
 				break;
 
 			case 45:
-				if (gamestate.difficulty <gd_Hard)
+				if (Gamestate->difficulty <gd_Hard)
 					break;
 			case 40:
-				if (gamestate.difficulty <gd_Normal)
+				if (Gamestate->difficulty <gd_Normal)
 					break;
 			case 27:
 				lumpneeded[MAGELUMP] = true;
@@ -280,63 +378,6 @@ void ScanInfoPlane (void)
 
 //==========================================================================
 
-/*
-==================
-=
-= DrawEnterScreen
-=
-==================
-*/
-
-static  char    *levelnames[] =
-				{
-					"The Approach",
-					"Nemesis's Keep",
-					"Ground Floor",
-					"Second Floor",
-					"Third Floor",
-					"Tower One",
-					"Tower Two",
-					"Secret Halls",
-					"Access Floor",
-					"The Dungeon",
-					"Lower Dungeon",
-					"Catacomb",
-					"Lower Reaches",
-					"The Warrens",
-					"Hidden Caverns",
-					"The Fens of Insanity",
-					"Chaos Corridors",
-					"The Labyrinth",
-					"Halls of Blood",
-					"Nemesis's Lair"
-				};
-void DrawEnterScreen (void)
-{
-	int     x,y;
-
-	for (y=0; y < renderSetup.Height; y++) {
-		memset(renderSetup.BufferStart+y*renderSetup.Pitch, 9, renderSetup.Width);
-	}
-
-	x = (renderBufferText.Width-18*8)/2;
-	y = (renderBufferText.Height-5*8)/2;
-	SPG_DrawPic(&renderBufferText, grsegs[ENTERPLAQUEPIC],x,y);
-
-	int width;
-	SPG_MeasureString(levelnames[gamestate.mapon], 0, &width, NULL);
-	SPG_DrawString(&renderBufferText, x+(18*8-width)/2, y+23, levelnames[gamestate.mapon], 0, 8);
-
-	FlipBuffer();
-	IN_ClearKeysDown ();
-	fizzlein = true;
-	if (0) {
-		IN_Ack();
-	}
-}
-
-//==========================================================================
-
 
 
 
@@ -350,7 +391,7 @@ void DrawEnterScreen (void)
 ==================
 */
 
-void SetupGameLevel (void)
+void SetupGameLevel (gametype *Gamestate)
 {
 	int      x,y,i,j;
 	uint16_t *map,tile,spot;
@@ -363,15 +404,15 @@ void SetupGameLevel (void)
 //
 // load the level
 //
-	SPD_LoadMap(LEVEL1TEXT+gamestate.mapon,gamestate.mapon);
+	SPD_LoadMap(LEVEL1TEXT+Gamestate->mapon,Gamestate->mapon);
 	int plane;
 	for (plane = 0; plane<MAPPLANES; plane++)
 	{
 		int size=curmap->rawplaneslength[plane];
 		if (!size)
 			continue;
-		MM_GetPtr (&gamestate.mapsegs[plane], size);
-		memcpy(gamestate.mapsegs[plane], curmap->rawplanes[plane], size);
+		MM_GetPtr (&Gamestate->mapsegs[plane], size);
+		memcpy(Gamestate->mapsegs[plane], curmap->rawplanes[plane], size);
 	}
 
 //
@@ -380,7 +421,7 @@ void SetupGameLevel (void)
 	memset (tileneeded,0,sizeof(tileneeded));
 	ClearTileMap();
 	ClearActorAt();
-	map = gamestate.mapsegs[0];
+	map = Gamestate->mapsegs[0];
 	for (y=0;y<curmap->height;y++) 
 	{
 		for (x=0;x<curmap->width;x++)
@@ -407,10 +448,12 @@ void SetupGameLevel (void)
 		printf("\n");
 	}
 
+	InitObjList();                  // start spawning things with a clean slate
+
 //
 // decide which graphics are needed and spawn actors
 //
-	ScanInfoPlane ();
+	ScanInfoPlane (Gamestate);
 
 
 //
@@ -438,6 +481,253 @@ void SetupGameLevel (void)
 //==========================================================================
 
 
+/*
+==================
+=
+= SaveTheGame
+=
+==================
+*/
+
+void SaveTheGame(FILE *file, gametype *Gamestate)
+{
+	uint8_t *buffer, *p;
+	int i, j;
+	objtype *o;
+
+	int maxsize = 20*4+2*3*64*64+MAXACTORS*27;
+	p = buffer = malloc(maxsize);
+	SPD_WriteU32(&p, Gamestate->difficulty);
+	SPD_WriteU32(&p, Gamestate->mapon);
+	SPD_WriteU32(&p, Gamestate->bolts);
+	SPD_WriteU32(&p, Gamestate->nukes);
+	SPD_WriteU32(&p, Gamestate->potions);
+	for (i = 0; i < 4; i++) {
+		SPD_WriteU32(&p, Gamestate->keys[i]);
+	}
+	for (i = 0; i < 8; i++) {
+		SPD_WriteU32(&p, Gamestate->scrolls[i]);
+	}
+	SPD_WriteU32(&p, Gamestate->score);
+	SPD_WriteU32(&p, Gamestate->body);
+	SPD_WriteU32(&p, Gamestate->shotpower);
+
+	for (i = 0;i < 2;i++)	// Write planes 0 and 2
+	{
+		int num=curmap->width*curmap->height;
+		printf("Plane %i size %i\n", 2*i, num);
+		SPD_WriteU32(&p, num);
+		for (j = 0; j < num; j++) {
+			SPD_WriteU16(&p, Gamestate->mapsegs[2*i][j]);
+		}
+	}
+
+	for (o = player; o; o = o->next) {
+		SPD_WriteU32(&p, o->active);
+		SPD_WriteS32(&p, o->ticcount);
+		SPD_WriteS32(&p, o->obclass);
+		printf("obj %p state %p -> num %i\n", o, o->state, StateToInt(o->state));
+		SPD_WriteU32(&p, StateToInt(o->state));
+		SPD_WriteU32(&p, o->flags);
+		SPD_WriteU32(&p, o->shootable);
+		SPD_WriteU32(&p, o->tileobject);
+		SPD_WriteS32(&p, o->distance);
+		SPD_WriteU32(&p, o->dir);
+		SPD_WriteS32(&p, o->x);
+		SPD_WriteS32(&p, o->y);
+		SPD_WriteU32(&p, o->tilex);
+		SPD_WriteU32(&p, o->tiley);
+		SPD_WriteS32(&p, o->viewx);
+		SPD_WriteU32(&p, o->viewheight);
+		SPD_WriteS32(&p, o->angle);
+		SPD_WriteS32(&p, o->hitpoints);
+		SPD_WriteS32(&p, o->speed);
+		SPD_WriteS32(&p, o->size);
+		SPD_WriteS32(&p, o->xl);
+		SPD_WriteS32(&p, o->xh);
+		SPD_WriteS32(&p, o->yl);
+		SPD_WriteS32(&p, o->yh);
+		SPD_WriteS32(&p, o->temp1);
+		SPD_WriteS32(&p, o->temp2);
+		SPD_WriteU32(&p, (o->next!=NULL)?1:0);
+		printf("%i %i %i %i\n", o->x, o->y, o->tilex, o->tiley);
+	}
+
+
+	printf("saving length %i\n", (int)(p-buffer));
+	assert((int)(p-buffer) <= maxsize);
+	
+	SPD_WriteToFile(file, buffer, p-buffer);
+	free(buffer);
+}
+
+//===========================================================================
+
+/*
+
+==================
+=
+
+= LoadTheGame
+=
+==================
+*/
+
+gametype *LoadTheGame(FILE *file)
+{
+	uint8_t *buffer, *p;
+	int i, j;
+	long size;
+
+	p = buffer = SPD_ReadFile2(file, &size);
+	printf("loaded length %i\n", size);
+
+	gametype *Gamestate = malloc(sizeof(gametype));
+	assert(Gamestate != NULL);
+	Gamestate->difficulty = SPD_ReadU32(&p);
+	Gamestate->mapon = SPD_ReadU32(&p);
+	Gamestate->bolts = SPD_ReadU32(&p);
+	Gamestate->nukes = SPD_ReadU32(&p);
+	Gamestate->potions = SPD_ReadU32(&p);
+	for (i = 0; i < 4; i++) {
+		Gamestate->keys[i] = SPD_ReadU32(&p);
+	}
+	for (i = 0; i < 8; i++) {
+		Gamestate->scrolls[i] = SPD_ReadU32(&p);
+	}
+	Gamestate->score = SPD_ReadU32(&p);
+	Gamestate->body = SPD_ReadU32(&p);
+	Gamestate->shotpower = SPD_ReadU32(&p);
+
+
+
+	Gamestate->mapsegs[1] = NULL;
+	for (i = 0;i < 2;i++)	// Write planes 0 and 2
+	{
+		int num = SPD_ReadU32(&p);
+		printf("plane %i num %i\n", 2*i, num);
+		Gamestate->mapsegs[2*i] = (uint16_t*)malloc(2*num);
+		for (j = 0; j < num; j++) {
+			Gamestate->mapsegs[2*i][j] = SPD_ReadU16(&p);
+		}
+	}
+	assert((p-buffer) <= size);
+
+	SetupGameLevel (Gamestate);		// load in and cache the base old level
+	assert((p-buffer) <= size);
+
+
+//
+// copy the wall data to a data segment array again, to handle doors and
+// bomb walls that are allready opened
+//
+	ClearTileMap();
+	ClearActorAt();
+	uint16_t *map;
+	int x,y;
+	map = Gamestate->mapsegs[0];
+	for (y=0;y<curmap->height;y++) {
+		for (x=0;x<curmap->width;x++) {
+			uint16_t tile;
+			tile = *map++;
+			if (tile<NUMFLOORS)
+			{
+				SetTileMap(x,y,tile);
+				if (tile>0) {
+					SetActorAtInt(x,y,tile);
+				}
+			}
+		}
+	}
+	assert((p-buffer) <= size);
+
+
+	// Read the object list back in - assumes at least one object in list
+
+	statetype	*state;
+	struct	objstruct	*next,*prev, *o;
+	InitObjList ();
+	objtype *new;
+	new = player;
+	while (true)
+	{
+		prev = new->prev;
+		next = new->next;
+
+		o = new;
+		o->active = SPD_ReadU32(&p);
+		o->ticcount = SPD_ReadS32(&p);
+		o->obclass = SPD_ReadS32(&p);
+		o->state = IntToState(SPD_ReadU32(&p));
+		o->flags = SPD_ReadU32(&p);
+		o->shootable = SPD_ReadU32(&p);
+		o->tileobject = SPD_ReadU32(&p);
+		o->distance = SPD_ReadS32(&p);
+		o->dir = SPD_ReadU32(&p);
+		o->x = SPD_ReadS32(&p);
+		o->y = SPD_ReadS32(&p);
+		o->tilex = SPD_ReadU32(&p);
+		o->tiley = SPD_ReadU32(&p);
+		o->viewx = SPD_ReadS32(&p);
+		o->viewheight = SPD_ReadU32(&p);
+		o->angle = SPD_ReadS32(&p);
+		o->hitpoints = SPD_ReadS32(&p);
+		o->speed = SPD_ReadS32(&p);
+		o->size = SPD_ReadS32(&p);
+		o->xl = SPD_ReadS32(&p);
+		o->xh = SPD_ReadS32(&p);
+		o->yl = SPD_ReadS32(&p);
+		o->yh = SPD_ReadS32(&p);
+		o->temp1 = SPD_ReadS32(&p);
+		o->temp2 = SPD_ReadS32(&p);
+		int followed = SPD_ReadU32(&p);
+		printf("%i %i %i %i\n", o->x, o->y, o->tilex, o->tiley);
+		
+		new->prev = prev;
+		new->next = next;
+		SetActorAt(new->tilex,new->tiley,new); // drop a new marker
+
+		if (followed)
+			new = GetNewObj (false);
+		else
+			break;
+	}
+	assert((p-buffer) <= size);
+	free(buffer);
+
+	return Gamestate;
+}
+
+//===========================================================================
+
+
+
+/*
+=====================
+=
+= NewGame
+=
+= Set up new game to start from the beginning
+=
+=====================
+*/
+
+gametype *NewGame (GameDiff Difficulty)
+{
+	gametype *gs;
+	gs = malloc(sizeof(gametype));
+	memset (gs,0,sizeof(gametype));
+	gs->mapon = 0;
+	gs->body = MAXBODY;
+	gs->difficulty = Difficulty;
+	gs->shotpower = handheight = 0;
+	pointcount = pointsleft = 0;
+	lastnuke = 0;
+	SetupGameLevel(gs);
+
+	return gs;
+}
+
 
 //==========================================================================
 
@@ -453,21 +743,21 @@ void Victory (void)
 {
 	SPD_LoadGrChunk(FINALEPIC);
 	SPG_DrawPic(&guiBuffer, grsegs[FINALEPIC], 0, 0);
-	FlipBuffer();
-	SD_PlaySound (GETBOLTSND);
-	SD_WaitSoundDone ();
-	SD_PlaySound (GETNUKESND);
-	SD_WaitSoundDone ();
-	SD_PlaySound (GETPOTIONSND);
-	SD_WaitSoundDone ();
-	SD_PlaySound (GETKEYSND);
-	SD_WaitSoundDone ();
-	SD_PlaySound (GETSCROLLSND);
-	SD_WaitSoundDone ();
-	SD_PlaySound (GETPOINTSSND);
-	SD_WaitSoundDone ();
-	IN_ClearKeysDown ();
-	IN_Ack();
+	SPG_FlipBuffer();
+	SPA_PlaySound (GETBOLTSND);
+	SPA_WaitUntilSoundIsDone ();
+	SPA_PlaySound (GETNUKESND);
+	SPA_WaitUntilSoundIsDone ();
+	SPA_PlaySound (GETPOTIONSND);
+	SPA_WaitUntilSoundIsDone ();
+	SPA_PlaySound (GETKEYSND);
+	SPA_WaitUntilSoundIsDone ();
+	SPA_PlaySound (GETSCROLLSND);
+	SPA_WaitUntilSoundIsDone ();
+	SPA_PlaySound (GETPOINTSSND);
+	SPA_WaitUntilSoundIsDone ();
+	SPI_ClearKeysDown ();
+	SPI_WaitForever();
 }
 
 //==========================================================================
@@ -486,78 +776,13 @@ void Died (void)
 //
 // fizzle fade screen to grey
 //
-	SD_PlaySound (GAMEOVERSND);
+	SPA_PlaySound (GAMEOVERSND);
+	SPG_ClearBuffer(0);
 	SPG_DrawPic(&guiBuffer, grsegs[DEADPIC],0,0);
-	FizzleFade(renderSetup.Width,renderSetup.Height,false);
-	IN_ClearKeysDown();
-	IN_Ack();
-}
-
-//==========================================================================
-
-/*
-===================
-=
-= DrawPlayScreen
-=
-===================
-*/
-
-void DrawPlayScreen (void)
-{
-	int     i,j,p,m;
-
-	SPD_LoadGrChunk (STATUSPIC);
-	SPD_LoadGrChunk (SIDEBARSPIC);
-
-	SPG_DrawPic(&bottomHUDBuffer, grsegs[STATUSPIC],0,0);
-	SPG_DrawPic(&rightHUDBuffer, grsegs[SIDEBARSPIC],0,0);
-
-	RedrawStatusWindow ();
-}
-
-
-//==========================================================================
-
-/*
-===================
-=
-= LoadLatchMem
-=
-===================
-*/
-
-void LoadLatchMem (void)
-{
-	int     i;
-	for (i=0;i<NUMTILE16;i++)
-	{
-		SPD_LoadGrChunk (STARTTILE16+i);
-	}
-	for (i=FIRSTLATCHPIC+1;i<FIRSTSCALEPIC;i++)
-	{
-		SPD_LoadGrChunk (i);
-	}
-}
-
-
-/*
-===================
-=
-= FizzleOut
-=
-===================
-*/
-
-void FizzleOut (int showlevel)
-{
-	unsigned page1,page2;
-//
-// fizzle fade screen to grey
-//
-	if (showlevel)
-		DrawEnterScreen ();
-	FizzleFade(renderSetup.Width,renderSetup.Height,false);
+	SPI_ClearKeysDown();
+	SPG_FizzleFadeBuffer();
+	SPI_ClearKeysDown();
+	SPI_WaitForever();
 }
 
 
@@ -654,7 +879,6 @@ void    CheckHighScore (long score,word other)
 				Scores[j] = Scores[j - 1];
 			Scores[i] = myscore;
 			n = i;
-			HighScoresDirty = true;
 			break;
 		}
 	}
@@ -674,6 +898,21 @@ void    CheckHighScore (long score,word other)
 }
 
 
+/*
+===================
+=
+= FinishGame
+=
+===================
+*/
+
+void DestroyGame(gametype *Gamestate) {
+	assert(Gamestate != NULL);
+#warning also release objlist, mapsegs, what else ?
+	free(Gamestate);
+}
+
+
 //==========================================================================
 
 /*
@@ -684,59 +923,72 @@ void    CheckHighScore (long score,word other)
 ===================
 */
 
-void GameLoop (void) {
-	int i,xl,yl,xh,yh;
-	char num[20];
+boolean GameLoop (void) {
+	ControlPanelExitType cpexit;
+	cpexit = US_ControlPanel(false);
 
-	SP_GameEnter();
-	DrawPlayScreen ();
-
-	boolean restart=true;
-	while (restart) {
-		restart = false;
-		if (!loadedgame) {
-			gamestate.difficulty = restartgame;
-			restartgame = gd_Continue;
-			DrawEnterScreen ();
+	gametype *game = NULL;
+	boolean newGameOrLoadedGame = cpexit.Result == CPE_NEWGAME || cpexit.Result == CPE_LOADEDGAME;
+	boolean backToGame = false;
+	while (newGameOrLoadedGame) {
+		assert(game == NULL);
+		boolean drawEnterScreen=false;
+		if (cpexit.Result == CPE_NEWGAME) {
+			game = NewGame(cpexit.Difficulty);
+			assert(game != NULL);
+			drawEnterScreen = true;
+		} else if (cpexit.Result == CPE_LOADEDGAME) {
+			assert(false);
+			game = NULL;
+			drawEnterScreen = false;
+	//		gamestate = cpexit.LoadedGame;
 		}
+		newGameOrLoadedGame = false;
 
-		boolean nextLevel=true;
-		while (!restart) {
-			playstate = gd_Continue;
-			if (!loadedgame)
-				SetupGameLevel();
-			else
-				loadedgame = false;
+		PlayLoopExitType transition;
 
-			PlayLoop();
+		do { // while (backToGame)
+			SP_GameEnter();
+			transition = PlayLoop(game, drawEnterScreen);
+			SP_GameLeave();
 
-			switch (playstate) {
-			case ex_resetgame:
-			case ex_loadedgame:
-				restart = true;
-				break; // repeat outermost loop
-			case ex_warped:
-				FizzleOut (true);
-				if (gamestate.mapon >= NUMLEVELS) {
+			switch (transition) {
+			case PLE_MENU:
+				cpexit = US_ControlPanel(true);
+				drawEnterScreen = false;
+				backToGame = cpexit.Result == CPE_NOTHING;
+				newGameOrLoadedGame = !(cpexit.Result == CPE_ABORTGAME);
+				break;
+			case PLE_WARPED:
+				if (game->mapon >= NUMLEVELS) {
 					Victory();
-					CheckHighScore(gamestate.score, gamestate.mapon+1);
-					return;
+					CheckHighScore(game->score, game->mapon+1);
+					backToGame = false;
+					newGameOrLoadedGame = false;
+				} else {
+					SetupGameLevel(game);
+					drawEnterScreen = true;
+					backToGame = true;
+					newGameOrLoadedGame = false; // doesn't matter
 				}
-				break; // repeat innermost loop
-			case ex_died:
-				SP_GameLeave();
+				break;
+			case PLE_DEATH:
 				Died();
-				CheckHighScore(gamestate.score, gamestate.mapon+1);
-				return; // back to DemoLoop
-			case ex_victorious:
-				SP_GameLeave();
+				CheckHighScore(game->score, game->mapon+1);
+				backToGame = false;
+				newGameOrLoadedGame = false;
+				break;
+			case PLE_VICTORY:
 				Victory();
-				CheckHighScore(gamestate.score, gamestate.mapon+1);
-				return; // back to DemoLoop
-			case ex_abort:
-				SP_GameLeave();
-				return; // back to DemoLoop
+				CheckHighScore(game->score, game->mapon+1);
+				backToGame = false;
+				newGameOrLoadedGame = false;
+				break;
+			default:
+				assert(0);
 			}
-		}
-	}
+		} while (backToGame);
+		DestroyGame(game);
+	} // while (newGameOrLoadedGame)
+	return true;
 }

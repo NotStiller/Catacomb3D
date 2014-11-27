@@ -168,6 +168,22 @@ void DrawChar (unsigned x, unsigned y, unsigned tile)
 /*
 ===============
 =
+= DrawFreezeTime
+=
+===============
+*/
+void DrawFreezeTime()
+{
+	long percentage;
+	percentage = PERCENTAGE(100,MAXFREEZETIME,(long)FreezeTime,7);
+	DrawNum(23,70,percentage,3);
+}
+
+//===========================================================================
+
+/*
+===============
+=
 = RedrawStatusWindow
 =
 ===============
@@ -179,17 +195,19 @@ void RedrawStatusWindow (void)
 
 //	EGABITMASK(0xff);
 	for (keytype=0; keytype<4; keytype++)
-		DrawNum(key_x[keytype],key_y[keytype],gamestate.keys[keytype],2);
-	DrawNum(17,54,gamestate.potions,2);
-	DrawNum(17,36,gamestate.nukes,2);
-	DrawNum(17,18,gamestate.bolts,2);
+		DrawNum(key_x[keytype],key_y[keytype],gamestate->keys[keytype],2);
+	DrawNum(17,54,gamestate->potions,2);
+	DrawNum(17,36,gamestate->nukes,2);
+	DrawNum(17,18,gamestate->bolts,2);
 
 	DrawHealth();
+	if (FreezeTime)
+		DrawFreezeTime();
 	DrawRadar();
-//	EGAWRITEMODE(0);
+	DrawNSEWIcons();
 	DrawGems();
 	DrawScrolls();
-	redraw_gems = false;
+	DrawText();
 }
 
 
@@ -205,11 +223,11 @@ void RedrawStatusWindow (void)
 
 void GiveBolt (void)
 {
-	if (gamestate.bolts == 99)
+	if (gamestate->bolts == 99)
 		return;
 
-	SD_PlaySound (GETBOLTSND);
-	DrawNum(17,18,++gamestate.bolts,2);
+	SPA_PlaySound (GETBOLTSND);
+	DrawNum(17,18,++gamestate->bolts,2);
 }
 
 
@@ -223,8 +241,8 @@ void GiveBolt (void)
 
 void TakeBolt (void)
 {
-	SD_PlaySound (USEBOLTSND);
-	DrawNum(17,18,--gamestate.bolts,2);
+	SPA_PlaySound (USEBOLTSND);
+	DrawNum(17,18,--gamestate->bolts,2);
 }
 
 //===========================================================================
@@ -239,11 +257,11 @@ void TakeBolt (void)
 
 void GiveNuke (void)
 {
-	if (gamestate.nukes == 99)
+	if (gamestate->nukes == 99)
 		return;
 
-	SD_PlaySound (GETNUKESND);
-	DrawNum(17,36,++gamestate.nukes,2);
+	SPA_PlaySound (GETNUKESND);
+	DrawNum(17,36,++gamestate->nukes,2);
 }
 
 
@@ -257,8 +275,8 @@ void GiveNuke (void)
 
 void TakeNuke (void)
 {
-	SD_PlaySound (USENUKESND);
-	DrawNum(17,36,--gamestate.nukes,2);
+	SPA_PlaySound (USENUKESND);
+	DrawNum(17,36,--gamestate->nukes,2);
 }
 
 //===========================================================================
@@ -273,11 +291,11 @@ void TakeNuke (void)
 
 void GivePotion (void)
 {
-	if (gamestate.potions == 99)
+	if (gamestate->potions == 99)
 		return;
 
-	SD_PlaySound (GETPOTIONSND);
-	DrawNum(17,54,++gamestate.potions,2);
+	SPA_PlaySound (GETPOTIONSND);
+	DrawNum(17,54,++gamestate->potions,2);
 }
 
 
@@ -291,8 +309,8 @@ void GivePotion (void)
 
 void TakePotion (void)
 {
-	SD_PlaySound (USEPOTIONSND);
-	DrawNum(17,54,--gamestate.potions,2);
+	SPA_PlaySound (USEPOTIONSND);
+	DrawNum(17,54,--gamestate->potions,2);
 }
 
 //===========================================================================
@@ -309,11 +327,11 @@ void GiveKey (int keytype)
 {
 	int	i,j,x;
 
-	if (gamestate.keys[keytype] == 99)
+	if (gamestate->keys[keytype] == 99)
 		return;
 
-	SD_PlaySound (GETKEYSND);
-	DrawNum(key_x[keytype],key_y[keytype],++gamestate.keys[keytype],2);
+	SPA_PlaySound (GETKEYSND);
+	DrawNum(key_x[keytype],key_y[keytype],++gamestate->keys[keytype],2);
 }
 
 
@@ -334,12 +352,12 @@ void TakeKey (int keytype)
 								 "a BLUE key"};
 
 
-	SD_PlaySound (USEKEYSND);
-	DrawNum(key_x[keytype],key_y[keytype],--gamestate.keys[keytype],2);
+	SPA_PlaySound (USEKEYSND);
+	DrawNum(key_x[keytype],key_y[keytype],--gamestate->keys[keytype],2);
 	Win_Create(&renderBufferText, 20,5);
 	Win_CPrint("\nYou use\n");
 	Win_CPrint(key_colors[keytype]);
-	FlipBuffer();
+	SPG_FlipBuffer();
 	VW_WaitVBL(120);
 }
 
@@ -359,8 +377,8 @@ void GiveGem (int gemtype)
 #if 0
 	int	i,j,x;
 
-	SD_PlaySound (GETKEYSND);
-	DrawNum(key_x[keytype],key_y[keytype],++gamestate.keys[keytype],2);
+	SPA_PlaySound (GETKEYSND);
+	DrawNum(key_x[keytype],key_y[keytype],++gamestate->keys[keytype],2);
 #endif
 }
 
@@ -378,8 +396,8 @@ void TakeGem (int gemtype)
 #if 0
 	int	i,j,x;
 
-	SD_PlaySound (USEKEYSND);
-	DrawNum(key_x[keytype],key_y[keytype],--gamestate.keys[keytype],2);
+	SPA_PlaySound (USEKEYSND);
+	DrawNum(key_x[keytype],key_y[keytype],--gamestate->keys[keytype],2);
 #endif
 }
 
@@ -400,7 +418,7 @@ void DrawGems()
 //	LatchDrawPic (31,51,RADAR_BOTTOMPIC);
 	SPG_DrawPic(&bottomHUDBuffer, grsegs[RADAR_BOTTOMPIC], 31*8,51);
 	for (loop=0; loop<5; loop++)
-		if (gamestate.gems[loop])
+		if (gamestate->gems[loop])
 			SPG_DrawPic(&bottomHUDBuffer, grsegs[RADAR_RGEMPIC+loop], (32+loop)*8,53);
 //			LatchDrawPic (32+loop,53,RADAR_RGEMPIC+loop);
 }
@@ -419,8 +437,8 @@ void GiveScroll (int scrolltype,boolean show)
 {
 	int	i,j,x,y,scrollnum;
 
-	SD_PlaySound (GETSCROLLSND);
-	gamestate.scrolls[scrolltype] = true;
+	SPA_PlaySound (GETSCROLLSND);
+	gamestate->scrolls[scrolltype] = true;
 
 	y = 30 + ((scrolltype > 3) * 10);
 	x = 26 + (scrolltype % 4);
@@ -446,7 +464,7 @@ void DrawScrolls()
 	SPG_Bar(&bottomHUDBuffer, 210,30,30,18,0xf);
 
 	for (loop=0;loop<8;loop++)
-		if (gamestate.scrolls[loop])
+		if (gamestate->scrolls[loop])
 		{
 			y = 30 + ((loop > 3) * 10);
 			x = 26 + (loop % 4);
@@ -469,7 +487,7 @@ void DrawHealth()
 	char picnum;
 	int percentage;
 
-	percentage = PERCENTAGE(100,MAXBODY,gamestate.body,9);
+	percentage = PERCENTAGE(100,MAXBODY,gamestate->body,9);
 
 	DrawNum(9,57,percentage,3);
 
@@ -498,22 +516,6 @@ void DrawHealth()
 	else
 		SPG_DrawPic(&bottomHUDBuffer, grsegs[picnum], 8*8,14);
 //		LatchDrawPic(8,14,picnum);
-}
-
-//===========================================================================
-
-/*
-===============
-=
-= DrawFreezeTime
-=
-===============
-*/
-void DrawFreezeTime()
-{
-	long percentage;
-	percentage = PERCENTAGE(100,MAXFREEZETIME,(long)FreezeTime,7);
-	DrawNum(23,70,percentage,3);
 }
 
 //===========================================================================
@@ -556,22 +558,22 @@ void GiveChest(void)
 	for (i=0;i<RANDOM(4);i++)
 	{
 		GiveBolt();
-		FlipBuffer();
-		SD_WaitSoundDone();
+		SPG_FlipBuffer();
+		SPA_WaitUntilSoundIsDone();
 	}
 
 	for (i=0;i<RANDOM(3);i++)
 	{
 		GiveNuke();
-		FlipBuffer();
-		SD_WaitSoundDone();
+		SPG_FlipBuffer();
+		SPA_WaitUntilSoundIsDone();
 	}
 
 	for (i=0;i<RANDOM(2);i++)
 	{
 		GivePotion();
-		FlipBuffer();
-		SD_WaitSoundDone();
+		SPG_FlipBuffer();
+		SPA_WaitUntilSoundIsDone();
 	}
 }
 
@@ -588,7 +590,7 @@ void GiveChest(void)
 
 void GiveGoal (void)
 {
-	SD_PlaySound (GETPOINTSSND);
+	SPA_PlaySound (GETPOINTSSND);
 	playstate = ex_victorious;
 }
 
@@ -601,7 +603,7 @@ void GiveGoal (void)
 ===============
 */
 
-void DrawText (boolean draw_text_whether_it_needs_it_or_not)
+void DrawText (void)
 {
 	unsigned	number;
 	char		str[80];
@@ -610,14 +612,11 @@ void DrawText (boolean draw_text_whether_it_needs_it_or_not)
 	//
 	// draw a new text description if needed
 	//
-//	number = *(byte*)(gamestate.mapsegs[0]+player->tiley*mapwidth+player->tilex)-NAMESTART;
+//	number = *(byte*)(gamestate->mapsegs[0]+player->tiley*mapwidth+player->tilex)-NAMESTART;
 	number = (int)GetMapSegs(0,player->tilex,player->tiley) - NAMESTART;
 
 	if ( number>26 )
 		number = 0;
-
-	if ((number == lasttext) && (!draw_text_whether_it_needs_it_or_not))
-		return;
 
 	lasttext = number;
 	text = curmap->texts[number];
@@ -659,7 +658,7 @@ char DisplayMsg(char *text,char *choices)
 
 	if (choices)
 	{
-		FlipBuffer();
+		SPG_FlipBuffer();
 		ch=GetKeyChoice(choices,true);
 //		LastScan = 0;
 	}
@@ -685,14 +684,13 @@ char DisplaySMsg(char *text,char *choices)
 
 	Win_Clear(&bottomHUDBuffer, 98,70,115,8, STATUSCOLOR, TEXTCOLOR);
 	Win_CPrintLine (text);
-/*	SPG_Bar(&bottomHUDBuffer, WindowX,PrintY+1,WindowW,8,STATUSCOLOR);
-	temp = fontcolor;
-	fontcolor = TEXTCOLOR^STATUSCOLOR;
-	fontcolor = temp;*/
+	if (text != status_text) {
+		strcpy(status_text, text);
+	}
 
 	if (choices)
 	{
-		FlipBuffer();
+		SPG_FlipBuffer();
 		ch=GetKeyChoice(choices,true);
 //		LastScan = 0;
 	}
@@ -731,39 +729,14 @@ void RadarBlip (int X, int Y, int Color)
 
 void DrawRadar (void)
 {
-	int		angle,number;
 	short objnum;
 
-//	LatchDrawPic (radarx,radary,RADAR_TOPPIC);
-	SPG_DrawPic(&bottomHUDBuffer, grsegs[RADAR_TOPPIC], radarx*8,radary);
-
-/*	asm	cli
-	asm	mov	dx,GC_INDEX
-	asm	mov	ax,2*256+GC_MODE
-	asm	out	dx,ax						// write mode 2
-
-	asm	mov	ax,GC_DATAROTATE
-	asm	out	dx,ax                // no rotation / logical operation
-
-	asm	mov	dx,SC_INDEX
-	asm	mov	al,SC_MAPMASK
-	asm	mov	ah,15
-	asm	out	dx,ax						// write to all four planes
-	asm	sti
-*/
 	objnum = 0;
 	while (RadarXY[objnum][2] != -1)
 	{
 		RadarBlip(radar_xcenter+RadarXY[objnum][0],radar_ycenter+RadarXY[objnum][1],RadarXY[objnum][2]);
 		objnum++;
 	}
-/*
-	asm	cli
-	asm	mov	dx,GC_INDEX
-	asm	mov	ax,255*256+GC_BITMASK
-	asm	out	dx,ax						// reset bitmask to %11111111
-	asm	sti
-*/
 }
 
 //===========================================================================
@@ -783,8 +756,7 @@ void DrawNSEWIcons()
 	y = -FixedByFrac(RADAR_Y_IRADIUS,sintable[player->angle]);
 
 //	VWB_DrawSprite(radar_xcenter+x-3,radar_ycenter+y-3,NORTHICONSPR);
-	SPG_DrawPic(&bottomHUDBuffer, grsegs[NORTHICONSPR], (radar_xcenter+x-3)*8,(radar_ycenter+y-3));
-
+	SPG_DrawPic(&bottomHUDBuffer, grsegs[NORTHICONSPR], (radar_xcenter+x-4),(radar_ycenter+y+1-3)); // changed coords to make it work...
 }
 
 
@@ -888,7 +860,7 @@ boolean JimsShotClipMove (objtype *ob, long xmove, long ymove)
 
 			if (check->obclass != solidobj)
 			{
-				SD_PlaySound (SHOOTMONSTERSND);
+				SPA_PlaySound (SHOOTMONSTERSND);
 				if (ob->obclass == bigpshotobj)
 					ShootActor (check,BIGSHOTDAMAGE);
 				else
@@ -933,7 +905,7 @@ void T_Pshot (objtype *ob)
 
 			if (check->obclass != solidobj)
 			{
-				SD_PlaySound (SHOOTMONSTERSND);
+				SPA_PlaySound (SHOOTMONSTERSND);
 				if (ob->obclass == bigpshotobj)
 					ShootActor (check,BIGSHOTDAMAGE);
 				else
@@ -998,8 +970,8 @@ void T_Pshot (objtype *ob)
 
 void Shoot (void)
 {
-	gamestate.shotpower = 0;
-	SD_PlaySound (SHOOTSND);
+	gamestate->shotpower = 0;
+	SPA_PlaySound (SHOOTSND);
 	SpawnPShot ();
 }
 
@@ -1015,9 +987,9 @@ void Shoot (void)
 
 void CastBolt (void)
 {
-	if (!gamestate.bolts)
+	if (!gamestate->bolts)
 	{
-		SD_PlaySound (NOITEMSND);
+		SPA_PlaySound (NOITEMSND);
 		return;
 	}
 
@@ -1062,9 +1034,9 @@ void CastNuke (void)
 {
 	int	angle;
 
-	if (!gamestate.nukes)
+	if (!gamestate->nukes)
 	{
-		SD_PlaySound (NOITEMSND);
+		SPA_PlaySound (NOITEMSND);
 		return;
 	}
 
@@ -1098,60 +1070,17 @@ void DrinkPotion (void)
 {
 	unsigned	source,dest,topline;
 
-	if (!gamestate.potions)
+	if (!gamestate->potions)
 	{
-		SD_PlaySound (NOITEMSND);
+		SPA_PlaySound (NOITEMSND);
 		return;
 	}
 
 	DisplaySMsg("Curing", NULL);
 	TakePotion ();
-	gamestate.body = MAXBODY;
+	gamestate->body = MAXBODY;
 	VW_WaitVBL(30);
 	status_flag    = S_NONE;
-
-#if 0
-//
-// draw a full up bar
-//
-	source = latchpics[L_BODYBAR];
-	dest = BODYLINE*SCREENWIDTH+34;
-
-	asm	mov	es,[screenseg]
-	asm	mov	si,[source]
-	asm	mov	di,[dest]
-
-	EGAWRITEMODE(1);
-
-	asm	mov	cx,MAXBODY
-newline:
-	asm	mov	al,[es:si]
-	asm	mov	[es:di+PAGE1START],al
-	asm	mov	[es:di+PAGE2START],al
-	asm	mov	[es:di+PAGE3START],al
-	asm	mov	al,[es:si+1]
-	asm	mov	[es:di+1+PAGE1START],al
-	asm	mov	[es:di+1+PAGE2START],al
-	asm	mov	[es:di+1+PAGE3START],al
-	asm	mov	al,[es:si+2]
-	asm	mov	[es:di+2+PAGE1START],al
-	asm	mov	[es:di+2+PAGE2START],al
-	asm	mov	[es:di+2+PAGE3START],al
-	asm	mov	al,[es:si+3]
-	asm	mov	[es:di+3+PAGE1START],al
-	asm	mov	[es:di+3+PAGE2START],al
-	asm	mov	[es:di+3+PAGE3START],al
-	asm	mov	al,[es:si+4]
-	asm	mov	[es:di+4+PAGE1START],al
-	asm	mov	[es:di+4+PAGE2START],al
-	asm	mov	[es:di+4+PAGE3START],al
-	asm	add	di,SCREENWIDTH
-	asm	add	si,5
-
-	asm	loop	newline
-
-	EGAWRITEMODE(0);
-#endif
 }
 
 
@@ -1171,7 +1100,6 @@ extern	boolean	tileneeded[NUMFLOORS];
 void ReadScroll (int scroll)
 {
 	int	i;
-	unsigned *skytemp,*gndtemp,blackcolor=0;
 
 	DisplaySMsg("Reading Scroll", NULL);
 
@@ -1182,10 +1110,6 @@ void ReadScroll (int scroll)
 	SPD_LoadGrChunk (SCROLL1PIC + scroll);
 	SPD_LoadGrChunk (SCROLLBOTTOMPIC);
 
-	skytemp = skycolor;
-	gndtemp = groundcolor;
-	skycolor = groundcolor = &blackcolor;
-
 	SPG_Bar(&renderBufferText, 0,0,renderBufferText.Width,renderBufferText.Height, 0);
 /*	DrawPic (10,0,SCROLLTOPPIC);
 	DrawPic (10,32,SCROLL1PIC + scroll);
@@ -1194,23 +1118,20 @@ void ReadScroll (int scroll)
 	SPG_DrawPic(&renderBufferText, grsegs[SCROLL1PIC + scroll], 10,32);
 	SPG_DrawPic(&renderBufferText, grsegs[SCROLLBOTTOMPIC], 10,88);
 
-	skycolor = skytemp;
-	groundcolor = gndtemp;
-
 /*	MM_FreePtr (&grsegs[SCROLL1PIC + scroll]);
 	MM_FreePtr (&grsegs[SCROLLTOPPIC]);
 	MM_FreePtr (&grsegs[SCROLLBOTTOMPIC]);*/
 
 	CacheScaleds();
 
-	IN_ClearKeysDown ();
+	SPI_ClearKeysDown ();
 // MDM begin
 	lasttext = -1;
 	DisplayMsg("Press ENTER or ESC to exit.",NULL);
-	FlipBuffer();
-	while ((!SP_Keyboard(sc_Escape)) && (!SP_Keyboard(sc_Enter)));
+	SPG_FlipBuffer();
+	while ((!SPI_GetKeyDown(sc_Escape)) && (!SPI_GetKeyDown(sc_Enter)));
 // MDM end
-	IN_ClearKeysDown ();
+	SPI_ClearKeysDown ();
 
 	if (status_flag == S_TIMESTOP)
 		DisplaySMsg("Time Stopped:     ",NULL);
@@ -1226,7 +1147,7 @@ void ReadScroll (int scroll)
 void StopTime()
 {
 	FreezeTime = MAXFREEZETIME;
-	SD_PlaySound(FREEZETIMESND);
+	SPA_PlaySound(FREEZETIMESND);
 	DisplaySMsg("Time Stopped:     ",NULL);
 	status_flag = S_TIMESTOP;
 }
@@ -1244,12 +1165,12 @@ void TakeDamage (int points)
 {
 	unsigned	source,dest,topline;
 
-	if (!gamestate.body || (bordertime && bcolor==FLASHCOLOR) || godmode)
+	if (!gamestate->body || (bordertime && bcolor==FLASHCOLOR) || godmode)
 		return;
 
-	if (points >= gamestate.body)
+	if (points >= gamestate->body)
 	{
-		points = gamestate.body;
+		points = gamestate->body;
 		Flags |= FL_DEAD;
 	}
 
@@ -1261,12 +1182,12 @@ void TakeDamage (int points)
 	status_flag  = S_NONE;
 	status_delay = 80;
 
-	if (gamestate.body<MAXBODY/3)
-		SD_PlaySound (TAKEDMGHURTSND);
+	if (gamestate->body<MAXBODY/3)
+		SPA_PlaySound (TAKEDMGHURTSND);
 	else
-		SD_PlaySound (TAKEDAMAGESND);
+		SPA_PlaySound (TAKEDAMAGESND);
 
-	gamestate.body -= points;
+	gamestate->body -= points;
 }
 
 /*
@@ -1320,15 +1241,15 @@ boolean HitSpecialTile (unsigned x, unsigned y, unsigned tile)
 
 			// Is this an openable door? (Is "openable" a word?)
 			//
-//				spot = (*(gamestate.mapsegs[2]+y*mapwidth+x)) >> 8;
+//				spot = (*(gamestate->mapsegs[2]+y*mapwidth+x)) >> 8;
 				spot = GetMapSegs(2,x,y) >> 8;
 				if (spot == CANT_OPEN_CODE)	// CAN'T EVER OPEN (it's just for looks)
 				{
 					Win_Create(&renderBufferText, 20,4);
 					Win_CPrint("\nThe door is blocked");
-					FlipBuffer();
-					IN_ClearKeysDown();
-					IN_Ack();
+					SPG_FlipBuffer();
+					SPI_ClearKeysDown();
+					SPI_WaitForever();
 					return;
 				}
 
@@ -1339,18 +1260,18 @@ boolean HitSpecialTile (unsigned x, unsigned y, unsigned tile)
 					keyspot = GATE_KEY_COLOR(tile);
 				else
 					keyspot = GetMapSegs(2,x,y+1)>>8;
-//					keyspot = (*(gamestate.mapsegs[2]+(y+1)*mapwidth+x)) >> 8;
+//					keyspot = (*(gamestate->mapsegs[2]+(y+1)*mapwidth+x)) >> 8;
 
 				if (keyspot--)
-					if (!gamestate.keys[keyspot])
+					if (!gamestate->keys[keyspot])
 					{
-						SD_PlaySound(HIT_GATESND);
+						SPA_PlaySound(HIT_GATESND);
 						Win_Create(&renderBufferText, 20,5);
 						Win_CPrint("\nYou need\n");
 						Win_CPrint(key_colors[keyspot]);
-						FlipBuffer();
-						IN_ClearKeysDown();
-						IN_Ack();
+						SPG_FlipBuffer();
+						SPI_ClearKeysDown();
+						SPI_WaitForever();
 						return;
 					}
 
@@ -1360,7 +1281,7 @@ boolean HitSpecialTile (unsigned x, unsigned y, unsigned tile)
 				switch (spot)
 				{
 					case NEXT_LEVEL_CODE:		// WARP TO NEXT LEVEL
-						newlevel = gamestate.mapon+1;
+						newlevel = gamestate->mapon+1;
 						playstate = ex_warped;
 					break;
 
@@ -1371,8 +1292,8 @@ boolean HitSpecialTile (unsigned x, unsigned y, unsigned tile)
 						SetMapSegs(2,x,y+1,0);
 /*						CASTAT(unsigned,actorat[x][y]) =
 							tilemap[x][y] =	
-							*(gamestate.mapsegs[0]+y*mapwidth+x) = 0;
-						*(gamestate.mapsegs[2]+(y+1)*mapwidth+x) = 0;	// key no longer needed*/
+							*(gamestate->mapsegs[0]+y*mapwidth+x) = 0;
+						*(gamestate->mapsegs[2]+(y+1)*mapwidth+x) = 0;	// key no longer needed*/
 						if (keyspot>=0)
 							TakeKey(keyspot);
 					break;
@@ -1385,14 +1306,14 @@ boolean HitSpecialTile (unsigned x, unsigned y, unsigned tile)
 
 				if (playstate == ex_warped)
 				{
-					SD_PlaySound(HIT_GATESND);
-//					levelinfo *li=&gamestate.levels[curmap];
+					SPA_PlaySound(HIT_GATESND);
+//					levelinfo *li=&gamestate->levels[curmap];
 
 //					OldAngle = FaceDoor(x,y);
 
 					if (!VerifyGateExit())
 					{
-						IN_ClearKeysDown ();
+						SPI_ClearKeysDown ();
 						playstate = ex_stillplaying;
 						break;
 					}
@@ -1402,11 +1323,11 @@ boolean HitSpecialTile (unsigned x, unsigned y, unsigned tile)
 					if (keyspot>=0)
 						TakeKey(keyspot);
 					SetMapSegs(2,x,y+1,0);// key no longer needed
-//					*(gamestate.mapsegs[2]+mapwidth*(y+1)+x) = 0;	
+//					*(gamestate->mapsegs[2]+mapwidth*(y+1)+x) = 0;	
 
-					gamestate.mapon = newlevel;
-					SD_PlaySound(WARPUPSND);
-					IN_ClearKeysDown ();
+					gamestate->mapon = newlevel;
+					SPA_PlaySound(WARPUPSND);
+					SPI_ClearKeysDown ();
 
 //					li->x = player->tilex;
 //					li->y = player->tiley;
@@ -1429,7 +1350,7 @@ boolean VerifyGateExit()
 	char choices[] = {sc_Escape,sc_Y,sc_N,0},ch;
 
 	ch=DisplayMsg("Pass this way?      Y/N",choices);
-	DrawText(true);
+	DrawText();
 
 	return(ch == sc_Y);
 }
@@ -1485,8 +1406,8 @@ boolean TouchActor (objtype *ob, objtype *check)
 				case B_GGEM:
 				case B_BGEM:
 				case B_PGEM:
-					SD_PlaySound(GETGEMSND);
-					gamestate.gems[check->temp1-B_RGEM] = GEM_DELAY_TIME;
+					SPA_PlaySound(GETGEMSND);
+					gamestate->gems[check->temp1-B_RGEM] = GEM_DELAY_TIME;
 					redraw_gems = true;
 				break;
 
@@ -1646,8 +1567,8 @@ void ClipXMove (objtype *ob, long xmove)
 
 blockmove:
 
-//	if (!SD_SoundPlaying())
-//		SD_PlaySound (HITWALLSND);
+//	if (!SPA_IsAnySoundPlaying())
+//		SPA_PlaySound (HITWALLSND);
 
 	moveok = false;
 
@@ -1760,8 +1681,8 @@ void ClipYMove (objtype *ob, long ymove)
 
 blockmove:
 
-//	if (!SD_SoundPlaying())
-//		SD_PlaySound (HITWALLSND);
+//	if (!SPA_IsAnySoundPlaying())
+//		SPA_PlaySound (HITWALLSND);
 
 	moveok = false;
 
@@ -1843,7 +1764,7 @@ boolean ShotClipMove (objtype *ob, long xmove, long ymove)
 	for (y=yl;y<=yh;y++)
 		for (x=xl;x<=xh;x++)
 		{
-//			spot = (*(gamestate.mapsegs[2]+y*mapwidth+x)) >> 8;
+//			spot = (*(gamestate->mapsegs[2]+y*mapwidth+x)) >> 8;
 			spot = GetMapSegs(2,x,y)>>8;
 			if (spot == EXP_WALL_CODE)
 				switch (ob->obclass)
@@ -1855,7 +1776,7 @@ boolean ShotClipMove (objtype *ob, long xmove, long ymove)
 					break;
 				}
 
-//			tile = *(gamestate.mapsegs[0]+y*mapwidth+x);
+//			tile = *(gamestate->mapsegs[0]+y*mapwidth+x);
 			tile = GetMapSegs(0,x,y);
 			if (TILE_FLAGS(tile) & tf_SOLID)
 				goto blockmove;
@@ -1865,7 +1786,7 @@ boolean ShotClipMove (objtype *ob, long xmove, long ymove)
 
 blockmove:
 
-	SD_PlaySound (SHOOTWALLSND);
+	SPA_PlaySound (SHOOTWALLSND);
 
 	moveok = false;
 
@@ -1966,9 +1887,9 @@ void Thrust (int angle, unsigned speed)
 	// walk sound
 	//
 		if (lasttimecount&32)
-			SD_PlaySound (WALK1SND);
+			SPA_PlaySound (WALK1SND);
 		else
-			SD_PlaySound (WALK2SND);
+			SPA_PlaySound (WALK2SND);
 	}
 
 	xmove = FixedByFrac(speed,costable[angle]);
@@ -1989,7 +1910,6 @@ void Thrust (int angle, unsigned speed)
 =
 =======================
 */
-#if 1
 void ControlMovement (objtype *ob)
 {
 	int	angle=0;
@@ -1998,7 +1918,9 @@ void ControlMovement (objtype *ob)
 	int mouseAngle;
 
 	int mousexmove, mouseymove;
-	MouseDelta(&mousexmove, &mouseymove);
+//	MouseDelta(&mousexmove, &mouseymove);
+	mousexmove = control.x;
+	mouseymove = control.y;
 
 	mouseAngle = mousexmove+mouseAngleRem;
 	mouseAngleRem = mouseAngle%10;
@@ -2024,14 +1946,14 @@ void ControlMovement (objtype *ob)
 
 		if (control.xaxis == -1)
 		{
-			if (running)
+			if (control.run)
 				speed += RUNSPEED*tics;
 			else
 				speed += PLAYERSPEED*tics;
 		}
 		else if (control.xaxis == 1)
 		{
-			if (running)
+			if (control.run)
 				speed -= RUNSPEED*tics;
 			else
 				speed -= PLAYERSPEED*tics;
@@ -2061,7 +1983,7 @@ void ControlMovement (objtype *ob)
 		speed = 0;
 	} else {
 
-		if (control.button1)
+		if (control.strafe)
 		{
 		//
 		// strafing
@@ -2078,14 +2000,14 @@ void ControlMovement (objtype *ob)
 
 			if (control.xaxis == -1)
 			{
-				if (running)
+				if (control.run)
 					speed += RUNSPEED*tics;
 				else
 					speed += PLAYERSPEED*tics;
 			}
 			else if (control.xaxis == 1)
 			{
-				if (running)
+				if (control.run)
 					speed -= RUNSPEED*tics;
 				else
 					speed -= PLAYERSPEED*tics;
@@ -2121,13 +2043,13 @@ void ControlMovement (objtype *ob)
 			if (control.xaxis == 1)
 			{
 				ob->angle -= tics;
-				if (running)				// fast turn
+				if (control.run)				// fast turn
 					ob->angle -= 2*tics;
 			}
 			else if (control.xaxis == -1)
 			{
 				ob->angle+= tics;
-				if (running)				// fast turn
+				if (control.run)				// fast turn
 					ob->angle += 2*tics;
 			}
 
@@ -2153,14 +2075,14 @@ void ControlMovement (objtype *ob)
 
 	if (control.yaxis == -1)
 	{
-		if (running)
+		if (control.run)
 			speed += RUNSPEED*tics;
 		else
 			speed += PLAYERSPEED*tics;
 	}
 	else if (control.yaxis == 1)
 	{
-		if (running)
+		if (control.run)
 			speed -= RUNSPEED*tics;
 		else
 			speed -= PLAYERSPEED*tics;
@@ -2183,129 +2105,6 @@ void ControlMovement (objtype *ob)
 	}
 
 }
-#else
-void ControlMovement (objtype *ob)
-{
-	int	angle;
-	long	speed;
-
-	int mousexmove, mouseymove;
-	MouseDelta(&mousexmove, &mouseymove);
-
-	if (control.button1)
-	{
-	//
-	// strafing
-	//
-		//
-		// side to side move
-		//
-		if (!mousexmove)
-			speed = 0;
-		else if (mousexmove<0)
-			speed = -(long)mousexmove*300;
-		else
-			speed = -(long)mousexmove*300;
-
-		if (control.xaxis == -1)
-		{
-			speed += PLAYERSPEED*tics;
-		}
-		else if (control.xaxis == 1)
-		{
-			speed -= PLAYERSPEED*tics;
-		}
-
-		if (speed > 0)
-		{
-			if (speed >= TILEGLOBAL)
-				speed = TILEGLOBAL-1;
-			angle = ob->angle + ANGLES/4;
-			if (angle >= ANGLES)
-				angle -= ANGLES;
-			Thrust (angle,speed);				// move to left
-		}
-		else if (speed < 0)
-		{
-			if (speed <= -TILEGLOBAL)
-				speed = -TILEGLOBAL+1;
-			angle = ob->angle - ANGLES/4;
-			if (angle < 0)
-				angle += ANGLES;
-			Thrust (angle,-speed);				// move to right
-		}
-	}
-	else
-	{
-	//
-	// not strafing
-	//
-
-		//
-		// TURNING
-		//
-		if (control.xaxis == 1)
-		{
-			ob->angle -= tics;
-
-			if (running)
-				ob->angle -= (tics<<1);		// FAST turn
-
-		}
-		else if (control.xaxis == -1)
-		{
-			ob->angle+= tics;
-
-			if (running)
-				ob->angle += (tics<<1);    // FAST turn
-		}
-
-		ob->angle -= (mousexmove/10);
-
-		if (ob->angle >= ANGLES)
-			ob->angle -= ANGLES;
-		if (ob->angle < 0)
-			ob->angle += ANGLES;
-
-	}
-
-	//
-	// forward/backwards move
-	//
-	if (!mouseymove)
-		speed = 0;
-	else if (mouseymove<0)
-		speed = -(long)mouseymove*500;
-	else
-		speed = -(long)mouseymove*200;
-
-	if (control.yaxis == -1)
-	{
-		speed += PLAYERSPEED*tics;
-	}
-	else if (control.yaxis == 1)
-	{
-		speed -= PLAYERSPEED*tics;
-	}
-
-	if (speed > 0)
-	{
-		if (speed >= TILEGLOBAL)
-			speed = TILEGLOBAL-1;
-		Thrust (ob->angle,speed);			// move forwards
-	}
-	else if (speed < 0)
-	{
-		if (speed <= -TILEGLOBAL)
-			speed = -TILEGLOBAL+1;
-		angle = ob->angle + ANGLES/2;
-		if (angle >= ANGLES)
-			angle -= ANGLES;
-		Thrust (angle,-speed);				// move backwards
-	}
-}
-#endif
-
 /*
 ===============
 =
@@ -2342,7 +2141,7 @@ void	T_Player (objtype *ob)
 	}
 	else
 	{
-		if (control.button0)
+		if (control.fire)
 		{
 			handheight+=(realtics<<2);
 			if (handheight>MAXHANDHEIGHT)
@@ -2372,39 +2171,30 @@ void	T_Player (objtype *ob)
 	// special actions
 	//
 
-	if ((SP_Keyboard(sc_Space) || SP_Keyboard(sc_C)) && gamestate.body != MAXBODY)
+	if (control.potion && gamestate->body != MAXBODY)
 		DrinkPotion ();
 
-	if (SP_Keyboard(sc_Z) && !boltsleft)
+	if (control.bolt && !boltsleft)
 		CastBolt ();
 
-	if ( (SP_Keyboard(sc_Enter) || SP_Keyboard(sc_X)) && ((SP_TimeCount()-lastnuke > NUKETIME) || (autofire)))
+	if (control.nuke && ((SP_TimeCount()-lastnuke > NUKETIME) || (autofire)))
 		CastNuke ();
 
-	scroll = SP_LastScan()-2;
-	if ( scroll>=0 && scroll<NUMSCROLLS && gamestate.scrolls[scroll])
+	scroll = SPI_GetLastKey()-2;
+	if ( scroll>=0 && scroll<NUMSCROLLS && gamestate->scrolls[scroll])
 		ReadScroll (scroll);
 
-	DrawText(false);
-	DrawHealth();
-	if (FreezeTime)
-		DrawFreezeTime();
-	DrawRadar();
-	DrawNSEWIcons();
-
-	if (redraw_gems)
-		DrawGems();
 
 #if 0
 // gems fade out over time...
 //
 	for (loop=0; loop<5; loop++)
-		if (gamestate.gems[loop])
+		if (gamestate->gems[loop])
 		{
-			gamestate.gems[loop] -= realtics;
-			if (gamestate.gems[loop] < 0)
+			gamestate->gems[loop] -= realtics;
+			if (gamestate->gems[loop] < 0)
 			{
-				gamestate.gems[loop] = 0;
+				gamestate->gems[loop] = 0;
 				redraw_gems = true;
 			}
 		}
@@ -2449,7 +2239,7 @@ void T_ExpThink(objtype *obj)
 	{
 		obj->state = &s_pshot_exp1;
 		obj->ticcount = obj->state->tictime;
-		SD_PlaySound(BOOMSND);
+		SPA_PlaySound(BOOMSND);
 	}
 }
 
@@ -2460,6 +2250,11 @@ void T_ExpThink(objtype *obj)
 //------------------------------------------------------------------------
 void SpawnBigExplosion(fixed x, fixed y, short Delay, fixed Range)
 {
+// I suspect that the original random function only returned short ints,
+// which is why this code would result in items out of map. The following hack solves this.
+	if (Range > 0xFFFF) {
+		Range = 0xFFFF;
+	}
 	SpawnExplosion(x-RANDOM(Range),y+RANDOM(Range),RANDOM(Delay));
 	SpawnExplosion(x+RANDOM(Range),y-RANDOM(Range),RANDOM(Delay));
 	SpawnExplosion(x-RANDOM(Range),y-RANDOM(Range),RANDOM(Delay));

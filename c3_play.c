@@ -44,6 +44,7 @@
 boolean		godmode;
 int			bordertime;
 objtype *player;
+gametype *gamestate;
 
 
 //
@@ -60,6 +61,8 @@ int		pointcount,pointsleft;
 =============================================================================
 */
 
+static PlayLoopExitType playstate;
+
 void DrawPlayScreen (void);
 
 
@@ -70,8 +73,6 @@ void DrawPlayScreen (void);
 
 int bordertime;
 
-void StopMusic(void);
-void StartMusic(void);
 
 
 
@@ -106,31 +107,36 @@ void	CenterWindow(word w,word h)
 =====================
 */
 
+#if 0
 void CheckMenu (void)
 {
-	if (SP_LastScan() == sc_Escape)
+	if (SPI_GetLastKey() == sc_Escape)
 	{
 		SP_GameLeave();
-		StopMusic ();
-		US_ControlPanel();
-		if (abortgame)
-		{
+		SPA_MusicOff();
+		ControlPanelExitType exit;
+		exit = US_ControlPanel(true);
+		SP_GameEnter();
+		if (exit.Result == CPE_ABORTGAME) {
 			playstate = ex_abort;
 			return;
 		}
-		StartMusic ();
-		IN_ClearKeysDown();
-		if (restartgame)
+		SPA_StartMusic(TOOHOT_MUS);
+		SPI_ClearKeysDown();
+		if (exit.Result == CPE_NEWGAME)
 			playstate = ex_resetgame;
-		if (loadedgame)
+		else if (exit.Result == CPE_LOADEDGAME)
 			playstate = ex_loadedgame;
-		DrawPlayScreen ();
+		else if (exit.Result == CPE_NOTHING) {
+			DrawPlayScreen ();
+		} else {
+			assert(0);
+		}
 		lasttimecount = SP_TimeCount();
-		MouseDelta(NULL, NULL);	// Clear accumulated mouse movement
-		SP_GameEnter();
+		SPI_GetMouseDelta(NULL, NULL);	// Clear accumulated mouse movement
 	}
 }
-
+#endif 
 
 //===========================================================================
 
@@ -148,61 +154,113 @@ void PollControls (void)
 {
 	unsigned buttons;
 
-	IN_ReadControl(0,&control);
+	SPI_GetPlayerControl(&control);
+}
 
-	MouseButtons(&buttons);
+//==========================================================================
 
-	if (buttons&1)
-		control.button0 = 1;
-	if (buttons&2)
-		control.button1 = 1;
+/*
+===================
+=
+= DrawPlayScreen
+=
+===================
+*/
 
-	{
-		if (SP_Keyboard(sc_RShift)||SP_Keyboard(sc_LShift))
-			running = true;
-		else
-			running = false;
+void DrawPlayScreen (void)
+{
+	SPG_ClearBuffer(-1);
+	SPD_LoadGrChunk (STATUSPIC);
+	SPD_LoadGrChunk (SIDEBARSPIC);
+
+	SPG_DrawPic(&bottomHUDBuffer, grsegs[STATUSPIC],0,0);
+	SPG_DrawPic(&rightHUDBuffer, grsegs[SIDEBARSPIC],0,0);
+
+	RedrawStatusWindow ();
+}
+
+//==========================================================================
+
+static  char    *levelnames[] =
+				{
+					"The Approach",
+					"Nemesis's Keep",
+					"Ground Floor",
+					"Second Floor",
+					"Third Floor",
+					"Tower One",
+					"Tower Two",
+					"Secret Halls",
+					"Access Floor",
+					"The Dungeon",
+					"Lower Dungeon",
+					"Catacomb",
+					"Lower Reaches",
+					"The Warrens",
+					"Hidden Caverns",
+					"The Fens of Insanity",
+					"Chaos Corridors",
+					"The Labyrinth",
+					"Halls of Blood",
+					"Nemesis's Lair"
+				};
+void DrawEnterScreen (char *Name, boolean Fizzle)
+{
+	int     x,y;
+
+	SPG_Bar(&renderBuffer, 0,0,renderBuffer.Width, renderBuffer.Height, 9);
+
+	x = (renderBufferText.Width-18*8)/2;
+	y = (renderBufferText.Height-5*8)/2;
+	SPG_DrawPic(&renderBufferText, grsegs[ENTERPLAQUEPIC],x,y);
+
+	int width;
+	SPG_MeasureString(Name, 0, &width, NULL);
+	SPG_DrawString(&renderBufferText, x+(18*8-width)/2, y+23, Name, 0, 8);
+
+	SPI_ClearKeysDown();
+	if (Fizzle) {
+		SPG_FizzleFadeBuffer();
+	} else {
+		SPG_FlipBuffer();
+	}
+	SPI_WaitFor(35);
+	SPI_ClearKeysDown ();
+	fizzlein = true;
+	if (0) {
+		SPI_WaitForever();
 	}
 }
 
+
+
 //==========================================================================
 
-/*
-=================
-=
-= StopMusic
-=
-=================
-*/
-
-void StopMusic(void)
-{
-	int	i;
-
-	SD_MusicOff();
+void PlayLoop_Died(void) {
+	if (PlayLoop_IsDone()) {
+		return;
+	}
+	playstate = PLE_DEATH;
 }
 
-//==========================================================================
-
-
-/*
-=================
-=
-= StartMusic
-=
-=================
-*/
-
-// JAB - Cache & start the appropriate music for this level
-void StartMusic(void)
-{
-	musicnames	chunk;
-
-	SD_MusicOff();
-	SD_StartMusic(TOOHOT_MUS);
+boolean PlayLoop_IsDone(void) {
+	return playstate != PLE_STILLPLAYING;
 }
 
-//==========================================================================
+void PlayLoop_Victory(void) {
+	if (PlayLoop_IsDone()) {
+		return;
+	}
+	playstate = PLE_VICTORY;
+}
+
+void PlayLoop_Warp(int NewMap) {
+	if (PlayLoop_IsDone()) {
+		return;
+	}
+	playstate = PLE_WARPED;
+	gamestate->mapon = NewMap;
+}
 
 
 /*
@@ -213,25 +271,26 @@ void StartMusic(void)
 ===================
 */
 
-void PlayLoop (void)
+
+PlayLoopExitType PlayLoop (gametype *Gamestate, boolean DoDrawEnterScreen)
 {
 	int		give;
 
+	gamestate = Gamestate;
+	if (DoDrawEnterScreen) {
+		DrawPlayScreen ();
+		DrawEnterScreen (levelnames[gamestate->mapon], true);
+	}
+
 	void (*think)();
 
-	ingame = true;
-	playstate = 0;
-	gamestate.shotpower = handheight = 0;
-	pointcount = pointsleft = 0;
-
-	DrawLevelNumber (gamestate.mapon);
-	DrawBars ();
-
+	playstate = PLE_STILLPLAYING;
 	lasttimecount = SP_TimeCount();
-	lastnuke = 0;
 
-	PollControls ();				// center mouse
-	StartMusic ();
+	if (bordertime) {
+		SPG_SetBorderColor(FLASHCOLOR);
+	}
+	SPA_StartMusic(TOOHOT_MUS);
 	do {
 		PollControls();
 
@@ -286,7 +345,7 @@ void PlayLoop (void)
 			if (pointcount <= 0) {
 				pointcount += POINTTICS;
 				give = (pointsleft > 1000)? 1000 : ((pointsleft > 100)? 100 : ((pointsleft < 20)? pointsleft : 20));
-				SD_PlaySound (GETPOINTSSND);
+				SPA_PlaySound (GETPOINTSSND);
 				AddPoints (give);
 				pointsleft -= give;
 				if (!pointsleft)
@@ -294,24 +353,22 @@ void PlayLoop (void)
 			}
 		}
 
-		ThreeDRefresh ();
-		if (SPG_PollRedraw()) {
-			DrawPlayScreen ();
+		SPG_ResizeNow();
+		DrawPlayScreen ();
+		ThreeDRefresh(0,8);
+//		CheckMenu();
+		if (SPI_GetLastKey() == sc_Escape) {
+			playstate = PLE_MENU;
 		}
-		CheckMenu();
 	} while (!playstate);
-	StopMusic ();
+	SPA_MusicOff();
+	
+	SPG_SetBorderColor(3);
 
-	ingame = false;
-	if (bordertime)
-	{
-		bordertime = 0;
-		SPG_SetBorderColor(3);
+	if (playstate == PLE_WARPED || playstate == PLE_DEATH || playstate == PLE_VICTORY) {
+		AddPoints (pointsleft);
 	}
 
-	if (!abortgame)
-		AddPoints (pointsleft);
-	else
-		abortgame = false;
+	return playstate;
 }
 

@@ -27,12 +27,13 @@ void SPD_WriteToFile(FILE *Handle, uint8_t *Dest, long Length);
 uint8_t *SPD_ReadFile(const char *Name, long *Size);
 uint8_t *SPD_ReadFile2(FILE *File, long *Size);
 
+SoundSample *SPD_GetSound(int SampleName);
+MusicSample *SPD_GetMusic(int SampleName);
 
 uint8_t SPD_ReadU8(uint8_t **Buffer);
 int8_t SPD_ReadS8(uint8_t **Buffer);
 uint16_t SPD_ReadU16(uint8_t **Buffer);
 int16_t SPD_ReadS16(uint8_t **Buffer);
-uint16_t SPD_ReadU8or16(uint8_t **Buffer);
 uint32_t SPD_ReadU32(uint8_t **Buffer);
 int32_t SPD_ReadS32(uint8_t **Buffer);
 
@@ -43,9 +44,11 @@ void SPD_WriteS16(uint8_t **Buffer, int16_t Value);
 void SPD_WriteU32(uint8_t **Buffer, uint32_t Value);
 void SPD_WriteS32(uint8_t **Buffer, int32_t Value);
 
-
-void SPD_SetupCatacomb3DData();
-void SPD_SetupCatacombAbyssData();
+void SPD_SetupCatacomb3DData(void);
+void SPD_SetupCatacombAbyssData(void);
 
 #endif
+
+
+
 

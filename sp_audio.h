@@ -19,18 +19,44 @@
 #ifndef SP_AUDIO_H
 #define SP_AUDIO_H
 
-void SPA_Init();
+typedef enum {SND_OFF=0, SND_ADLIB=1} SoundSource;
 
-void SPA_InitSamples(int NumSamples, int NumMusic);
-void SPA_RenderMusic(int SampleName, uint8_t *Data);
-void SPA_RenderSample(int SampleName, uint8_t *Data);
+typedef struct {
+	uint32_t Length, 
+			Priority;
+	uint8_t mChar, cChar,
+			mScale, cScale,
+			mAttack, cAttack,
+			mSus, cSus,
+			mWave, cWave,
+			nConn,
+			Unused[5],
+			Block;
+	uint8_t *Data;
+} SoundSample;
+
+typedef struct {
+	uint16_t Count;
+	uint16_t *Data;
+} MusicSample;
 
 // used by game code
-void SPA_MusicOff();
-void SPA_MusicOn();
-void SPA_StartMusic(int Musicname);
+int SPA_IsAnySoundPlaying(void);
+int SPA_GetSoundSource(void);
+int SPA_GetMusicSource(void);
+void SPA_MusicOff(void);
+void SPA_MusicOn(void);
 int SPA_PlaySound(int SoundName);
-void SPA_WaitUntilSoundIsDone();
+void SPA_SetSoundSource(SoundSource Source);
+void SPA_SetMusicSource(SoundSource Source);
+void SPA_StartMusic(int Musicname);
+void SPA_WaitUntilSoundIsDone(void);
+
+// used internally
+void SPA_Init(void);
+void SPA_InitSamples(int NumSamples, int NumMusic);
+void SPA_RenderMusic(int SampleName, MusicSample *Sample);
+void SPA_RenderSample(int SampleName, SoundSample *Sample);
 
 #endif
 

@@ -25,17 +25,6 @@ BufferSetup renderBufferText; // for "entering level" text
 BufferSetup bottomHUDBuffer;
 
 void GameWindowResizeHook(int NewWidth, int NewHeight) {
-	static int firstcall = 1;
-	if (firstcall) {
-		firstcall = 0;
-	} else {
-		free(renderBuffer.Buffer);
-		free(bottomHUDBuffer.Buffer);
-		renderBuffer.Buffer = NULL;
-		renderBufferText.Buffer = NULL;
-		bottomHUDBuffer.Buffer = NULL;
-	}
-
 	int scale = NewWidth/320, scaleH = NewHeight/200;
 	if (scaleH < scale) {
 		scale = scaleH;
@@ -46,42 +35,25 @@ void GameWindowResizeHook(int NewWidth, int NewHeight) {
 		NewHeight = 200;
 	}
 
-	bottomHUDBuffer.Pitch =
-	bottomHUDBuffer.Width = scale*320;
-	bottomHUDBuffer.Height = scale*80;
-	bottomHUDBuffer.Buffer = malloc(bottomHUDBuffer.Height*bottomHUDBuffer.Pitch);
+	bottomHUDBuffer.Width = 320;
+	bottomHUDBuffer.Height = 80;
 	bottomHUDBuffer.Scale = scale;
-	bottomHUDBuffer.ScreenX = (NewWidth-bottomHUDBuffer.Width)/2;
-	bottomHUDBuffer.ScreenY = NewHeight-bottomHUDBuffer.Height;
+	bottomHUDBuffer.ScreenX = (NewWidth-scale*bottomHUDBuffer.Width)/2;
+	bottomHUDBuffer.ScreenY = NewHeight-scale*bottomHUDBuffer.Height;
 
-	renderBuffer.Pitch = 
 	renderBuffer.Width = (NewWidth)/2*2;
 	renderBuffer.Height = (NewHeight-scale*80)/2*2;
-	renderBuffer.Buffer = malloc(renderBuffer.Pitch*renderBuffer.Height);
 	renderBuffer.Scale = 1; // should never be used
-	renderBuffer.ScreenX = 0;
-	renderBuffer.ScreenY = 0;
+	renderBuffer.ScreenX = NewWidth&1;
+	renderBuffer.ScreenY = (NewHeight-scale*80)&1;
 
 	renderBufferText.Width = renderBuffer.Width/scale;
 	renderBufferText.Height = renderBuffer.Height/scale;
-	renderBufferText.Pitch = renderBuffer.Pitch;
-	renderBufferText.Buffer = renderBuffer.Buffer;
 	renderBufferText.Scale = scale;
-	renderBufferText.ScreenX = -1; // will not be blitted
-	renderBufferText.ScreenY = -1;
+	renderBufferText.ScreenX = renderBuffer.ScreenX; // will not be blitted
+	renderBufferText.ScreenY = renderBuffer.ScreenY;
 
-	SPG_SetupRenderer(renderBuffer.Width, renderBuffer.Height, renderBuffer.Buffer, renderBuffer.Pitch); 
-}
-
-void FlipBuffer(void) {
-	BufferSetup *bufs[] = {&renderBuffer, &bottomHUDBuffer, NULL};
-	SPG_ClearBlitAndFlip(0, bufs);
-}
-
-
-void FizzleFade(void) {
-	BufferSetup *bufs[] = {&renderBuffer, &bottomHUDBuffer, NULL};
-	SPG_ClearBlitAndFizzle(0, bufs);
+	SPG_SetupRenderer(&renderBuffer); 
 }
 
 void	DrawHand (void)
@@ -90,7 +62,7 @@ void	DrawHand (void)
 
 	picnum = HAND1PICM;
 //	SPG_DrawMaskedPicSkip(grsegs[picnum], ((VIEWWIDTH/16)-(10/2)), VIEWHEIGHT-handheight, 0, handheight);
-	SPG_DrawPicSkip(&renderBuffer, grsegs[picnum], renderBuffer.Width/2-32, renderBuffer.Height-handheight, 0, handheight);
+	SPG_DrawPicSkip(&renderBufferText, grsegs[picnum], renderBufferText.Width/2-32, renderBufferText.Height-handheight, 0, handheight);
 }
 
 //==========================================================================

@@ -157,7 +157,7 @@ void SpawnBonus (int tilex, int tiley, int number)
 		case B_PGEM:			state = &s_pgem1bonus;		break;
 
 		case B_CHEST:
-			if (gnd_colors[gamestate.mapon] == 0x0101)
+			if (gnd_colors[gamestate->mapon] == 0x0101)
 				state = &s_waterchestbonus1;
 			else
 				state = &s_chestbonus;
@@ -300,7 +300,7 @@ void ExplodeWall (int tilex, int tiley)
 		return;
 	new->obclass = inertobj;
 	new->active = always;
-	if (gnd_colors[gamestate.mapon] == 0x0101)
+	if (gnd_colors[gamestate->mapon] == 0x0101)
 		tilenum = WATEREXP;
 	else
 		tilenum = WALLEXP;
@@ -309,8 +309,8 @@ void ExplodeWall (int tilex, int tiley)
 	SetMapSegs(0,new->tilex,new->tiley,tilenum);
 	SetMapSegs(2,new->tilex,new->tiley,GetMapSegs(2,new->tilex,new->tiley)&0xFF);
 /*	CASTAT(unsigned,actorat[new->tilex][new->tiley]) = tilemap[new->tilex][new->tiley] =
-		*(gamestate.mapsegs[0]+new->tiley*mapwidth+new->tilex) = tilenum;
-	*(gamestate.mapsegs[2]+new->tiley*mapwidth+new->tilex) &= 0xFF;*/
+		*(gamestate->mapsegs[0]+new->tiley*mapwidth+new->tilex) = tilenum;
+	*(gamestate->mapsegs[2]+new->tiley*mapwidth+new->tilex) &= 0xFF;*/
 }
 
 
@@ -329,7 +329,7 @@ void T_WallDie (objtype *ob)
 	if (++ob->temp1 == 3)
 		tile = 0;
 	else
-		if (gnd_colors[gamestate.mapon] == 0x0101)
+		if (gnd_colors[gamestate->mapon] == 0x0101)
 			tile = WATEREXP-1 + ob->temp1;
 		else
 			tile = WALLEXP-1 + ob->temp1;
@@ -345,19 +345,19 @@ void T_WallDie (objtype *ob)
 	//
 	// blow up nearby walls
 	//
-//		spot = (*(gamestate.mapsegs[2]+y*mapwidth+(x-1))) >> 8;
+//		spot = (*(gamestate->mapsegs[2]+y*mapwidth+(x-1))) >> 8;
 		spot = GetMapSegs(2,x-1,y) >> 8;
 		if (spot == EXP_WALL_CODE)
 			ExplodeWall (x-1,y);
-//		spot = (*(gamestate.mapsegs[2]+y*mapwidth+(x+1))) >> 8;
+//		spot = (*(gamestate->mapsegs[2]+y*mapwidth+(x+1))) >> 8;
 		spot = GetMapSegs(2,x+1,y) >> 8;
 		if (spot == EXP_WALL_CODE)
 			ExplodeWall (x+1,y);
-//		spot = (*(gamestate.mapsegs[2]+(y-1)*mapwidth+x)) >> 8;
+//		spot = (*(gamestate->mapsegs[2]+(y-1)*mapwidth+x)) >> 8;
 		spot = GetMapSegs(2,x,y-1) >> 8;
 		if (spot == EXP_WALL_CODE)
 			ExplodeWall (x,y-1);
-//		spot = (*(gamestate.mapsegs[2]+(y+1)*mapwidth+x)) >> 8;
+//		spot = (*(gamestate->mapsegs[2]+(y+1)*mapwidth+x)) >> 8;
 		spot = GetMapSegs(2,x,y+1) >> 8;
 		if (spot == EXP_WALL_CODE)
 			ExplodeWall (x,y+1);
@@ -427,7 +427,7 @@ void T_Gate (objtype *ob)
 		//
 //		spot = (*(mapsegs[2]+farmapylookup[ob->tiley+1]+ob->tilex)) >> 8;
 //		if (spot--)
-//			if (gamestate.keys[spot])
+//			if (gamestate->keys[spot])
 //				TakeKey(spot);
 //			else
 //				return;
@@ -458,7 +458,7 @@ void T_Gate (objtype *ob)
 					Thrust (player->angle,TILEGLOBAL/2);		// move forwards
 					Thrust (player->angle,TILEGLOBAL/2);		// move forwards
 					fizzlein=true;
-					SD_PlaySound(WARPSND);
+					SPA_PlaySound(WARPSND);
 				}
 		}
 		else
@@ -468,10 +468,10 @@ void T_Gate (objtype *ob)
 			//
 
 			playstate = ex_warped;
-//			spot = (*(gamestate.mapsegs[2]+(ob->tiley+1)*mapwidth+ob->tilex)) >> 8;
+//			spot = (*(gamestate->mapsegs[2]+(ob->tiley+1)*mapwidth+ob->tilex)) >> 8;
 			spot = GetMapSegs(2,ob->tilex,ob->tiley+1) >> 8;
-			gamestate.mapon=spot;
-			SD_PlaySound(WARPUPSND);
+			gamestate->mapon=spot;
+			SPA_PlaySound(WARPUPSND);
 		}
 	}
 }
@@ -788,7 +788,7 @@ void SpawnZombie (int tilex, int tiley)
 	ob = new;
 	zombie_mode = zm_wait_for_dark;
 
-//	tile = *(gamestate.mapsegs[2]+(tiley+1)*mapwidth+tilex);
+//	tile = *(gamestate->mapsegs[2]+(tiley+1)*mapwidth+tilex);
 	tile = GetMapSegs(2,tilex,tiley+1);
 	if (tile)
 		zombie_delay = (tile>>8)*30;
@@ -816,7 +816,7 @@ void T_Zombie (objtype *ob)
 	switch (zombie_mode)
 	{
 		case zm_wait_for_dark:
-			if (gamestate.mapon == 0)
+			if (gamestate->mapon == 0)
 			{
 				if (BGFLAGS & BGF_NIGHT)
 					zombie_mode = zm_wait_to_rise;
@@ -917,7 +917,7 @@ void SpawnSpook(int tilex, int tiley)
 	new = SpawnNewObj(tilex,tiley,&s_spook_wait,PIXRADIUS*35);
 	ob = new;
 
-//	tile = *(gamestate.mapsegs[2]+(tiley+1)*mapwidth+tilex);
+//	tile = *(gamestate->mapsegs[2]+(tiley+1)*mapwidth+tilex);
 	tile = GetMapSegs(2,tilex,tiley+1);
 	if (tile)
 		spook_delay = (tile>>8)*30;
@@ -946,7 +946,7 @@ void T_Spook(objtype *ob)
 	switch (zombie_mode)
 	{
 		case zm_wait_for_dark:
-			if (!gamestate.mapon)
+			if (!gamestate->mapon)
 			{
 				if (BGFLAGS & BGF_NIGHT)
 					spook_mode = zm_wait_to_rise;
@@ -1026,7 +1026,7 @@ void SpawnWallSkeleton(int tilex, int tiley)
 
 	for (loop=0; loop<4; loop++)
 	{
-//		tile = *(gamestate.mapsegs[0]+(tiley+yofs[loop])*mapwidth+tilex+xofs[loop]);
+//		tile = *(gamestate->mapsegs[0]+(tiley+yofs[loop])*mapwidth+tilex+xofs[loop]);
 		tile = GetMapSegs(0,tilex,tiley);
 		switch (tile)
 		{
@@ -1077,7 +1077,7 @@ foundtile:;
 
 	wskel_mode = wallmode;
 
-//	tile = *(gamestate.mapsegs[2]+wally*mapwidth+wallx);
+//	tile = *(gamestate->mapsegs[2]+wally*mapwidth+wallx);
 	tile = GetMapSegs(2,wallx,wally);
 	if (tile)
 		wskel_delay = (tile>>8)*30;
@@ -1131,7 +1131,7 @@ void T_WallSkeleton(objtype *ob)
 
 /*			CASTAT(unsigned,actorat[x][y])
 				= tilemap[x][y]
-				= *(gamestate.mapsegs[0]+y*mapwidth+x)
+				= *(gamestate->mapsegs[0]+y*mapwidth+x)
 				= wskel_base;*/
 			tile = wskel_base;
 			SetTileMap(x,y,tile);
@@ -1803,7 +1803,7 @@ void T_Grelm_DropKey(objtype *ob)
 		return;
 
 	SpawnBonus(ob->tilex,ob->tiley,B_RKEY);
-	SD_PlaySound(GRELM_DEADSND);
+	SPA_PlaySound(GRELM_DEADSND);
 	ob->temp1 = true;
 }
 
@@ -2080,7 +2080,7 @@ void T_ShootPlayer(objtype *ob)
 //
 	if (GetTileMap(ob->tilex,ob->tiley))
 	{
-		SD_PlaySound (SHOOTWALLSND);
+		SPA_PlaySound (SHOOTWALLSND);
 		ob->state = &s_pshot_exp1;
 		ob->ticcount = s_pshot_exp1.tictime;
 		return;

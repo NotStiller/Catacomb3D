@@ -18,18 +18,11 @@
 
 #include <stdlib.h>
 #include <SDL/SDL.h>
-#include "c3_def.h"
-#include "id_sd.h"
+#include "id_heads.h"
 
 static const int gameTimerRate=70;		// I think 70 is correct, but maybe it should read 35 ?
 static long timeCountStart=0;
 
-// some states for input handling
-static int mouseDX=0, mouseDY=0;
-static unsigned int mouseButtons=0;
-int	keyboard[128];
-char lastASCII;
-int lastScan;
 static int pleaseExit=false;
 static int inGame=false;
 static int mouseGrabEnabled=true;
@@ -55,12 +48,10 @@ int main(int argc, char **argv) {
 
 	SPD_SetupGameData();
 
-	IN_Startup ();
-	SD_Startup ();
+	SPI_ClearKeysDown();
 	US_Startup ();
 
 	InitGame ();
-	LoadLatchMem ();
 
 	SDL_PauseAudio(0);
 	DemoLoop();
@@ -69,9 +60,7 @@ int main(int argc, char **argv) {
 	return 0;
 }
 
-void SP_PollEvents() {
-// changes globals: keyboard, lastScan, lastASCII, mouseDX, mouseDY, mouseButtons
-
+void SP_PollEvents(void) {
 	SDL_Event event;
 	while(SDL_PollEvent(&event)) {
 		if (event.type == SDL_QUIT) {
@@ -84,32 +73,32 @@ void SP_PollEvents() {
 
 			int idKey = translateKey(event.key.keysym.sym);
 			if (idKey != 0) {
-				keyboard[idKey] = down;
-				if (down) {
-					lastScan = idKey;
-				}
+				SPI_InputKey(idKey, down);
 			}
 			char c=0;
 			if ((event.key.keysym.unicode&0xFF80) == 0) {
 				c = event.key.keysym.unicode&0x7F;
 			}
 			if (down && c != 0) {
-				lastASCII = c;
+				SPI_InputASCII(c);
 			}
 		} else if (event.type == SDL_MOUSEMOTION) {
-			mouseDX += event.motion.xrel;
-			mouseDY += event.motion.yrel;
+			SPI_InputMouseMotion(event.motion.xrel,event.motion.yrel);
 		} else if (event.type == SDL_MOUSEBUTTONDOWN) {
 			if (event.button.button == SDL_BUTTON_LEFT) {
-				mouseButtons |= 1;
+				SPI_InputKey(but_Mouse1, 1);
 			} else if (event.button.button == SDL_BUTTON_RIGHT) {
-				mouseButtons |= 2;
+				SPI_InputKey(but_Mouse2, 1);
+			} else if (event.button.button == SDL_BUTTON_MIDDLE) {
+				SPI_InputKey(but_Mouse3, 1);
 			}
 		} else if (event.type == SDL_MOUSEBUTTONUP) {
 			if (event.button.button == SDL_BUTTON_LEFT) {
-				mouseButtons &= ~1;
+				SPI_InputKey(but_Mouse1, 0);
 			} else if (event.button.button == SDL_BUTTON_RIGHT) {
-				mouseButtons &= ~2;
+				SPI_InputKey(but_Mouse2, 0);
+			} else if (event.button.button == SDL_BUTTON_MIDDLE) {
+				SPI_InputKey(but_Mouse3, 0);
 			}
 		} else if (event.type == SDL_VIDEORESIZE) {
 			SDL_ResizeEvent *resize = (SDL_ResizeEvent*)&event;
@@ -245,151 +234,6 @@ long SP_TimeCount() { // Global time in 70Hz ticks
 }
 
 
-// input handling was done in id_in.h, id_heads.h and id_sd.h (timer).
-
-void MouseButtons(unsigned int *B) {
-	SP_PollEvents();
-	if (B != NULL) {
-		*B = mouseButtons;
-	}
-}
-
-void MouseDelta(int *X, int *Y) {
-	SP_PollEvents();
-	if (X != NULL) {
-		*X = mouseDX;
-	}
-	if (Y != NULL) {
-		*Y = mouseDY;
-	}
-	mouseDX = 0;
-	mouseDY = 0;
-}
-
-int SP_LastScan() {
-	SP_PollEvents();
-	return lastScan;
-}
-
-char SP_LastASCII() {
-	SP_PollEvents();
-	return lastASCII;
-}
-
-int SP_Keyboard(int Key) {
-	assert(Key >= 0 && Key < 128);
-	SP_PollEvents();
-	return keyboard[Key];
-}
-
-///////////////////////////////////////////////////////////////////////////
-//
-//	IN_ClearKeyDown() - Clears the keyboard array
-//
-///////////////////////////////////////////////////////////////////////////
-void
-IN_ClearKeysDown(void)
-{
-	int	i;
-
-	lastScan = sc_None;
-	lastASCII = key_None;
-	for (i = 0;i < 128;i++)
-		keyboard[i] = 0;
-}
-
-
-
-///////////////////////////////////////////////////////////////////////////
-//
-//	IN_AckBack() - Waits for either an ASCII keypress or a button press
-//
-///////////////////////////////////////////////////////////////////////////
-void
-IN_AckBack(void)
-{
-	word	i;
-
-	while (!SP_LastScan())
-	{
-		if (mouseButtons != 0)
-		{
-			while (mouseButtons != 0) {
-				SP_PollEvents();
-			}
-			return;
-		}
-	}
-
-	keyboard[lastScan] = 0;
-	lastScan = sc_None;
-}
-
-///////////////////////////////////////////////////////////////////////////
-//
-//	IN_Ack() - Clears user input & then calls IN_AckBack()
-//
-///////////////////////////////////////////////////////////////////////////
-void
-IN_Ack(void)
-{
-	word	i;
-
-	keyboard[lastScan] = 0;
-	lastScan = sc_None;
-
-	do { SP_PollEvents();
-	} while (mouseButtons != 0);
-
-	IN_AckBack();
-}
-
-
-///////////////////////////////////////////////////////////////////////////
-//
-//	IN_IsUserInput() - Returns true if a key has been pressed or a button
-//		is down
-//
-///////////////////////////////////////////////////////////////////////////
-boolean
-IN_IsUserInput(void)
-{
-	boolean	result;
-	word	i;
-
-	result = SP_LastScan();
-
-	if (mouseButtons != 0)
-		result = true;
-
-	return(result);
-}
-
-///////////////////////////////////////////////////////////////////////////
-//
-//	IN_UserInput() - Waits for the specified delay time (in ticks) or the
-//		user pressing a key or a mouse button. If the clear flag is set, it
-//		then either clears the key or waits for the user to let the mouse
-//		button up.
-//
-///////////////////////////////////////////////////////////////////////////
-boolean
-IN_UserInput(longword delay,boolean clear)
-{
-	longword	lasttime;
-
-	lasttime = SP_TimeCount();
-	do
-	{
-		if (IN_IsUserInput())
-		{
-			if (clear)
-				IN_AckBack();
-			return(true);
-		}
-	} while (SP_TimeCount() - lasttime < delay);
-	return(false);
-}
 
 // originally from id_mm.c but that doesn't exist anymore
 
@@ -467,8 +311,6 @@ int RANDOM(int Max) {
 void Quit (char *error)
 {
 	US_Shutdown ();
-	SD_Shutdown ();
-	IN_Shutdown ();
 	if (error && *error) {
 		printf("ERROR: %s\n", error);
 	}

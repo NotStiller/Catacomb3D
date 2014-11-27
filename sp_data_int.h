@@ -30,24 +30,39 @@ typedef struct
   uint16_t bit0,bit1;	// 0-255 is a character, > is a pointer to a node
 } huffnode;
 
+typedef struct {
+	huffnode *Dict;
+	uint16_t RLEWTag;
+	long Size;
+	uint8_t *Data;
+} DataFile;
 
-extern uint8_t *mapData, *grData, *auData;
-extern long mapDataSize, grDataSize, auDataSize;
+typedef struct ChunkDesc_s ChunkDesc;
 
-extern huffnode *grhuffman, *audiohuffman;
-extern int32_t *GrChunksPos, *GrChunksSize, *AudioChunksPos, *AudioChunksSize;
+typedef void (*ResLoader)(ChunkDesc *Chunk);
 
-uint8_t *SPD_ReadAndHuffExpand(uint8_t *Data, huffnode Dictionary[], long *Expanded);
+typedef struct ChunkDesc_s {
+	int Index;
+	long Pos, Size;
+	DataFile *File;
+	ResLoader Loader;
+	long LoaderParm;
+} ChunkDesc;
+
+
+uint8_t *SPD_ReadAndHuffExpand(ChunkDesc *Chunk, long *Expanded);
+
+void SPD_LoadALSamples(ChunkDesc *Chunks, int Start, int NumSounds);
+void SPD_LoadALMusic(ChunkDesc *Chunks, int Start, int NumMusic);
 
 void loadMapHeader(uint8_t *Data, int HeaderOffset, int Map, uint16_t RLEWTag);
-void loadMapTexts(int Chunk, int Level);
-void loadFont(int Chunk);
-void loadTile(int Chunk, int NumTilesInChunk, int Width, int Height, int Masked);
-void loadPic(int Chunk, int PicNum);
-void loadMaskedPic(int Chunk, int PicNum);
-void loadSprite(int Chunk, int SpriteNum);
-pictabletype *loadPicTable(uint8_t *Data, long DataSize, int NumElements);
-spritetabletype *loadSpriteTable(uint8_t *Data, long DataSize, int NumElements);
+void loadMapTexts(ChunkDesc *Chunk, int Level);
+void SPD_LoadFont(ChunkDesc *Chunk);
+
+void SPD_RegisterTiles(ChunkDesc *Chunks, int Size, int Masked, int Start, int Num);
+
+pictabletype *SPD_RegisterPics(ChunkDesc *Chunks, int TableChunk, int FirstChunk, int NumElements, int Masked);
+spritetabletype *SPD_RegisterSprites(ChunkDesc *Chunks, int TableChunk, int FirstChunk, int NumElements);
 
 void SPD_CombinedLoader(int Chunk);
 

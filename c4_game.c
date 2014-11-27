@@ -282,7 +282,7 @@ void ScanInfoPlane (void)
 #endif
 
 			case 21:        // chest
-				if (gnd_colors[gamestate.mapon] == 0x0101)
+				if (gnd_colors[gamestate->mapon] == 0x0101)
 					lumpneeded[WATERCHESTLUMP] = true;
 				else
 					lumpneeded[CHESTLUMP] = true;
@@ -299,10 +299,10 @@ void ScanInfoPlane (void)
 				break;
 
 			case 41:
-				if (gamestate.difficulty <gd_Hard)
+				if (gamestate->difficulty <gd_Hard)
 					break;
 			case 36:
-				if (gamestate.difficulty <gd_Normal)
+				if (gamestate->difficulty <gd_Normal)
 					break;
 			case 22:
 				lumpneeded[TROLLLUMP] = true;
@@ -310,10 +310,10 @@ void ScanInfoPlane (void)
 				break;
 
 			case 42:
-				if (gamestate.difficulty <gd_Hard)
+				if (gamestate->difficulty <gd_Hard)
 					break;
 			case 37:
-				if (gamestate.difficulty <gd_Normal)
+				if (gamestate->difficulty <gd_Normal)
 					break;
 			case 23:
 				lumpneeded[ORCLUMP] = true;
@@ -321,10 +321,10 @@ void ScanInfoPlane (void)
 				break;
 
 			case 43:
-				if (gamestate.difficulty <gd_Hard)
+				if (gamestate->difficulty <gd_Hard)
 					break;
 			case 38:
-				if (gamestate.difficulty <gd_Normal)
+				if (gamestate->difficulty <gd_Normal)
 					break;
 			case 25:
 				lumpneeded[BATLUMP] = true;
@@ -332,10 +332,10 @@ void ScanInfoPlane (void)
 				break;
 
 			case 44:
-				if (gamestate.difficulty <gd_Hard)
+				if (gamestate->difficulty <gd_Hard)
 					break;
 			case 39:
-				if (gamestate.difficulty <gd_Normal)
+				if (gamestate->difficulty <gd_Normal)
 					break;
 			case 26:
 				lumpneeded[DEMONLUMP] = true;
@@ -343,10 +343,10 @@ void ScanInfoPlane (void)
 				break;
 
 			case 45:
-				if (gamestate.difficulty <gd_Hard)
+				if (gamestate->difficulty <gd_Hard)
 					break;
 			case 40:
-				if (gamestate.difficulty <gd_Normal)
+				if (gamestate->difficulty <gd_Normal)
 					break;
 			case 27:
 				lumpneeded[MAGELUMP] = true;
@@ -381,7 +381,7 @@ void ScanInfoPlane (void)
 				break;
 
 			case 53:
-				if (gamestate.difficulty <gd_Normal)
+				if (gamestate->difficulty <gd_Normal)
 					break;
 			case 52:
 				lumpneeded[ZOMBIELUMP] = true;
@@ -389,10 +389,10 @@ void ScanInfoPlane (void)
 			break;
 
 			case 51:
-				if (gamestate.difficulty <gd_Hard)
+				if (gamestate->difficulty <gd_Hard)
 					break;
 			case 50:
-				if (gamestate.difficulty <gd_Normal)
+				if (gamestate->difficulty <gd_Normal)
 					break;
 			case 49:
 				lumpneeded[SPOOKLUMP] = true;
@@ -405,7 +405,7 @@ void ScanInfoPlane (void)
 				break;
 
 			case 56:
-				if (gamestate.difficulty <gd_Normal)
+				if (gamestate->difficulty <gd_Normal)
 					break;
 			case 55:
 				lumpneeded[SKELETONLUMP] = true;
@@ -413,10 +413,10 @@ void ScanInfoPlane (void)
 				break;
 
 			case 65:
-				if (gamestate.difficulty <gd_Hard)
+				if (gamestate->difficulty <gd_Hard)
 					break;
 			case 64:
-				if (gamestate.difficulty <gd_Normal)
+				if (gamestate->difficulty <gd_Normal)
 					break;
 			case 63:
 				lumpneeded[WETMANLUMP] = true;
@@ -424,10 +424,10 @@ void ScanInfoPlane (void)
 				break;
 
 			case 68:
-				if (gamestate.difficulty <gd_Hard)
+				if (gamestate->difficulty <gd_Hard)
 					break;
 			case 67:
-				if (gamestate.difficulty <gd_Normal)
+				if (gamestate->difficulty <gd_Normal)
 					break;
 			case 66:
 				lumpneeded[EYELUMP] = true;
@@ -435,10 +435,10 @@ void ScanInfoPlane (void)
 				break;
 
 			case 71:
-				if (gamestate.difficulty <gd_Hard)
+				if (gamestate->difficulty <gd_Hard)
 					break;
 			case 70:
-				if (gamestate.difficulty <gd_Normal)
+				if (gamestate->difficulty <gd_Normal)
 					break;
 			case 69:
 				lumpneeded[SKELETONLUMP] = true;
@@ -499,12 +499,15 @@ void DrawEnterScreen (void)
 	SPG_Bar(&renderBufferText, 0,0,renderBuffer.Width,renderBuffer.Height, 0);
 //	VW_Bar(0,0,VIEWWIDTH,VIEWHEIGHT,0);
 
-	width = strlen(levelnames[gamestate.mapon]);
+	width = strlen(levelnames[gamestate->mapon]);
 	if (width < 20)
 		width = 20;
 	Win_Create(&renderBufferText, width,5);
 	Win_CPrint("\nYou have arrived at\n");
-	Win_CPrint(levelnames[gamestate.mapon]);
+	Win_CPrint(levelnames[gamestate->mapon]);
+	SPG_FlipBuffer();
+	SPI_WaitFor(35);
+	SPI_ClearKeysDown ();
 }
 //==========================================================================
 
@@ -544,7 +547,7 @@ void SetupGameLevel ()
 //
 // load the level
 //
-	SPD_LoadMap(LEVEL1TEXT+gamestate.mapon,gamestate.mapon);
+	SPD_LoadMap(LEVEL1TEXT+gamestate->mapon,gamestate->mapon);
 
 	int plane;
 	for (plane = 0; plane<MAPPLANES; plane++)
@@ -553,8 +556,8 @@ void SetupGameLevel ()
 		printf("INIT MAP SEGS %i of size %i\n",plane, size);
 		if (!size)
 			continue;
-		MM_GetPtr (&gamestate.mapsegs[plane], size);
-		memcpy(gamestate.mapsegs[plane], curmap->rawplanes[plane], size);
+		MM_GetPtr (&gamestate->mapsegs[plane], size);
+		memcpy(gamestate->mapsegs[plane], curmap->rawplanes[plane], size);
 	}
 
 //
@@ -571,7 +574,7 @@ void SetupGameLevel ()
 			{
 				extern unsigned gnd_colors[];
 
-				if (gnd_colors[gamestate.mapon] == 0x0101)
+				if (gnd_colors[gamestate->mapon] == 0x0101)
 					tileneeded[WATEREXP] = tileneeded[WATEREXP+1] = tileneeded[WATEREXP+2] = true;
 				else
 					tileneeded[WALLEXP] = tileneeded[WALLEXP+1] = tileneeded[WALLEXP+2] = true;
@@ -629,17 +632,17 @@ void Victory (boolean playsounds)
 {
 	if (playsounds)
 	{
-		SD_PlaySound (GETBOLTSND);
-		SD_WaitSoundDone ();
-		SD_PlaySound (GETNUKESND);
-		SD_WaitSoundDone ();
-		SD_PlaySound (GETPOTIONSND);
-		SD_WaitSoundDone ();
-		SD_PlaySound (GETKEYSND);
-		SD_WaitSoundDone ();
-		SD_PlaySound (GETSCROLLSND);
-		SD_WaitSoundDone ();
-		SD_PlaySound (GETPOINTSSND);
+		SPA_PlaySound (GETBOLTSND);
+		SPA_WaitUntilSoundIsDone ();
+		SPA_PlaySound (GETNUKESND);
+		SPA_WaitUntilSoundIsDone ();
+		SPA_PlaySound (GETPOTIONSND);
+		SPA_WaitUntilSoundIsDone ();
+		SPA_PlaySound (GETKEYSND);
+		SPA_WaitUntilSoundIsDone ();
+		SPA_PlaySound (GETSCROLLSND);
+		SPA_WaitUntilSoundIsDone ();
+		SPA_PlaySound (GETPOINTSSND);
 	}
 
 
@@ -671,48 +674,6 @@ void NormalScreen (void)
 
 //==========================================================================
 
-/*
-===================
-=
-= DrawPlayScreen
-=
-===================
-*/
-
-void DrawPlayScreen (void)
-{
-//	SPG_ClearScreen(0);
-//	VW_Bar (0,0,320,VIEWHEIGHT,0);
-	SPD_LoadGrChunk (STATUSPIC);
-	SPG_DrawPic(&bottomHUDBuffer, grsegs[STATUSPIC], 0,0);
-	RedrawStatusWindow ();
-}
-
-
-//==========================================================================
-
-/*
-===================
-=
-= LoadLatchMem
-=
-===================
-*/
-
-void LoadLatchMem (void)
-{
-	int i;
-
-	for (i=0;i<NUMTILE16;i++)
-	{
-		SPD_LoadGrChunk (STARTTILE16+i);
-	}
-
-	for (i=FIRSTLATCHPIC+1;i<FIRSTSCALEPIC;i++)
-	{
-		SPD_LoadGrChunk (i);
-	}
-}
 
 
 
@@ -733,9 +694,9 @@ void NewGame (void)
 {
 	if (!loadedgame)
 	{
-		memset (&gamestate,0,sizeof(gamestate));
-		gamestate.mapon = 0;
-		gamestate.body = MAXBODY;
+		memset (gamestate,0,sizeof(gametype));
+		gamestate->mapon = 0;
+		gamestate->body = MAXBODY;
 	}
 
 	BGFLAGS = 0;
@@ -755,27 +716,25 @@ void NewGame (void)
 =
 ===================
 */
-
+boolean loadedgame;
 void GameLoop (void)
 {
-	boolean wait = false;
 	int i,xl,yl,xh,yh;
 	char num[20];
 
+	loadedgame = false;
 	SP_GameEnter();
 	NewGame();
-	DrawPlayScreen ();
-	IN_ClearKeysDown();
-
+	SPI_ClearKeysDown();
+	boolean drawEnter = false;
 restart:
 	if (!loadedgame)
 	{
-		gamestate.difficulty = restartgame;
+		gamestate->difficulty = restartgame;
 		restartgame = gd_Continue;
-		DrawEnterScreen ();
-		if (gamestate.mapon != 8)
+		drawEnter = true;
+		if (gamestate->mapon != 8)
 			fizzlein = true;
-		wait = true;
 	}
 
 	do
@@ -786,6 +745,13 @@ restart:
 		else
 			loadedgame = false;
 
+		if (drawEnter) {
+			DrawPlayScreen();
+			DrawEnterScreen ();
+			drawEnter = false;
+		}
+
+
 		if (EASYMODEON)
 			DisplaySMsg("*** NOVICE ***", NULL);
 		else
@@ -794,7 +760,7 @@ restart:
 		status_delay = 250;
 
 		RedrawStatusWindow();
-		PlayLoop ();
+		PlayLoop();
 		switch (playstate)
 		{
 		case ex_abort:

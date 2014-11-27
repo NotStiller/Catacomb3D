@@ -47,7 +47,8 @@ boolean enterSaveMenu=false, enterLoadMenu=false;
 byte bcolor;
 short skytimer=-1,skytimer_reset;
 short groundtimer=-1,groundtimer_reset;
-unsigned *skycolor,*groundcolor;
+static unsigned black=0;
+unsigned *skycolor = &black,*groundcolor = &black;
 unsigned nocolorchange=0xFFFF;
 byte BGFLAGS,				// global that holds all current flags
 	  bgflag;				// used by BG changer, this flag is set when done
@@ -77,6 +78,7 @@ boolean		singlestep,godmode;
 int			extravbls;
 status_flags    status_flag;
 int             status_delay;
+char			status_text[500] = {0};
 
 //
 // replacing refresh manager
@@ -130,22 +132,22 @@ void CheckKeys (void)
 	if (screenfaded)			// don't do anything with a faded screen
 		return;
 
-	if (SP_Keyboard(sc_M)&&SP_Keyboard(sc_I)&&SP_Keyboard(sc_K)&&SP_Keyboard(sc_E))
+	if (SPI_GetKeyDown(sc_M)&&SPI_GetKeyDown(sc_I)&&SPI_GetKeyDown(sc_K)&&SPI_GetKeyDown(sc_E))
 	{
 		Win_Create(&renderBufferText, 12,2);
 		if (autofire)
 		  Win_PrintCentered ("Auto-Bolt OFF");
 		else
 		  Win_PrintCentered ("Auto-Bolt ON");
-		FlipBuffer();
-		IN_Ack();
+		SPG_FlipBuffer();
+		SPI_WaitForever();
 		autofire ^= 1;
 		return;
 	}
 
 // F2 - SOUND OPTIONS
 //
-	if (SP_Keyboard(sc_F2))
+	if (SPI_GetKeyDown(sc_F2))
 	{
 		int height=7;
 		boolean ChoiceMade = false;
@@ -157,37 +159,37 @@ void CheckKeys (void)
 		Win_Print(   "        2 )  PC  AUDIO \n");
 		Win_Print("        3 ) ADLIB AUDIO\n");
 		Win_Print( "\n       ESC)    EXIT    ");
-		FlipBuffer();
+		SPG_FlipBuffer();
 
 		// Switch audio device ON/OFF & load sounds if there
 		// was a change in the device.
 
 		do {
 
-			if (SP_Keyboard(1)) 								// ESC - Exit
+			if (SPI_GetKeyDown(1)) 								// ESC - Exit
 				ChoiceMade = true;
 			else
-			if (SP_Keyboard(2)) 							 	// 1 - No Sound
+			if (SPI_GetKeyDown(2)) 							 	// 1 - No Sound
 			{
-				SD_SetSoundMode(sdm_Off);
+				SPA_SetSoundSource(SND_OFF);
 				ChoiceMade = true;
 			}
 			else
-			if ((SP_Keyboard(4)))		// 3 - AdLib Audio
+			if ((SPI_GetKeyDown(4)))		// 3 - AdLib Audio
 			{
-				SD_SetSoundMode(sdm_AdLib);
+				SPA_SetSoundSource(SND_ADLIB);
 				ChoiceMade = true;
 			}
 
 		} while (!ChoiceMade);
 		tics = realtics = 1;
-		IN_ClearKeysDown();
+		SPI_ClearKeysDown();
 	}
 
 deadloop:;
 // ESCAPE - quits game
 //
-	if ((SP_Keyboard(sc_Escape)) || (Flags & FL_DEAD))
+	if ((SPI_GetKeyDown(sc_Escape)) || (Flags & FL_DEAD))
 	{
 		char ch;
 
@@ -244,7 +246,7 @@ deadloop:;
 
 // F1 - DISPLAY HELP
 //
-	if (SP_Keyboard(sc_F1))
+	if (SPI_GetKeyDown(sc_F1))
 	{
 		boolean nohelp=false;
 		extern textinfo MainHelpText;
@@ -269,7 +271,7 @@ deadloop:;
 			Win_Create(&renderBufferText, 30,5);
 			Win_CPrint("\nError loading HELP file.\n");
 			Win_CPrint("Press any key.");
-			IN_Ack();
+			SPI_WaitForever();
 			VW_FadeOut();
 			nohelp = false;
 		}
@@ -277,27 +279,27 @@ deadloop:;
 		CacheScaleds();
 
 		RedrawStatusWindow();
-		ThreeDRefresh();
+		ThreeDRefresh(*skycolor, *groundcolor);
 		VW_FadeIn();
 		tics = realtics = 1;
-		IN_ClearKeysDown();
+		SPI_ClearKeysDown();
 	}
 
 // F3 - SAVE GAME
 //
-	if ((SP_Keyboard(sc_F3) || enterSaveMenu) && (!(Flags & FL_DEAD)))
+	if ((SPI_GetKeyDown(sc_F3) || enterSaveMenu) && (!(Flags & FL_DEAD)))
 	{
 		enterSaveMenu = false;
 		PreFullDisplay();
 		GE_SaveGame();
 		PostFullDisplay(true);
 		tics = realtics = 1;
-		IN_ClearKeysDown();
+		SPI_ClearKeysDown();
 	}
 
 // F4 - LOAD GAME
 //
-	if (SP_Keyboard(sc_F4) || enterLoadMenu)
+	if (SPI_GetKeyDown(sc_F4) || enterLoadMenu)
 	{
 		enterLoadMenu = false;
 		PreFullDisplay();
@@ -317,7 +319,7 @@ deadloop:;
 		else
 			PostFullDisplay(true);
 		tics = realtics = 1;
-		IN_ClearKeysDown();
+		SPI_ClearKeysDown();
 	}
 
 	if (Flags & FL_DEAD)
@@ -326,9 +328,9 @@ deadloop:;
 //
 // F10-? debug keys
 //
-	if (SP_Keyboard(sc_F10))
+	if (SPI_GetKeyDown(sc_F10))
 	{
-		MouseDelta(NULL, NULL);	// Clear accumulated mouse movement
+		SPI_GetMouseDelta(NULL, NULL);	// Clear accumulated mouse movement
 		lasttimecount = SP_TimeCount();
 	}
 }
@@ -350,7 +352,7 @@ void PostFullDisplay(boolean draw_view)
 	RedrawStatusWindow();
 	if (draw_view)
 	{
-		ThreeDRefresh();
+		ThreeDRefresh(*skycolor, *groundcolor);
 		VW_FadeIn();
 	}
 }
@@ -362,87 +364,18 @@ void PostFullDisplay(boolean draw_view)
 /*
 ===================
 =
-= PollControls
+= DrawPlayScreen
 =
 ===================
 */
 
-void PollControls (void)
+void DrawPlayScreen (void)
 {
-	unsigned buttons;
-
-	IN_ReadControl(0,&control);
-
-	MouseButtons(&buttons);
-
-	if (buttons&1)
-		control.button0 = 1;
-	if (buttons&2)
-		control.button1 = 1;
-
-	if (SP_Keyboard(sc_V) || SP_Keyboard(sc_Tab))
-		running = true;
-	else
-		running = false;
+	SPG_ClearBuffer (-1);
+	SPD_LoadGrChunk (STATUSPIC);
+	SPG_DrawPic(&bottomHUDBuffer, grsegs[STATUSPIC], 0,0);
+	RedrawStatusWindow ();
 }
-
-//==========================================================================
-
-#if 0
-/*
-=================
-=
-= StopMusic
-=
-=================
-*/
-
-void StopMusic(void)
-{
-	int	i;
-
-	SD_MusicOff();
-	for (i = 0;i < LASTMUSIC;i++)
-		if (audiosegs[STARTMUSIC + i])
-		{
-			MM_SetPurge(&((memptr)audiosegs[STARTMUSIC + i]),3);
-			MM_SetLock(&((memptr)audiosegs[STARTMUSIC + i]),false);
-		}
-}
-
-//==========================================================================
-
-
-/*
-=================
-=
-= StartMusic
-=
-=================
-*/
-
-// JAB - Cache & start the appropriate music for this level
-void StartMusic(void)
-{
-	musicnames	chunk;
-
-	SD_MusicOff();
-	chunk =	TOOHOT_MUS;
-//	if ((chunk == -1) || (MusicMode != smm_AdLib))
-//DEBUG control panel		return;
-
-	MM_BombOnError (false);
-	CA_CacheAudioChunk(STARTMUSIC + chunk);
-	MM_BombOnError (true);
-	if (mmerror)
-		mmerror = false;
-	else
-	{
-		MM_SetLock(&((memptr)audiosegs[STARTMUSIC + chunk]),true);
-		SD_StartMusic((MusicGroup *)audiosegs[STARTMUSIC + chunk]);
-	}
-}
-#endif
 
 //==========================================================================
 
@@ -479,11 +412,11 @@ void PlayLoop (void)
 
 	ingame = true;
 	playstate = 0;
-	gamestate.shotpower = handheight = 0;
+	gamestate->shotpower = handheight = 0;
 
 	// setup sky/ground colors and effects (based on level)
 	//
-	switch (gamestate.mapon)
+	switch (gamestate->mapon)
 	{
 		case 0:
 			if (!(BGFLAGS & BGF_NIGHT))
@@ -499,14 +432,14 @@ void PlayLoop (void)
 		break;
 
 		default:
-			skycolor = &sky_colors[gamestate.mapon];
-			groundcolor = &gnd_colors[gamestate.mapon];
+			skycolor = &sky_colors[gamestate->mapon];
+			groundcolor = &gnd_colors[gamestate->mapon];
 			skytimer = groundtimer = -1;
 		break;
 	}
 
 	RedrawStatusWindow();
-	ThreeDRefresh();
+	ThreeDRefresh(*skycolor, *groundcolor);
 	if (screenfaded)
 		VW_FadeIn();
 
@@ -514,11 +447,9 @@ void PlayLoop (void)
 	lasttimecount = SP_TimeCount();
 	lastnuke = 0;
 
-	PollControls ();				// center mouse
-//	StartMusic ();
 	do
 	{
-		PollControls();
+		SPI_GetPlayerControl(&control);
 
 		objnum=0;
 		objtype *obj;
@@ -633,8 +564,7 @@ nextactor:;
 					//
 							case pshotobj:
 							case bigpshotobj:
-#warning shot color should cycle through colors
-								RadarXY[objnum++][2]=shot_color[0];//shot_color[screenpage];
+								RadarXY[objnum++][2]=shot_color[(SP_TimeCount()*70/1000)%3];
 							break;
 
 					// BATS	    						(DK GRAY)
@@ -650,7 +580,7 @@ nextactor:;
 					//
 							case eyeobj:
 							case reddemonobj:
-								if (gamestate.gems[B_RGEM-B_RGEM])
+								if (gamestate->gems[B_RGEM-B_RGEM])
 									if (obj->active == always)
 										RadarXY[objnum++][2]=4;
 							break;
@@ -658,7 +588,7 @@ nextactor:;
 					// RED MAGE							(LT RED)
 					//
 							case mageobj:
-								if (gamestate.gems[B_RGEM-B_RGEM])
+								if (gamestate->gems[B_RGEM-B_RGEM])
 									if (obj->active == always)
 										RadarXY[objnum++][2]=12;
 							break;
@@ -668,7 +598,7 @@ nextactor:;
 					// WATER TROLL						(LT BLUE)
 					//
 							case wetobj:
-								if (gamestate.gems[B_BGEM-B_RGEM])
+								if (gamestate->gems[B_BGEM-B_RGEM])
 									if (obj->active == always)
 										RadarXY[objnum++][2]=9;
 							break;
@@ -676,7 +606,7 @@ nextactor:;
 					// WATER TROLL						(DK BLUE)
 					//
 							case demonobj:
-								if (gamestate.gems[B_BGEM-B_RGEM])
+								if (gamestate->gems[B_BGEM-B_RGEM])
 									if (obj->active == always)
 										RadarXY[objnum++][2]=1;
 							break;
@@ -686,7 +616,7 @@ nextactor:;
 					// GREEN TROLL						(LT GREEN)
 					//
 							case trollobj:
-								if (gamestate.gems[B_GGEM-B_RGEM])
+								if (gamestate->gems[B_GGEM-B_RGEM])
 									if (obj->active == always)
 										RadarXY[objnum++][2]=10;
 							break;
@@ -694,7 +624,7 @@ nextactor:;
 					// ORC								(DK GREEN)
 					//
 							case orcobj:
-								if (gamestate.gems[B_GGEM-B_RGEM])
+								if (gamestate->gems[B_GGEM-B_RGEM])
 									if (obj->active == always)
 										RadarXY[objnum++][2]=2;
 							break;
@@ -704,7 +634,7 @@ nextactor:;
 					// SPOOK								(BROWN)
 					//
 							case spookobj:
-								if (gamestate.gems[B_YGEM-B_RGEM])
+								if (gamestate->gems[B_YGEM-B_RGEM])
 									if (obj->active == always)
 										RadarXY[objnum++][2]=6;
 							break;
@@ -712,7 +642,7 @@ nextactor:;
 					// SKELETON							(YELLOW)
 					//
 							case skeletonobj:
-								if (gamestate.gems[B_YGEM-B_RGEM])
+								if (gamestate->gems[B_YGEM-B_RGEM])
 									if (obj->active == always)
 										RadarXY[objnum++][2]=14;
 							break;
@@ -722,7 +652,7 @@ nextactor:;
 					// ZOMBIE
 					//
 							case zombieobj:
-								if (gamestate.gems[B_PGEM-B_RGEM])
+								if (gamestate->gems[B_PGEM-B_RGEM])
 									if (obj->active == always)
 										RadarXY[objnum++][2]=13;
 							break;
@@ -732,7 +662,7 @@ nextactor:;
 					// NEMESIS
 					//
 							case grelmobj:
-								if (!memcmp(gamestate.gems,allgems,sizeof(gamestate.gems)))
+								if (!memcmp(gamestate->gems,allgems,sizeof(gamestate->gems)))
 									if (obj->active == always)
 										RadarXY[objnum++][2]=15;
 							break;
@@ -755,7 +685,7 @@ nextactor:;
 // RANDOM lightning?
 //
 	if (BGFLAGS & (BGF_NIGHT|BGF_NOT_LIGHTNING))
-		switch (gamestate.mapon)
+		switch (gamestate->mapon)
 		{
 			case 0:
 			case 1:
@@ -816,13 +746,13 @@ nextactor:;
 				if ((BeepTime+=realtics)>=60)
 				{
 					BeepTime -= 60;
-					SD_PlaySound(TICKSND);
+					SPA_PlaySound(TICKSND);
 				}
 
 			if ((FreezeTime-=realtics)<=0)
 			{
 				FreezeTime=0;
-				SD_PlaySound(TIMERETURNSND);
+				SPA_PlaySound(TIMERETURNSND);
 				DisplaySMsg(NULL,NULL);
 				status_flag = S_NONE;
 			}
@@ -831,18 +761,19 @@ nextactor:;
 
 // refresh all
 //
-		ThreeDRefresh ();
+		SPG_ResizeNow();
+		DrawPlayScreen ();
 
 		if (Flags & FL_DEAD)
 		{
-			SD_PlaySound (GAMEOVERSND);
+			SPA_PlaySound (GAMEOVERSND);
 			DisplaySMsg("DEAD",NULL);
 			DrawHealth();
-			if (gamestate.potions)
+			if (gamestate->potions)
 			{
 				 Win_Create(&renderBufferText, 35,3);
 				 Win_CPrint("\nYou should use your Cure Potions wisely\n");
-				 IN_Ack();
+				 SPI_WaitForever();
 			}
 		}
 
@@ -855,6 +786,8 @@ nextactor:;
 		}
 
 		DisplayStatus(&status_flag);
+
+		ThreeDRefresh (*skycolor, *groundcolor);
 		CheckKeys();
 
 	}while (!playstate);
@@ -957,6 +890,7 @@ void DisplayStatus (status_flags *stat_flag)
 
 	if (status_delay > 0)
 	{
+		DisplaySMsg(status_text, NULL);
 		status_delay -= realtics;
 		return;
 	}
@@ -967,22 +901,22 @@ void DisplayStatus (status_flags *stat_flag)
 
 	temp_status = S_VIEWING;                             //precaution
 
-	if (SP_Keyboard(sc_Control) || control.button0)
+	if (SPI_GetKeyDown(sc_Control) || control.fire)
 		temp_status = S_MISSLE;
 
-	if (SP_Keyboard(sc_Z) && !SP_Keyboard(sc_F10))
+	if (SPI_GetKeyDown(sc_Z) && !SPI_GetKeyDown(sc_F10))
 		temp_status = S_ZAPPER;
 
-	if ((SP_Keyboard(sc_X) && !SP_Keyboard(sc_F10)) || SP_Keyboard(sc_Enter))
+	if ((SPI_GetKeyDown(sc_X) && !SPI_GetKeyDown(sc_F10)) || SPI_GetKeyDown(sc_Enter))
 		temp_status = S_XTER;
 
 	if (control.x)
 		temp_status = S_TURN;
 
-	if ((SP_Keyboard(sc_V) || SP_Keyboard(sc_Tab)) && control.x)
+	if ((SPI_GetKeyDown(sc_V) || SPI_GetKeyDown(sc_Tab)) && control.x)
 		temp_status = S_QTURN;
 
-	if (SP_Keyboard(sc_Alt) && control.x)
+	if (SPI_GetKeyDown(sc_Alt) && control.x)
 		temp_status = S_SIDESTEP;
 
 	if (control.y < 0)
@@ -991,23 +925,24 @@ void DisplayStatus (status_flags *stat_flag)
 	if (control.y > 0)
 		temp_status = S_RETREAT;
 
-	if (SP_Keyboard(sc_F5))
+	if (SPI_GetKeyDown(sc_F5))
 		temp_status = S_JOYSTICK;
 
-	if (SP_Keyboard(sc_F4))
+	if (SPI_GetKeyDown(sc_F4))
 		temp_status = S_RESTORING;
 
-	if (SP_Keyboard(sc_F3))
+	if (SPI_GetKeyDown(sc_F3))
 		temp_status = S_SAVING;
 
-	if (SP_Keyboard(sc_F2))
+	if (SPI_GetKeyDown(sc_F2))
 		temp_status = S_SND;
 
-	if (SP_Keyboard(sc_F1))
+	if (SPI_GetKeyDown(sc_F1))
 		temp_status = S_HELP;
 
-	if (temp_status != *stat_flag)
-	{
+	if (temp_status == *stat_flag) {
+		DisplaySMsg(status_text, NULL);
+	} else {
 		*stat_flag = temp_status;
 
 
@@ -1019,7 +954,7 @@ void DisplayStatus (status_flags *stat_flag)
 			break;
 
 			case S_ZAPPER:
-				if (gamestate.bolts)
+				if (gamestate->bolts)
 				{
 					DisplaySMsg("Zapper", NULL);
 					status_delay = MESSAGEDELAY+10;
@@ -1027,7 +962,7 @@ void DisplayStatus (status_flags *stat_flag)
 			break;
 
 			case S_XTER:
-				if (gamestate.nukes)
+				if (gamestate->nukes)
 				{
 					DisplaySMsg("Xterminator", NULL);
 					status_delay = MESSAGEDELAY+5;

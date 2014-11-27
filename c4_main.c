@@ -39,7 +39,7 @@ int EnableC4Features=1;
 GameDiff restartgame;
 boolean loadedgame,abortgame,ingame;
 
-gametype	gamestate;
+gametype	*gamestate;
 exittype	playstate;
 boolean EASYMODEON;
 
@@ -54,19 +54,6 @@ void DisplayIntroText(void);
 
 =============================================================================
 */
-
-/*
-==================
-=
-= ResetGame
-=
-==================
-*/
-
-void ResetGame(void)
-{
-	NewGame ();
-}
 
 
 //===========================================================================
@@ -105,7 +92,7 @@ boolean	SaveTheGame(FILE *file)
 //
 // leave a word at start of compressed data for compressed length
 //
-		compressed = (unsigned)CA_RLEWCompress ((unsigned *)gamestate.mapsegs[i]
+		compressed = (unsigned)CA_RLEWCompress ((unsigned *)gamestate->mapsegs[i]
 			,expanded,((unsigned *)bigbuffer)+1,RLETAG);
 
 		*(unsigned *)bigbuffer = compressed;
@@ -181,7 +168,7 @@ boolean	LoadTheGame(FILE *file)
 		}
 
 		CA_RLEWexpand ((unsigned *)bigbuffer,
-			(unsigned *)gamestate.mapsegs[i],expanded,RLETAG);
+			(unsigned *)gamestate->mapsegs[i],expanded,RLETAG);
 	}
 
 	MM_FreePtr (&bigbuffer);
@@ -191,7 +178,7 @@ boolean	LoadTheGame(FILE *file)
 //
 	ClearTileMap();
 	ClearActorAt();
-	map = gamestate.mapsegs[0];
+	map = gamestate->mapsegs[0];
 	for (y=0;y<mapheight;y++)
 		for (x=0;x<mapwidth;x++)
 		{
@@ -248,15 +235,10 @@ boolean	LoadTheGame(FILE *file)
 
 void InitGame (void)
 {
-	unsigned	segstart,seglength;
-	int			i,x,y;
-	unsigned	*blockstart;
-
-	US_SetLoadSaveHooks(LoadTheGame,SaveTheGame,ResetGame);
-
 //
 // load in and lock down some basic chunks
 //
+	SPA_SetSoundSource(SND_ADLIB);
 
 	SPD_LoadGrChunk(STARTFONT);
 	SPD_LoadGrChunk(STARTTILE8);
@@ -268,10 +250,19 @@ void InitGame (void)
 	fontcolor = WHITE;
 
 
-//
-// build some tables
-//
-	BuildTables ();			// 3-d tables
+	int i;
+	for (i=0;i<NUMTILE16;i++)
+	{
+		SPD_LoadGrChunk (STARTTILE16+i);
+	}
+
+	for (i=FIRSTLATCHPIC+1;i<FIRSTSCALEPIC;i++)
+	{
+		SPD_LoadGrChunk (i);
+	}
+
+	gamestate = malloc(sizeof(gametype));
+	memset(gamestate, 0, sizeof(gametype));
 }
 
 //===========================================================================

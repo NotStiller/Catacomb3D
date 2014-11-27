@@ -16,15 +16,16 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#include "srcport.h"
 #include "id_heads.h"
 #include "c4_audio.h"
 #include "c4_gfxe.h"
 #include "c4_maps.h"
-#include "c4_win.h"
 #include <math.h>
 #include <values.h>
 
+extern boolean loadedgame, ingame, abortgame;
+extern GameDiff restartgame;
+extern gametype *gamestate;
 
 #define tf_SOLID							0x01
 #define tf_SPECIAL						0x02
@@ -201,6 +202,8 @@ typedef struct {
 	doorinfo doors[MAX_DOOR_STORAGE];
 } levelinfo;
 
+
+
 /*
 
 =============================================================================
@@ -250,7 +253,6 @@ void main (void);
 =============================================================================
 */
 
-extern	unsigned	latchpics[NUMLATCHPICS];
 extern	unsigned	tileoffsets[NUMTILE16];
 extern	unsigned	textstarts[27];
 
@@ -269,7 +271,6 @@ void Victory (boolean playsounds);
 void Died (void);
 void NormalScreen (void);
 void DrawPlayScreen (void);
-void LoadLatchMem (void);
 void FizzleOut (int showlevel);
 void FreeUpMemory (void);
 void GameLoop (void);
@@ -299,15 +300,15 @@ extern	int			extravbls;
 
 extern	status_flags    status_flag;
 extern  int             status_delay;
+extern  char			status_text[500];
 
 extern 	objtype 		dummyobj;
 extern 	short 		BeepTime;				//
 
 
 void PicturePause (void);
-int  DebugKeys (void);
-void CheckKeys (void);
 void PollControlls (void);
+
 void PlayLoop (void);
 void InitBgChange(short stimer, unsigned *scolors, short gtimer, unsigned *gcolors, byte flag);
 
@@ -462,14 +463,6 @@ extern short RadarXY[][3];
 extern short RotateAngle;
 extern short FreezeTime;
 
-//void FaceDir(short x, short y, boolean StopTime);
-//short CalcAngle(short dx, short dy);
-
-void FaceAngle(short DestAngle);
-void RotateView();
-void InitRotate(short DestAngle);
-short FaceDoor(short x, short y);
-
 char DisplayMsg(char *text,char *choices);
 char DisplaySMsg(char *text,char *choices);
 
@@ -487,6 +480,7 @@ void SpawnBigExplosion(fixed x, fixed y, short Delay, fixed Range);
 
 =============================================================================
 */
+
 
 int EasyHitPoints(int NrmHitPts);
 int EasyDoDamage(int Damage);
@@ -642,3 +636,5 @@ extern statetype s_bonus_die;
 extern	statetype s_red_demonouch;
 
 extern	statetype s_red_demondie1;
+
+

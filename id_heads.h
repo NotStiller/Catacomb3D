@@ -21,8 +21,9 @@
 #ifndef ID_HEADS_H
 #define ID_HEADS_H
 
-#include "srcport.h"
-
+#include <stdint.h>
+#include <assert.h>
+#include <stdio.h>
 #include <ctype.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -30,9 +31,9 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define __ID_GLOB__
-
 //--------------------------------------------------------------------------
+
+#define	TickBase	70		// 70Hz per tick - used as a base for timer 0
 
 extern const char *GamespecificExtension; // C3D, ABS etc.
 extern int EnableC4Features;
@@ -97,11 +98,13 @@ enum {north,east,south,west,northeast,southeast,southwest,northwest,nodir};
 
 typedef int dirtype;
 
+typedef struct objstruct objtype;
+
 typedef struct	statestruct
 {
 	int		shapenum;
 	int		tictime;
-	void	(*think) ();
+	void	(*think) (objtype*);
 	struct	statestruct	*next;
 } statetype;
 
@@ -134,24 +137,54 @@ typedef struct objstruct
   struct	objstruct	*next,*prev;
 } objtype;
 
+int RANDOM(int Max); // how to exactly implement this in case Max==0 ?
+
+typedef void* memptr;
+
+#define NUMMAPS		30
+#define MAPPLANES	3
+extern	void *grsegs[];
+
+typedef	struct
+{
+	int32_t planestart[3];
+	uint16_t planelength[3];
+	uint16_t width,height;
+	char name[16];
+
+	char *texts[27];
+	uint16_t *rawplanes[3];
+	long rawplaneslength[3];
+} maptype;
+
+extern maptype *curmap;
+
+
+//c3_draw and c4_draw
+#define PI	3.141592657
+#define ANGLEQUAD	(ANGLES/4)
+#define FINEANGLES	3600
+#define MINRATIO	16
+
+#include "sp_audio.h"
+#include "sp_data.h"
+#include "sp_graph.h"
+#include "sp_main.h"
+#include "sp_input.h"
 #include "id_vw.h"
-#include "id_in.h"
-#include "id_sd.h"
-#include "id_us.h"
 
 
 typedef struct {
-	uint8_t *BufferStart;
-	int Width, Height, Pitch;
-	int CenterX, CenterY;
-
 	fixed MinDist;
 	fixed FocalLength;
 	fixed HeightScale; // used to correct aspect ratio for heights
 	fixed ProjConst;
-} RenderSetup3D;
+	int Width, CenterX;
+} RenderSetup;
 
-extern RenderSetup3D renderSetup;
+extern RenderSetup renderSetup;
+extern RenderOutput renderOutput;
+extern BufferSetup renderBuffer;
 
 void GameWindowResizeHook(int NewWidth, int NewHeight);
 
@@ -167,9 +200,9 @@ void	Quit (char *error);		// defined in user program
 #define ANGLES		360		// must be divisable by 4
 
 extern	fixed sintable[ANGLES+ANGLES/4],*costable;
+
 extern	fixed	viewx,viewy;			// the focal point
 extern	tilept	tile,focal,right;
-extern	fixed *zbuffer;
 extern	walltype	walls[],*rightwall;
 
 extern	unsigned	tics,realtics;
@@ -181,8 +214,6 @@ extern	int	walllight1[];
 extern	int	walldark1[];
 extern	int	walllight2[];
 extern	int	walldark2[];
-
-extern unsigned topcolor,bottomcolor;
 
 
 #define MAXWALLS	50
@@ -208,7 +239,7 @@ void FollowWalls (void);
 boolean CheckTileCoords(int x, int y);
 byte SafeTilemap(int x, int y);
 
-extern	boolean	restarttrace, reallyabsolutelypositivelyaborttrace;
+extern	boolean	aborttrace;
 
 /*
 =============================================================================
@@ -231,22 +262,6 @@ void	FollowWall (void);
 
 void	BuildTables (void);
 
-
-/*
-=============================================================================
-
-						 C3_ASM DEFINITIONS
-
-=============================================================================
-*/
-
-extern	unsigned short	*wallheight;
-extern	unsigned short	*wallwidth;
-extern	uint8_t*		*wallpointer;
-
-void	ScaleWalls (void);
-
-
 // c_game.c
 
 typedef	struct
@@ -267,16 +282,14 @@ typedef	struct
 typedef	enum	{ex_stillplaying,ex_died,ex_warped,ex_resetgame,ex_loadedgame,ex_victorious,ex_abort} exittype;
 
 extern	ControlInfo	control;
-extern	boolean		running;
 
-extern	gametype	gamestate;
 extern	objtype 	objlist[MAXACTORS],*player;
 
-void ClearTileMap();
+void ClearTileMap(void);
 uint8_t GetTileMap(int X, int Y);
 void SetTileMap(int X, int Y, uint8_t Value);
 
-void ClearActorAt();
+void ClearActorAt(void);
 objtype *GetActorAt(int X, int Y);
 intptr_t GetActorAtInt(int X, int Y);
 void SetActorAt(int X, int Y, objtype *Value);
@@ -285,7 +298,7 @@ void SetActorAtInt(int X, int Y, intptr_t Value);
 uint16_t GetMapSegs(int Plane, int X, int Y);
 void SetMapSegs(int Plane, int X, int Y, uint16_t Value);
 
-void ClearSpotVis();
+void ClearSpotVis(void);
 boolean GetSpotVis(int X, int Y);
 void SetSpotVis(int X, int Y, boolean Value);
 
@@ -293,6 +306,8 @@ void InitObjList (void);
 objtype *GetNewObj (boolean usedummy);
 void RemoveObj (objtype *gone);
 
+#include "id_us.h"
+#include "c_win.h"
 
 #endif
 

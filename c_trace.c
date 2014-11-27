@@ -21,16 +21,16 @@
 #include "c3_def.h"
 
 boolean CheckTileCoords(int x, int y) {
-	if (x < 0 || y < 0 || x >= 64 || y >= 64 || reallyabsolutelypositivelyaborttrace) {
-		reallyabsolutelypositivelyaborttrace = true;
+	if (x < 0 || y < 0 || x >= 64 || y >= 64 || aborttrace) {
+		aborttrace = true;
 		return 0;
 	}
 	return 1;
 }
 
 byte SafeTilemap(int x, int y) {
-	if (x < 0 || y < 0 || x >= 64 || y >= 64) {
-		reallyabsolutelypositivelyaborttrace = true;
+	if (x < 0 || y < 0 || x >= 64 || y >= 64 || aborttrace) {
+		aborttrace = true;
 		return 1;
 	}
 	return GetTileMap(x,y);
@@ -74,7 +74,7 @@ byte SafeTilemap(int x, int y) {
 =============================================================================
 */
 
-boolean	restarttrace, reallyabsolutelypositivelyaborttrace;
+boolean	aborttrace;
 
 /*
 =============================================================================
@@ -740,8 +740,6 @@ void FollowWalls (void)
 //
 //####################
 
-	restart:
-
 	walllength = 1;
 
 	if (tile.y<focal.y)
@@ -792,16 +790,8 @@ advance:
 
 		if (rightwall == &walls[DANGERHIGH])
 		{
+			aborttrace = true;
 			assert(false);
-//
-// somethiing got messed up!  Correct by thrusting ahead...
-//
-			bordertime = 60;
-			Thrust(player->angle,TILEGLOBAL/4);
-			player->angle+=5;
-			if (player->angle>ANGLES)
-				player->angle-=ANGLES;
-			restarttrace = true;
 			return;
 		}
 

@@ -147,7 +147,7 @@ void T_DoDamage (objtype *ob)
 
 	if (!CheckHandAttack (ob))
 	{
-		SD_PlaySound (MONSTERMISSSND);
+		SPA_PlaySound (MONSTERMISSSND);
 	}
 	else
 	{

@@ -18,14 +18,6 @@
 
 // ID_VW.H
 
-#ifndef __TYPES__
-#include "id_types.h"
-#endif
-
-#ifndef __ID_GLOB__
-#include "id_glob.h"
-#endif
-
 #define __ID_VW__
 
 //===========================================================================

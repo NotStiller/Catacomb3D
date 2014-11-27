@@ -7,8 +7,7 @@ static objtype *actorat[MAPSIZE][MAPSIZE];
 ControlInfo	control;
 boolean		running;
 
-gametype	gamestate;
-
+gametype *gamestate;
 objtype objlist[MAXACTORS], *lastobj, *objfreelist;
 objtype *player;
 int	objectcount;
@@ -78,7 +77,7 @@ uint16_t GetMapSegs(int Plane, int X, int Y) {
 		return 0;
 	}
 
-	uint16_t *p = gamestate.mapsegs[Plane];
+	uint16_t *p = gamestate->mapsegs[Plane];
 	uint16_t v = p[Y*curmap->width+X];
 	return v;
 }
@@ -89,7 +88,7 @@ void SetMapSegs(int Plane, int X, int Y, uint16_t Value) {
 		return;
 	}
 	assert(Plane >= 0 && Plane <= 2);
-	gamestate.mapsegs[Plane][Y*curmap->width+X] = Value;
+	gamestate->mapsegs[Plane][Y*curmap->width+X] = Value;
 }
 
 void ClearSpotVis() {

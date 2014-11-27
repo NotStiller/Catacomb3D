@@ -20,29 +20,34 @@
 #define SP_GRAPH_H
 
 typedef struct {
-	uint8_t *Buffer;
-	int Pitch, Width, Height, Scale;
+	int Width, Height, Scale;
 	int ScreenX, ScreenY;
 } BufferSetup;
 
+typedef struct {
+	int Height, Width;
+	uint8_t *TexData;
+	fixed Depth;
+} WallSpan;
+
+typedef struct {
+	WallSpan *WallSpans;
+	int NumSpans;
+} RenderOutput;
+
 extern BufferSetup guiBuffer;
 
-/*dep
-void SPG_FlipBuffer();
-void SPG_ClearScreen (int Color);
-void SPG_DrawFloors (int Floor, int Ceiling);
-*/
-
-void SPG_Init();
+void SPG_ClearBuffer(int Color); // Color < 0 -> BorderColor
+void SPG_Init(void);
 void SPG_SetWindowSize(int Width, int Height);
-void SPG_SetupRenderer(int Width, int Height, char *Buffer, int BufferPitch);
-void SPG_ClearBlitAndFlip(int ClearColor, BufferSetup *RenderBuffers[]);
-void SPG_ClearBlitAndFizzle(int ClearColor, BufferSetup *RenderBuffers[]);
-void SPG_ClearScaleAndFlip(int ClearColor, BufferSetup *RenderBuffer);
+void SPG_SetupRenderer(BufferSetup *Buffer);
 void SPG_SetBorderColor(int Color);
 
-void SPG_DrawScaleShape (int XCenter, int Height, uint8_t *Pic, int ColorKey);
-int SPG_PollRedraw (void);
+void SPG_ScaleWalls(BufferSetup *Target, RenderOutput *Walls);
+void SPG_DrawScaleShape (BufferSetup *Target, RenderOutput *Walls, int XCenter, int Height, uint8_t *Pic, int ColorKey);
+void SPG_FlipBuffer(void);
+void SPG_FizzleFadeBuffer(void);
+int SPG_ResizeNow (void);
 
 void SPG_Bar(BufferSetup *Setup, int X, int Y, int Width, int Height, int Color);
 void SPG_DrawPic(BufferSetup *Setup, uint8_t *Source, int ScrX, int ScrY);

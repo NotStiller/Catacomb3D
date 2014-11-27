@@ -1,4 +1,4 @@
-#include "c4_win.h"
+#include "c_win.h"
 
 static int winX, winY, winW, winH;
 static int winPrintX, winPrintY;

@@ -19,17 +19,17 @@
 #ifndef SP_MAIN_H
 #define SP_MAIN_H
 
-void SP_Exit();
-int SP_GameActive();
-void SP_GameEnter();
-void SP_GameLeave();
-int  SP_StrafeOn();
-void SP_PollEvents();
-int SP_LastScan();
-char SP_LastASCII();
+void SP_Exit(void);
+int SP_GameActive(void);
+void SP_GameEnter(void);
+void SP_GameLeave(void);
+int  SP_StrafeOn(void);
+void SP_PollEvents(void);
+int SP_LastScan(void);
+char SP_LastASCII(void);
 int SP_Keyboard(int Key);
 void SP_SetTimeCount(long Ticks);
-long SP_TimeCount();
+long SP_TimeCount(void);
 
 
 #endif

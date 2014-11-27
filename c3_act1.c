@@ -164,7 +164,7 @@ void ExplodeWall (int tilex, int tiley)
 	SetTileMap(new->tilex,new->tiley, WALLEXP);
 	SetMapSegs(0, new->tilex,new->tiley, WALLEXP);
 //	CASTAT(intptr_t,actorat[new->tilex][new->tiley]) = tilemap[new->tilex][new->tiley] =
-//	*(gamestate.mapsegs[0]+new->tiley*mapwidth+new->tilex) = WALLEXP;
+//	*(gamestate->mapsegs[0]+new->tiley*mapwidth+new->tilex) = WALLEXP;
 }
 
 
@@ -191,7 +191,7 @@ void T_WallDie (objtype *ob)
 /*
 	CASTAT(intptr_t,actorat[ob->tilex][ob->tiley]) = 
 		tilemap[ob->tilex][ob->tiley] =
-		*(gamestate.mapsegs[0]+ob->tiley*mapwidth+ob->tilex) = tile;*/
+		*(gamestate->mapsegs[0]+ob->tiley*mapwidth+ob->tilex) = tile;*/
 
 	if (ob->temp1 == 1)
 	{
@@ -280,13 +280,13 @@ void T_Gate (objtype *ob)
 	objtype *check;
 	unsigned	temp;
 
-	if (CheckHandAttack (ob) && !playstate)
+	if (CheckHandAttack (ob) && !PlayLoop_IsDone())
 	{
 	//
 	// warp
 	//
 		SPG_Bar(&bottomHUDBuffer, 26, 4, 232, 9, STATUSCOLOR);
-		IN_ClearKeysDown ();
+		SPI_ClearKeysDown ();
 		if (ob->temp1)
 		{
 		//
@@ -309,14 +309,15 @@ void T_Gate (objtype *ob)
 		//
 		// teleport out of level
 		//
-			playstate = ex_warped;
 			spot = (int)GetMapSegs(0,ob->tilex,ob->tiley)-NAMESTART; // make it signed first
-//			spot = (int)*(gamestate.mapsegs[0]+ob->tiley*mapwidth+ob->tilex)-NAMESTART;
+//			spot = (int)*(gamestate->mapsegs[0]+ob->tiley*mapwidth+ob->tilex)-NAMESTART;
 			if (spot<1)
-				gamestate.mapon++;
+				spot = gamestate->mapon+1;
 			else
-				gamestate.mapon=spot-1;
-			SD_PlaySound(WARPUPSND);
+				spot=spot-1;
+			gamestate->mapon = spot;
+			PlayLoop_Warp(spot);
+			SPA_PlaySound(WARPUPSND);
 		}
 	}
 }
@@ -641,7 +642,7 @@ void T_Mshot (objtype *ob)
 
 	if (GetTileMap(ob->tilex,ob->tiley))
 	{
-		SD_PlaySound (SHOOTWALLSND);
+		SPA_PlaySound (SHOOTWALLSND);
 		ob->state = NULL;
 		return;
 	}

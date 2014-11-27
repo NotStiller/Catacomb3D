@@ -51,8 +51,7 @@
 
 //      Global variables
 		char            *abortprogram;
-		boolean         NoWait,
-					HighScoresDirty;
+		boolean         NoWait;
 		word            PrintX,PrintY;
 		word            WindowX,WindowY,WindowW,WindowH;
 
@@ -68,7 +67,7 @@ static  boolean         US_Started;
 		void            (*USL_MeasureString)(char *,word *,word *) = VW_MeasurePropString,
 					(*USL_DrawString)(char *) = VW_DrawPropString;
 
-		boolean         (*USL_SaveGame)(FILE*),(*USL_LoadGame)(FILE*);
+		boolean         (*USL_SaveGame)(FILE*),(*USL_LoadGame)(FILE*, gametype*);
 		void            (*USL_ResetGame)(void);
 		SaveGame        Games[MaxSaveGames];
 		HighScore       Scores[MaxScores] =
@@ -107,7 +106,7 @@ USL_GiveSaveName(word game)
 //
 ///////////////////////////////////////////////////////////////////////////
 void
-US_SetLoadSaveHooks(boolean (*load)(FILE*),boolean (*save)(FILE*),void (*reset)(void))
+US_SetLoadSaveHooks(boolean (*load)(FILE*, gametype*),boolean (*save)(FILE*),void (*reset)(void))
 {
 	USL_LoadGame = load;
 	USL_SaveGame = save;
@@ -127,14 +126,12 @@ USL_ReadConfig(void)
 	boolean         gotit;
 	char            sig[strlen(GamespecificExtension)+1];
 	word            version;
-	FILE *file;
-	SDMode          sd;
-	SMMode          sm;
-	ControlType     ctl;
+	FILE			*file;
+	SoundSource     sd;
+	SoundSource     sm;
 
 	char name[1000];
 	snprintf(name, 1000, "CONFIG.%s", GamespecificExtension);
-	file = fopen(name,"wb");
 
 	if (file = fopen(name,"rb"))
 	{
@@ -143,31 +140,17 @@ USL_ReadConfig(void)
 		if (strcmp(sig,GamespecificExtension) || (version != ConfigVersion))
 		{
 			fclose(file);
-			goto rcfailed;
+			printf("Failed to read config !\n");
 		}
 		fread(Scores,1,sizeof(HighScore) * MaxScores,file);
 		fread(&sd,1,sizeof(sd),file);
 		fread(&sm,1,sizeof(sm),file);
-		fread(&ctl,1,sizeof(ctl),file);
-		fread(&(KbdDefs[0]),1,sizeof(KbdDefs[0]),file);
+		fread(&KbdDefs,1,sizeof(KbdDefs),file);
 		fclose(file);
 
-		HighScoresDirty = false;
-		gotit = true;
+		SPA_SetSoundSource(sd);
+		SPA_SetMusicSource(sm);
 	}
-	else
-	{
-rcfailed:
-		sd = sdm_Off;
-		sm = smm_Off;
-		ctl = ctrl_Keyboard;
-
-		gotit = false;
-		HighScoresDirty = true;
-	}
-
-	SD_Default(gotit,sd,sm);
-	IN_Default(gotit,ctl);
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -181,8 +164,11 @@ USL_WriteConfig(void)
 {
 	word    version;
 	FILE *file;
+	SoundSource SoundMode, MusicMode;
 
 
+	SoundMode = SPA_GetSoundSource();
+	MusicMode = SPA_GetMusicSource();
 
 	version = ConfigVersion;
 	char name[1000];
@@ -195,9 +181,7 @@ USL_WriteConfig(void)
 		fwrite(Scores,1,sizeof(HighScore) * MaxScores,file);
 		fwrite(&SoundMode,1,sizeof(SoundMode),file);
 		fwrite(&MusicMode,1,sizeof(MusicMode),file);
-		Controls[0] = ctrl_Keyboard;
-		fwrite(&(Controls[0]),1,sizeof(Controls[0]),file);
-		fwrite(&(KbdDefs[0]),1,sizeof(KbdDefs[0]),file);
+		fwrite(&KbdDefs,1,sizeof(KbdDefs),file);
 		fclose(file);
 	}
 }
@@ -694,7 +678,7 @@ US_LineInput(int x,int y,char *buf,char *def,boolean escok,
 
 	cursorvis = done = false;
 	lasttime = SP_TimeCount();
-	IN_ClearKeysDown();
+	SPI_ClearKeysDown();
 
 	while (!done)
 	{
@@ -703,9 +687,9 @@ US_LineInput(int x,int y,char *buf,char *def,boolean escok,
 //	asm     pushf
 //	asm     cli
 
-		sc = SP_LastScan();
-		c = SP_LastASCII();
-		IN_ClearKeysDown();
+		sc = SPI_GetLastKey();
+		c = SPI_GetLastASCII();
+		SPI_ClearKeysDown();
 
 //	asm     popf
 
@@ -845,6 +829,6 @@ US_LineInput(int x,int y,char *buf,char *def,boolean escok,
 	}
 	SPG_FlipBuffer();
 
-	IN_ClearKeysDown();
+	SPI_ClearKeysDown();
 	return(result);
 }

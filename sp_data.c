@@ -17,30 +17,16 @@
  */
 
 #include <stdlib.h>
-#include "srcport.h"
 #include "sp_data_int.h"
 #include "id_heads.h"
-
-void **grsegs;
 
 maptype *curmap = NULL;
 maptype mapheaderseg[30];
 
-uint8_t *mapData=NULL;
-long mapDataSize=0;
-
-uint8_t *grData=NULL;
-long grDataSize=0;
-
-uint8_t *auData=NULL;
-long auDataSize=0;
-
-
-huffnode *grhuffman = NULL;
-int32_t *GrChunksPos;
-int32_t *GrChunksSize;
-int32_t *AudioChunksPos;
-int32_t *AudioChunksSize;
+static int rawSoundsNum=0;
+static SoundSample **rawSounds = NULL;
+static int rawMusicNum=0;
+static MusicSample **rawMusic = NULL;
 
 // end of extracted data
 
@@ -61,16 +47,6 @@ uint16_t SPD_ReadU16(uint8_t **Buffer) {
 int16_t SPD_ReadS16(uint8_t **Buffer) {
 	uint16_t v = SPD_ReadU16(Buffer);
 	return *(int16_t*)&v;
-}
-
-uint16_t SPD_ReadU8or16(uint8_t **Buffer) { // these are not needed for the Catacomb files, but for .OBJ files
-	uint16_t v = SPD_ReadU8(Buffer);
-	if (v&0x80) {
-		int8_t b=SPD_ReadU8(Buffer);
-		v = (v&0x7F)<<8;
-		v += b;
-	}
-	return v;
 }
 
 uint32_t SPD_ReadU32(uint8_t **Buffer) {
@@ -251,14 +227,16 @@ uint8_t *SPD_ReadFile2(FILE *File, long *Size) {
 	return data;
 }
 
-uint8_t *SPD_ReadAndHuffExpand(uint8_t *Data, huffnode Dictionary[], long *Expanded) {	
-	int32_t explen = SPD_ReadS32(&Data);
+uint8_t *SPD_ReadAndHuffExpand(ChunkDesc *Chunk, long *Expanded) {	
+	uint8_t *data = Chunk->File->Data+Chunk->Pos;
+	assert(data != NULL);
+	int32_t explen = SPD_ReadS32(&data);
 	if (Expanded) {
 		*Expanded = explen;
 	}
 	memptr buffer = malloc(explen);
-	expandHuffman (Data, buffer,explen,Dictionary);
 	assert(buffer != NULL);
+	expandHuffman (data, buffer,explen,Chunk->File->Dict);
 	return buffer;
 }
 
@@ -334,23 +312,163 @@ static void deplaneMaskedRaw(memptr Source, int Width, int Height, uint8_t *Buff
 }
 
 
+SoundSample *SPD_GetSound(int SampleName) {
+	assert(SampleName >= 0);
+	assert(SampleName < rawSoundsNum);
+	return rawSounds[SampleName];
+}
 
-pictabletype *loadPicTable(uint8_t *Data, long DataSize, int NumElements) {
-	memptr buffer = SPD_ReadAndHuffExpand(Data, grhuffman, NULL);
+MusicSample *SPD_GetMusic(int SampleName) {
+	assert(SampleName >= 0);
+	assert(SampleName < rawMusicNum);
+	return rawMusic[SampleName];
+}
+
+
+SoundSample *spd_LoadALSound(uint8_t *Data, long Size) {
+	uint8_t *p = Data;
+	uint32_t len = SPD_ReadU32(&p);
+	assert(Size == 1+23+len);
+	SoundSample *sample = (SoundSample*)malloc(sizeof(SoundSample)+len);
+	sample->Length = len;
+	sample->Priority = SPD_ReadS16(&p);
+	printf("priority %i\n", (int)sample->Priority);
+	sample->mChar = SPD_ReadU8(&p);
+	sample->cChar = SPD_ReadU8(&p);
+	sample->mScale = SPD_ReadU8(&p);
+	sample->cScale = SPD_ReadU8(&p);
+	sample->mAttack = SPD_ReadU8(&p);
+	sample->cAttack = SPD_ReadU8(&p);
+	sample->mSus = SPD_ReadU8(&p);
+	sample->cSus = SPD_ReadU8(&p);
+	sample->mWave = SPD_ReadU8(&p);
+	sample->cWave = SPD_ReadU8(&p);
+	sample->nConn = SPD_ReadU8(&p);
+	sample->Unused[0] = SPD_ReadU8(&p);
+	sample->Unused[1] = SPD_ReadU8(&p);
+	sample->Unused[2] = SPD_ReadU8(&p);
+	sample->Unused[3] = SPD_ReadU8(&p);
+	sample->Unused[4] = SPD_ReadU8(&p);
+	sample->Block = SPD_ReadU8(&p);
+	sample->Data = (uint8_t*)sample+sizeof(SoundSample);
+	int i;
+	for (i = 0; i < sample->Length; i++) {
+		sample->Data[i] = SPD_ReadU8(&p);
+	}
+	return sample;
+}
+
+
+
+MusicSample *spd_LoadALMusic(uint8_t *Data, long DataSize) {
+	uint8_t *p = Data;
+	
+	int count = SPD_ReadU16(&p);
+	assert(DataSize == 2+count);
+	assert((count&3) == 0);
+	count /= 4;
+
+	MusicSample *sample = (MusicSample*)malloc(sizeof(MusicSample)+sizeof(uint16_t)*2*count);
+	sample->Count = count;
+	sample->Data = (uint16_t*)((uint8_t*)sample+sizeof(MusicSample));
+
+	int i;
+	for (i = 0; i < sample->Count; i++) {
+		sample->Data[2*i+0] = SPD_ReadU16(&p);
+		sample->Data[2*i+1] = SPD_ReadU16(&p);
+	}
+	return sample;
+}
+
+
+void SPD_LoadALSamples(ChunkDesc *Chunks, int Start, int NumSounds) {
+	rawSoundsNum = NumSounds;
+	rawSounds = malloc(sizeof(SoundSample*)*NumSounds);
+
+	int i;
+	for (i = 0; i < NumSounds; i++) {
+		long size;
+		memptr buffer;
+		buffer = SPD_ReadAndHuffExpand(&Chunks[Start+i], &size);
+		assert(buffer != NULL);
+		rawSounds[i] = spd_LoadALSound(buffer, size);
+		free(buffer);
+	}
+}
+
+void SPD_LoadALMusic(ChunkDesc *Chunks, int Start, int NumMusic) {
+	rawMusicNum = NumMusic;
+	rawMusic = malloc(sizeof(MusicSample*)*NumMusic);
+
+	int i;
+	for (i = 0; i < NumMusic; i++) {
+		long size;
+		memptr buffer = SPD_ReadAndHuffExpand(&Chunks[Start+i], &size);
+		rawMusic[i] = spd_LoadALMusic(buffer, size);
+		free(buffer);
+	}
+}
+
+
+
+static void deplanePic (memptr Source, int Width, int Height, boolean Masked, memptr *Destination)
+{
+	MM_GetPtr(Destination, 8*Width*Height+2*sizeof(uint32_t));
+	((uint32_t*)*Destination)[0] = 8*Width;
+	((uint32_t*)*Destination)[1] = Height;
+	if (Masked) {
+		deplaneMaskedRaw(Source, Width, Height, *Destination+2*sizeof(uint32_t));
+	} else {
+		deplaneRaw(Source, Width, Height, *Destination+2*sizeof(uint32_t));
+	}
+}
+
+void loadPic(ChunkDesc *Chunk) {
+	memptr buffer = SPD_ReadAndHuffExpand(Chunk, NULL);
+	deplanePic(buffer, pictable[Chunk->LoaderParm].width, pictable[Chunk->LoaderParm].height, 0, &grsegs[Chunk->Index]);
+	free(buffer);
+}
+
+void loadMaskedPic(ChunkDesc *Chunk) {
+	memptr buffer = SPD_ReadAndHuffExpand(Chunk, NULL);
+	deplanePic(buffer, picmtable[Chunk->LoaderParm].width, picmtable[Chunk->LoaderParm].height, 1, &grsegs[Chunk->Index]);
+	free(buffer);
+}
+
+pictabletype *SPD_RegisterPics(ChunkDesc *Chunks, int TableChunk, int FirstChunk, int NumElements, int Masked) {
+	memptr buffer = SPD_ReadAndHuffExpand(&Chunks[TableChunk], NULL);
 	pictabletype *table = malloc(sizeof(pictabletype)*NumElements);
 	int i;
 	uint8_t *p = buffer;
 	for (i = 0; i < NumElements; i++) {
 		table[i].width = SPD_ReadS16(&p);
 		table[i].height = SPD_ReadS16(&p);
+
+		assert(Chunks[FirstChunk+i].Loader == NULL);
+		Chunks[FirstChunk+i].Loader = Masked?loadMaskedPic:loadPic;
+		Chunks[FirstChunk+i].LoaderParm = i;
 	}
 	free(buffer);
 	return table;
 }
 
+void loadSprite(ChunkDesc *Chunk) {
+// This is a crippled version of the sprite loading function, but we need no bit
+// shifting functionality anyway. Now sprites are just replaced by masked pics,
+// which they really are.
+	long size;
+	memptr buffer = SPD_ReadAndHuffExpand(Chunk, &size);
+	spritetabletype *spr = &spritetable[Chunk->LoaderParm];
+	if (spr->orgx != 0 || spr->orgy != 0) {
+		printf("Warning: ignoring sprite parameters !\n");
+	}
+	assert(spr->shifts == 4);
+	deplanePic(buffer, spr->width, spr->height, 1, &grsegs[Chunk->Index]);
+	free(buffer);
+}
 
-spritetabletype *loadSpriteTable(uint8_t *Data, long DataSize, int NumElements) {
-	memptr buffer = SPD_ReadAndHuffExpand(Data, grhuffman, NULL);
+spritetabletype *SPD_RegisterSprites(ChunkDesc *Chunks, int TableChunk, int FirstChunk, int NumElements) {
+	memptr buffer = SPD_ReadAndHuffExpand(&Chunks[TableChunk], NULL);
 
 	spritetabletype *table = malloc(sizeof(spritetabletype)*NumElements);
 	int i;
@@ -365,81 +483,66 @@ spritetabletype *loadSpriteTable(uint8_t *Data, long DataSize, int NumElements) 
 		table[i].xh = SPD_ReadS16(&p);
 		table[i].yh = SPD_ReadS16(&p);
 		table[i].shifts = SPD_ReadS16(&p);
+
+		assert(Chunks[FirstChunk+i].Loader == NULL);
+		Chunks[FirstChunk+i].Loader = loadSprite;
+		Chunks[FirstChunk+i].LoaderParm = i;
 	}
 	free(buffer);
 	return table;
 }
 
-static void deplanePic (memptr Source, int Width, int Height, boolean Masked, memptr *Destination)
-{
-	MM_GetPtr(Destination, 8*Width*Height+2*sizeof(uint32_t));
-	((uint32_t*)*Destination)[0] = 8*Width;
-	((uint32_t*)*Destination)[1] = Height;
-	if (Masked) {
-		deplaneMaskedRaw(Source, Width, Height, *Destination+2*sizeof(uint32_t));
-	} else {
-		deplaneRaw(Source, Width, Height, *Destination+2*sizeof(uint32_t));
-	}
-}
-
-void loadPic(int Chunk, int PicNum) {
-	memptr buffer = SPD_ReadAndHuffExpand(grData+GrChunksPos[Chunk], grhuffman, NULL);
-	deplanePic(buffer, pictable[PicNum].width, pictable[PicNum].height, 0, &grsegs[Chunk]);
-	free(buffer);
-}
-
-void loadMaskedPic(int Chunk, int PicNum) {
-	memptr buffer = SPD_ReadAndHuffExpand(grData+GrChunksPos[Chunk], grhuffman, NULL);
-	deplanePic(buffer, picmtable[PicNum].width, picmtable[PicNum].height, 1, &grsegs[Chunk]);
-	free(buffer);
-}
-
-void loadSprite(int Chunk, int SpriteNum) {
-// This is a crippled version of the sprite loading function, but we need no bit
-// shifting functionality anyway. Now sprites are just replaced by masked pics,
-// which they really are.
-	long size;
-	memptr buffer = SPD_ReadAndHuffExpand(grData+GrChunksPos[Chunk], grhuffman, &size);
-	spritetabletype *spr = &spritetable[SpriteNum];
-	if (spr->orgx != 0 || spr->orgy != 0 || spr->shifts != 4) {
-		printf("Warning: I don't know how to handle this sprite !\n");
-	}
-/*	assert(spr->orgx == 0);
-	assert(spr->orgy == 0);
-	assert(spr->shifts == 4);*/
-	deplanePic(buffer, spr->width, spr->height, 1, &grsegs[Chunk]);
-	free(buffer);
-}
-
-void loadTile(int Chunk, int NumTilesInChunk, int Width, int Height, int Masked) {
-	assert(grsegs[Chunk] == NULL);
+void loadTile(ChunkDesc *Chunk, int NumTilesInChunk, int Width, int Masked) {
+	assert(grsegs[Chunk->Index] == NULL);
 	
-	long pos = GrChunksPos[Chunk];
+	long pos = Chunk->Pos;
 	assert(pos >= 0);
 	
+	int Height = 8*Width;
 	int srcSpriteSize = (Masked?5:4)*Width*Height,
 		dstSpriteSize = 8*Width*Height;
 	uint8_t *buffer = malloc(NumTilesInChunk*srcSpriteSize);
-	expandHuffman(grData+pos,buffer,NumTilesInChunk*srcSpriteSize,grhuffman);
-	MM_GetPtr (&grsegs[Chunk],NumTilesInChunk*dstSpriteSize);
+	expandHuffman(Chunk->File->Data+pos,buffer,NumTilesInChunk*srcSpriteSize,Chunk->File->Dict);
+	MM_GetPtr (&grsegs[Chunk->Index],NumTilesInChunk*dstSpriteSize);
 	int i;
 	for (i = 0; i < NumTilesInChunk; i++) {
 		if (!Masked) {
-			deplaneRaw(buffer+i*srcSpriteSize, Width, Height, (uint8_t*)grsegs[Chunk]+i*dstSpriteSize);
+			deplaneRaw(buffer+i*srcSpriteSize, Width, Height, (uint8_t*)grsegs[Chunk->Index]+i*dstSpriteSize);
 		} else {
-			deplaneMaskedRaw(buffer+i*srcSpriteSize, Width, Height, (uint8_t*)grsegs[Chunk]+i*dstSpriteSize);
+			deplaneMaskedRaw(buffer+i*srcSpriteSize, Width, Height, (uint8_t*)grsegs[Chunk->Index]+i*dstSpriteSize);
 		}
 	}
 	free(buffer);
 }
 
-void loadFont(int Chunk) {
+static void loadAnyTile(ChunkDesc *Chunk) {
+	int parm = Chunk->LoaderParm;
+	loadTile(Chunk, 1, (parm&6), parm&1);
+}
+
+void SPD_RegisterTiles(ChunkDesc *Chunks, int Size, int Masked, int Start, int Num) {
+	if (Size == 8) {
+		loadTile(Chunks+Start, Num, 1, Masked);
+	} else if (Size == 16 || Size == 32) {
+		int i;
+		for (i = 0; i < Num; i++) {
+			assert(Chunks[Start+i].Loader == NULL);
+			Chunks[Start+i].Loader = loadAnyTile;
+			Chunks[Start+i].LoaderParm = (Masked?1:0)+Size/8;
+		}
+	} else {
+		assert(false);
+	}
+}
+
+
+void SPD_LoadFont(ChunkDesc *Chunk) {
 	long explen;
-	memptr buffer = SPD_ReadAndHuffExpand(grData+GrChunksPos[Chunk], grhuffman, &explen);
+	memptr buffer = SPD_ReadAndHuffExpand(Chunk, &explen);
 	int datalen = explen-3*256-2;
 	uint8_t *p = (uint8_t*)buffer;
-	MM_GetPtr(&grsegs[Chunk], datalen+sizeof(fontstruct));
-	fontstruct *font = grsegs[Chunk];
+	MM_GetPtr(&grsegs[Chunk->Index], datalen+sizeof(fontstruct));
+	fontstruct *font = grsegs[Chunk->Index];
 	font->height = SPD_ReadS16(&p);
 	int i;
 	for (i = 0; i < 256; i++) {
@@ -454,15 +557,15 @@ void loadFont(int Chunk) {
 	free(buffer);
 }
 
-void loadMapTexts(int Chunk, int Level) {
+void loadMapTexts(ChunkDesc *Chunk, int Level) {
 	long len=0;
-	memptr buffer = SPD_ReadAndHuffExpand(grData+GrChunksPos[Chunk], grhuffman, &len);
-	MM_GetPtr(&grsegs[Chunk], len); 
-	memcpy(grsegs[Chunk], buffer, len);
+	memptr buffer = SPD_ReadAndHuffExpand(Chunk, &len);
+	MM_GetPtr(&grsegs[Chunk->Index], len); 
+	memcpy(grsegs[Chunk->Index], buffer, len);
 	free(buffer);
 
 	int     i;
-	char *p = grsegs[Chunk];
+	char *p = grsegs[Chunk->Index];
 	mapheaderseg[Level].texts[0] = NULL;
 	for (i=1;i<27;i++)
 	{
@@ -476,6 +579,7 @@ void loadMapTexts(int Chunk, int Level) {
 		mapheaderseg[Level].texts[i] = p;
 	}
 }
+
 
 void loadMapHeader(uint8_t *Data, int HeaderOffset, int Map, uint16_t RLEWTag) {
 	int mapnum = Map;
@@ -522,6 +626,22 @@ void loadMapHeader(uint8_t *Data, int HeaderOffset, int Map, uint16_t RLEWTag) {
 		expandRLEW ((uint16_t*)buffer+1,*dest,size,RLEWTag);
 		free(buffer);
 	}
+	if (0) { // hack to find out if freeze time exists. It does !
+		uint16_t *mapseg = (uint16_t*)mapheaderseg[mapnum].rawplanes[2];
+		int i;
+		int width = mapheaderseg[mapnum].width;
+		int height = mapheaderseg[mapnum].height;
+		printf("map %i plane 2 length %i width %i height %i prod %i\n", mapnum, size, width, height, width*height*2-size);
+		int size = mapheaderseg[mapnum].rawplaneslength[2];
+		for (i = 0; i < size/2; i++) {
+			int tile = mapseg[i]&0xFF;
+//			if (tile) printf("%4i", tile);
+			if (tile == 57) {
+				printf("FOUND SMTH at %i,%i !\n", i%width, i/width);
+			}
+		}
+		printf("\n");
+	}
 	int i;
 	for (i = 0; i < 27; i++) {
 		mapheaderseg[mapnum].texts[i] = NULL;
@@ -532,24 +652,24 @@ void SPD_LoadGrChunk(int Chunk) {
 	if (grsegs[Chunk]) {
 		return;
 	}
-	if (GrChunksPos[Chunk] < 0) {
-		return;
-	}
 	SPD_CombinedLoader(Chunk);
 }
 
 void SPD_SetupScaleWall(int Chunk, int PicNum, int ScaleWallNum) {
-	loadPic(Chunk, PicNum);
+	SPD_LoadGrChunk(Chunk);
+#warning IS THIS EVEN NECESSARY ?
+//	loadPic(Chunk, PicNum);
 }
 
 void SPD_SetupScalePic(int Chunk, int PicNum, int ScalePicNum) {
-	loadPic(Chunk, PicNum);
+	SPD_LoadGrChunk(Chunk);
+#warning IS THIS EVEN NECESSARY ?
+//	loadPic(Chunk, PicNum);
 }
 
 
-void SPD_LoadMap(int ChunkNum, int MapNum) {
+void SPD_LoadMap(int Chunk, int MapNum) {
 	curmap = &mapheaderseg[MapNum];
-	loadMapTexts(ChunkNum,MapNum);
 }
 
 void SPD_DumpHexChar(const uint8_t *Buffer, long Size) {
@@ -579,144 +699,6 @@ void SPD_DumpU8Hex(const uint8_t *Buffer, long Size) {
 			printf("\n");
 		}
 	}
-}
-
-uint8_t *SPD_ParseObj(const char *Filename, char ObjName[256], long *ObjSize) {
-	FILE *f = fopen(Filename, "rb");
-	assert(f != NULL);
-	fseek(f, 0, SEEK_END);
-	long size = ftell(f);
-	fseek(f, 0, SEEK_SET);
-	uint8_t contents[size];
-	assert(fread(contents, 1, size, f) == size);
-	fclose(f);
-
-//	printf("Read file %s of size %i\n", Filename, size);
-	uint8_t *p = contents;
-	int nameSet = 0;
-	uint8_t *obj = NULL;
-	long objSize = 0;
-	while (1) {
-		uint8_t type = SPD_ReadU8(&p);
-		uint16_t length = SPD_ReadU16(&p);
-		uint8_t *nextp = p+length;
-		if (type == 0x90) { // name
-			SPD_ReadU8or16(&p);
-			if (SPD_ReadU8or16(&p) == 0) {
-				SPD_ReadU16(&p);
-			}
-			uint8_t len = SPD_ReadU8(&p);
-			memcpy(ObjName, p, len);
-			ObjName[len] = 0;
-			assert(!nameSet);
-			nameSet = 1;
-		} else if (type == 0xA0) { // contents
-			length -= 4;
-			if (SPD_ReadU8or16(&p)>=0x80) {
-				length--;
-			}
-			SPD_ReadU16(&p);
-			obj = realloc(obj, objSize+length);
-			assert(obj != NULL);
-			memcpy(obj+objSize, p, length);
-			objSize += length;
-		} else if (0) {
-			printf("Record of type 0x%02x and length %i\n", (int)type, length);
-			SPD_DumpHexChar(p, length);
-		}
-		p = nextp;
-		if (p-contents >= size) {
-			assert(p-contents == size);
-			break;
-		}
-	}
-	*ObjSize = objSize;
-/*	printf("uint8_t %s[%i] = {\n", ObjName, objSize);
-	SPD_DumpHexChar(obj, objSize);
-	printf("};\n");*/
-	return obj;
-}
-
-void SPD_DumpDict(const char *Name, uint8_t *Buf, long Size) {
-	assert(Size == 1024);
-	printf("huffnode %s[256] = {\n", Name);
-	int i;
-	uint8_t *p = Buf;
-	for (i = 0; i < 256; i++) {
-		int bit0 = (int)SPD_ReadU16(&p);
-		int bit1 = (int)SPD_ReadU16(&p);
-		printf("{%3i, %3i}, ", bit0, bit1);
-		if (!(3&(i+1))) {
-			printf("\n");
-		}
-	}
-	printf("};\n");	
-}
-
-void SPD_DumpLongArray(const char *Prefix, uint8_t *Buf, long Size, int LongSize) {
-	assert(!(Size%LongSize));
-	assert(LongSize == 3 || LongSize == 4);
-	int num=Size/LongSize;
-	int32_t pos[num], size[num];
-	
-	int i, j, last=-1;
-	uint8_t *p = Buf;
-	for (i = 0; i < num; i++) {
-		int32_t v=0;
-		if (LongSize == 3) {
-			v = SPD_ReadU8(&p)+0x100*(SPD_ReadU8(&p)+0x100*SPD_ReadU8(&p));
-			if (v==0xFFFFFF) {
-				v = -1;
-			}
-		} else {
-			v = SPD_ReadU8(&p)+0x100*(SPD_ReadU8(&p)+0x100*(SPD_ReadU8(&p)+0x100*SPD_ReadU8(&p)));
-			if (v==0xFFFFFFFF) {
-				v = -1;
-			}
-		}
-		pos[i] = v;
-		size[i] = 0;
-		if (v >= 0) {
-			if (last >= 0) {
-				size[last] = pos[i]-pos[last];
-//				assert(size[last] >= 0);
-			}
-			last = i;
-		}
-	}
-	printf("int32_t %sChunksPos[%i] = {\n", Prefix, num);
-	for (i = 0; i < num; i++) {
-		printf("%10i, ", pos[i]);
-		if (!(3&(i+1))) {
-			printf("\n");
-		}
-	}
-	printf("};\n");
-	printf("int32_t %sChunksSize[%i] = {\n", Prefix, num);
-	for (i = 0; i < num; i++) {
-		printf("%10i, ", size[i]);
-		if (!(3&(i+1))) {
-			printf("\n");
-		}
-	}
-	printf("};\n");	
-}
-
-void SPD_DumpMapfiletype(const char *Prefix, uint8_t *Buf, long Size) {
-	assert(Size >= 402);
-	uint8_t *p = Buf;
-
-	printf("uint16_t %smaphead_RLEWtag = %i;\n", Prefix, SPD_ReadU16(&p));
-
-	printf("int32_t %smaphead_headeroffsets[100] = {\n", Prefix);
-	int i;
-	for (i = 0; i < 100; i++) {
-		printf("%10i, ", SPD_ReadS32(&p));
-		if (!(3&(i+1))) {
-			printf("\n");
-		}
-	}
-	printf("};\n");
 }
 
 

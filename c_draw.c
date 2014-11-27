@@ -214,6 +214,9 @@ void DrawVWall (walltype *wallptr)
 // IMPORTANT!  This loop is executed around 5000 times / second!
 //
 	lastpix = lastsource = 0xFFFF;
+	RenderSetup *render = &renderSetup;
+	RenderOutput *output = &renderOutput;
+	BufferSetup *target = &renderBuffer;
 
 	for (x = wallptr->leftclip ; x <= wallptr->rightclip ; x++)
 	{
@@ -223,8 +226,8 @@ void DrawVWall (walltype *wallptr)
 		height = fracheight>>16;
 		fracheight += fracstep;
 		assert(height >= 0);
-		wallheight[x] = height;
-		zbuffer[x] = fracheight;
+		output->WallSpans[x].Height = height;
+		output->WallSpans[x].Depth = fracheight;
 
 
 		//
@@ -255,8 +258,8 @@ void DrawVWall (walltype *wallptr)
 		{
 			if (lastpix != 0xFFFF)
 			{
-				wallpointer[lastpix] = (uint8_t*)wallpicseg+lastsource;
-				wallwidth[lastpix] = lastwidth;
+				output->WallSpans[lastpix].TexData = (uint8_t*)wallpicseg+lastsource;
+				output->WallSpans[lastpix].Width = lastwidth;
 			}
 			lastpix = x;
 			lastsource = source;
@@ -265,8 +268,12 @@ void DrawVWall (walltype *wallptr)
 		else
 			lastwidth++;			// optimized draw, same map as last one
 	}
-	wallpointer[lastpix] = (uint8_t*)wallpicseg+lastsource;
-	wallwidth[lastpix] = lastwidth;
+	assert(lastpix < target->Width);  // This is not too important, but let's find out if this case is possible.
+	if (lastpix < target->Width) {
+		output->WallSpans[lastpix].TexData = (uint8_t*)wallpicseg+lastsource;
+		output->WallSpans[lastpix].Width = lastwidth;
+	} else {
+	}
 }
 
 
@@ -579,6 +586,7 @@ void BuildTables (void) {
 	double	tang;
 	fixed 	value;
 
+	BufferSetup *Target = &renderBuffer;
 	renderSetup.MinDist = 2*TILEGLOBAL/5;
 	renderSetup.FocalLength = TILEGLOBAL;	
 	renderSetup.HeightScale = 6*TILEGLOBAL/5; // 320x200 had pixels of dimension 5x6
@@ -586,22 +594,22 @@ void BuildTables (void) {
 	//
 	// calculate renderSetup.ProjConst value so one tile at mindist allmost fills the view horizontally
 	//
-	renderSetup.ProjConst = (TILEGLOBAL/renderSetup.Width)*renderSetup.FocalLength/(renderSetup.FocalLength+renderSetup.MinDist);
+	renderSetup.ProjConst = (TILEGLOBAL/Target->Width)*renderSetup.FocalLength/(renderSetup.FocalLength+renderSetup.MinDist);
 
 	//
 	// calculate the angle offset from view angle of each pixel's ray
 	//
 	radtoint = (float)FINEANGLES/2/PI;
-	pixelangle = malloc(sizeof(int)*renderSetup.Width);
-	for (i=0;i<renderSetup.Width/2;i++)
+	pixelangle = malloc(sizeof(int)*Target->Width);
+	for (i=0;i<Target->Width/2;i++)
 	{
 		// start 1/2 pixel over, so viewangle bisects two middle pixels
-		x = (TILEGLOBAL*i+TILEGLOBAL/2)/renderSetup.Width;
+		x = (TILEGLOBAL*i+TILEGLOBAL/2)/Target->Width;
 		tang = (float)x/(renderSetup.FocalLength+renderSetup.MinDist);
 		angle = atan(tang);
 		intang = angle*radtoint;
-		pixelangle[renderSetup.Width/2-1-i] = intang;
-		pixelangle[renderSetup.Width/2+i] = -intang;
+		pixelangle[Target->Width/2-1-i] = intang;
+		pixelangle[Target->Width/2+i] = -intang;
 	}
 
 	//
@@ -647,7 +655,7 @@ void BuildTables (void) {
 	//
 	// figure trace angles for first and last pixel on screen
 	//
-	angle = atan((float)renderSetup.Width/2*renderSetup.ProjConst/renderSetup.FocalLength);
+	angle = atan((float)Target->Width/2*renderSetup.ProjConst/renderSetup.FocalLength);
 	angle *= ANGLES/(PI*2);
 
 	intang = (int)angle+1;
@@ -679,23 +687,23 @@ void BuildTables (void) {
 =====================
 */
 
-void DrawWallList (void)
+void DrawWallList (BufferSetup *Target, RenderOutput *Walls)
 {
 	int i,leftx,newleft,rightclip;
 	walltype *wall, *check;
 
-	for (i=0;i < renderSetup.Width;i++) {
-		wallwidth[i] = 0;
+	for (i=0;i < Target->Width;i++) {
+//		renderSetup.WallSpans[i].Height = 0;
+		Walls->WallSpans[i].Width = 0;
 	}
-	SPG_DrawFloors (8, 0);
 
-	rightwall->x1 = renderSetup.Width;
+	rightwall->x1 = Target->Width;
 	rightwall->height1 = 32000;
 	(rightwall+1)->x1 = 32000;
 
 	leftx = -1;
 
-	for (wall=&walls[1];wall<rightwall && leftx<renderSetup.Width ;wall++)
+	for (wall=&walls[1];wall<rightwall && leftx<Target->Width ;wall++)
 	{	
 	  if (leftx >= wall->x2)
 		continue;
@@ -709,8 +717,8 @@ void DrawWallList (void)
 		check++;
 	  }
 
-	  if (rightclip>=renderSetup.Width)
-		rightclip=renderSetup.Width-1;
+	  if (rightclip>=Target->Width)
+		rightclip=Target->Width-1;
 
 	  if (leftx < wall->x1 - 1)
 		newleft = wall->x1-1;		// there was black space between walls
@@ -726,7 +734,7 @@ void DrawWallList (void)
 	  }
 	}
 
-	ScaleWalls ();					// draw all the walls
+	SPG_ScaleWalls (Target, Walls);					// draw all the walls
 }
 
 //==========================================================================
@@ -743,7 +751,7 @@ void DrawWallList (void)
 
 objtype *depthsort[MAXACTORS];
 
-void DrawScaleds (void)
+void DrawScaleds (BufferSetup *Target, RenderOutput *Output)
 {
 
 	int 		i,j,least,numvisable,height;
@@ -760,7 +768,7 @@ void DrawScaleds (void)
 
 	for (obj = player->next;obj;obj=obj->next)
 	{
-		if (!CheckTileCoords(obj->tilex,obj->tiley)) { return; }
+		if (!CheckTileCoords(obj->tilex,obj->tiley)) { assert(false); return; }
 		//
 		// could be in any of the nine surrounding tiles
 		//
@@ -796,8 +804,9 @@ void DrawScaleds (void)
 		}
 	}
 
-	if (vislist == &depthsort[0])
+	if (vislist == &depthsort[0]) {
 		return;						// no visable objects
+	}
 
 //
 // draw from back to front
@@ -817,7 +826,7 @@ void DrawScaleds (void)
 		//
 		// draw farthest
 		//
-		SPG_DrawScaleShape(farthest->viewx,farthest->viewheight, grsegs[farthest->state->shapenum], 5);
+		SPG_DrawScaleShape(Target, Output, farthest->viewx,farthest->viewheight, grsegs[farthest->state->shapenum], 5);
 		farthest->viewheight = 32000;
 	}
 }
@@ -840,7 +849,6 @@ void CalcTics (void)
 // calculate tics since last refresh for adaptive timing
 //
 	if (lasttimecount > SP_TimeCount()) {
-		printf("lasttimecount > TimeCount !\n");
 		lasttimecount = SP_TimeCount();	// if the game was paused a LONG time
 	}
 
@@ -873,12 +881,10 @@ void CalcTics (void)
 =
 ========================
 */
-void	ThreeDRefresh (void)
+void	ThreeDRefresh (int TopColor, int BottomColor)
 {
 	int tracedir;
-restart:
-	restarttrace = false;
-	reallyabsolutelypositivelyaborttrace = false;
+	aborttrace = false;
 
 //
 // clear out the traced array
@@ -932,6 +938,7 @@ restart:
 	else if (tracedir>=ANGLES)
 	  tracedir-=ANGLES;
 	TraceRay( tracedir );
+	if (aborttrace) goto aborted;
 	right.x = tile.x;
 	right.y = tile.y;
 
@@ -944,6 +951,7 @@ restart:
 	else if (tracedir>=ANGLES)
 	  tracedir-=ANGLES;
 	TraceRay( tracedir );
+	if (aborttrace) goto aborted;
 
 //
 // follow the walls from there to the right
@@ -951,31 +959,25 @@ restart:
 	rightwall = &walls[1];
 	FollowWalls ();
 
-	if (restarttrace && !reallyabsolutelypositivelyaborttrace) {
-		goto restart;
-	}
 
 //
-// actually draw stuff
+// draw everything
 //
 
-//
-// draw the wall list saved be FollowWalls ()
-//
+aborted:
 	animframe = (SP_TimeCount()&8)>>3;
-
-//
-// draw all the scaled images
-//
-
-	DrawWallList();
-	DrawScaleds();
-
-//
-// draw hand
-//
-	if (handheight)
-		DrawHand ();
+	SPG_Bar(&renderBuffer, 0, 0, renderBuffer.Width, renderBuffer.Height/2, TopColor);
+	SPG_Bar(&renderBuffer, 0, renderBuffer.Height/2, renderBuffer.Width, renderBuffer.Height-(renderBuffer.Height/2), BottomColor);
+	if (!aborttrace) {
+		DrawWallList(&renderBuffer, &renderOutput);
+		DrawScaleds(&renderBuffer, &renderOutput);
+		#warning create game specific hook here ? or generalize hand drawing ?
+			if (handheight)
+				DrawHand ();
+	} else {
+		Win_Create(&renderBufferText, 20,5);
+		Win_CPrint("\nOooopsie, the raycaster\n has left the map !");
+	}
 
 //
 // show screen and time last cycle
@@ -983,16 +985,12 @@ restart:
 	if (fizzlein)
 	{
 		fizzlein = false;
-//		FizzleFade(renderSetup.Width,renderSetup.Height,true);
-		FizzleFade();
+		SPG_FizzleFadeBuffer();
 		lasttimecount = SP_TimeCount();
-		MouseDelta(NULL, NULL);	// Clear accumulated mouse movement
+	} else {
+		SPG_FlipBuffer();
 	}
-
-	FlipBuffer();
 	CalcTics ();
-
-
 }
 
 
