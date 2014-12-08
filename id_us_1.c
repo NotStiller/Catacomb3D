@@ -101,16 +101,14 @@ USL_GiveSaveName(word game)
 
 ///////////////////////////////////////////////////////////////////////////
 //
-//      US_SetLoadSaveHooks() - Sets the routines that the User Mgr calls after
-//              reading or writing the save game headers
+//      US_SetSaveHook() - Sets the routines that the User Mgr calls after
+//              writing the save game headers
 //
 ///////////////////////////////////////////////////////////////////////////
 void
-US_SetLoadSaveHooks(boolean (*load)(FILE*, gametype*),boolean (*save)(FILE*),void (*reset)(void))
+US_SetSaveHook(boolean (*save)(FILE*))
 {
-	USL_LoadGame = load;
 	USL_SaveGame = save;
-	USL_ResetGame = reset;
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -143,8 +141,8 @@ USL_ReadConfig(void)
 			printf("Failed to read config !\n");
 		}
 		fread(Scores,1,sizeof(HighScore) * MaxScores,file);
-		fread(&sd,1,sizeof(sd),file);
-		fread(&sm,1,sizeof(sm),file);
+		fread(&sd,1,sizeof(SoundSource),file);
+		fread(&sm,1,sizeof(SoundSource),file);
 		fread(&KbdDefs,1,sizeof(KbdDefs),file);
 		fclose(file);
 
@@ -179,8 +177,8 @@ USL_WriteConfig(void)
 		fwrite(GamespecificExtension,1,strlen(GamespecificExtension)+1,file);
 		fwrite(&version,1,sizeof(version),file);
 		fwrite(Scores,1,sizeof(HighScore) * MaxScores,file);
-		fwrite(&SoundMode,1,sizeof(SoundMode),file);
-		fwrite(&MusicMode,1,sizeof(MusicMode),file);
+		fwrite(&SoundMode,1,sizeof(SoundSource),file);
+		fwrite(&MusicMode,1,sizeof(SoundSource),file);
 		fwrite(&KbdDefs,1,sizeof(KbdDefs),file);
 		fclose(file);
 	}

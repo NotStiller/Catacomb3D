@@ -115,6 +115,7 @@ NEMESISPIC
 =============================================================================
 */
 
+static gametype *game = NULL;
 boolean tileneeded[NUMFLOORS];
 boolean lumpneeded[NUMLUMPS];
 
@@ -489,11 +490,15 @@ void SetupGameLevel (gametype *Gamestate)
 ==================
 */
 
-void SaveTheGame(FILE *file, gametype *Gamestate)
+
+boolean SaveTheGame(FILE *file)
 {
 	uint8_t *buffer, *p;
 	int i, j;
 	objtype *o;
+
+	assert(game != NULL);
+	gametype *Gamestate = game;
 
 	int maxsize = 20*4+2*3*64*64+MAXACTORS*27;
 	p = buffer = malloc(maxsize);
@@ -559,6 +564,8 @@ void SaveTheGame(FILE *file, gametype *Gamestate)
 	
 	SPD_WriteToFile(file, buffer, p-buffer);
 	free(buffer);
+
+	return true;
 }
 
 //===========================================================================
@@ -573,11 +580,15 @@ void SaveTheGame(FILE *file, gametype *Gamestate)
 ==================
 */
 
-gametype *LoadTheGame(FILE *file)
+gametype *LoadTheGame(char *Filename, int Skip)
 {
 	uint8_t *buffer, *p;
 	int i, j;
 	long size;
+	
+	FILE *file = fopen(Filename, "rb");
+	assert(file != NULL);
+	fseek(file, Skip, SEEK_SET);
 
 	p = buffer = SPD_ReadFile2(file, &size);
 	printf("loaded length %i\n", size);
@@ -924,10 +935,11 @@ void DestroyGame(gametype *Gamestate) {
 */
 
 boolean GameLoop (void) {
+	US_SetSaveHook(SaveTheGame);
 	ControlPanelExitType cpexit;
 	cpexit = US_ControlPanel(false);
 
-	gametype *game = NULL;
+	assert(game == NULL);
 	boolean newGameOrLoadedGame = cpexit.Result == CPE_NEWGAME || cpexit.Result == CPE_LOADEDGAME;
 	boolean backToGame = false;
 	while (newGameOrLoadedGame) {
@@ -938,8 +950,10 @@ boolean GameLoop (void) {
 			assert(game != NULL);
 			drawEnterScreen = true;
 		} else if (cpexit.Result == CPE_LOADEDGAME) {
-			assert(false);
-			game = NULL;
+			assert(game == NULL);
+			printf("SavegameToLoad = %s\n", cpexit.SavegameToLoad);
+			game = LoadTheGame(cpexit.SavegameToLoad, cpexit.SavegameSkip);
+			assert(game != NULL);
 			drawEnterScreen = false;
 	//		gamestate = cpexit.LoadedGame;
 		}
@@ -989,6 +1003,7 @@ boolean GameLoop (void) {
 			}
 		} while (backToGame);
 		DestroyGame(game);
+		game = NULL;
 	} // while (newGameOrLoadedGame)
 	return true;
 }

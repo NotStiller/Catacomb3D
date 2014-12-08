@@ -3,7 +3,6 @@
    so that I don't have to change opl.h and opl.cpp.
 *******************************************************************/
 
-
 /*
 	define Bits, Bitu, Bit32s, Bit32u, Bit16s, Bit16u, Bit8s, Bit8u here
 */

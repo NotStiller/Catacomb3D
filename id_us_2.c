@@ -721,16 +721,20 @@ USL_DoLoadGame(UserItem *item)
 	game = &Games[n];
 
 	USL_ShowLoadSave("Loading",game->name);
-
-	err = 0;
 	filename = USL_GiveSaveName(n);
+	strncpy(panelExit.SavegameToLoad, filename, 1000);
+	panelExit.SavegameSkip = sizeof(SaveGame);
+
+/*	err = 0;
 	if ((file = fopen(filename,"r")) != NULL)
 	{
 		if (fread(game,1,sizeof(*game),file) == sizeof(*game))
 		{
-			if (USL_LoadGame)
-				if (!USL_LoadGame(file, &panelExit.LoadedGame))
+			if (USL_LoadGame) {
+				if (!USL_LoadGame(file, NULL)) {
 					USL_HandleError(err = errno);
+				}
+			}
 		}
 		else
 			USL_HandleError(err = errno);
@@ -744,12 +748,13 @@ USL_DoLoadGame(UserItem *item)
 		Communication = uc_None;
 		CtlPanelDone = false;
 	}
-	else {
+	else*/
+	{
 		panelExit.Result = CPE_LOADEDGAME;
 	}
 	game->present = true;
 
-	USL_DrawCtlPanel();
+//	USL_DrawCtlPanel();
 }
 
 static boolean
@@ -832,6 +837,8 @@ USL_DoSaveGame(UserItem *item)
 			{
 				if (USL_SaveGame)
 					ok = USL_SaveGame(file);
+				else
+					printf("No save hook !\n");
 				if (!ok)
 					USL_HandleError(err = errno);
 			}

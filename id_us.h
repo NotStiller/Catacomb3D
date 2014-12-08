@@ -83,7 +83,8 @@ typedef enum {
 
 typedef struct {
 	ControlPanelExitResult Result;
-	gametype LoadedGame;
+	char SavegameToLoad[1000];
+	int SavegameSkip;
 	GameDiff Difficulty;
 } ControlPanelExitType;
 
@@ -113,9 +114,7 @@ extern	void	US_Startup(void),
 				US_Setup(void),
 				US_Shutdown(void),
 				US_InitRndT(boolean randomize),
-				US_SetLoadSaveHooks(boolean (*load)(FILE*, gametype*),
-									boolean (*save)(FILE*),
-									void (*reset)(void)),
+				US_SetSaveHook(boolean (*save)(FILE*)),
 				US_TextScreen(void),
 				US_UpdateTextScreen(void),
 				US_FinishTextScreen(void),

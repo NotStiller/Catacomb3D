@@ -213,6 +213,7 @@ void SP_GameEnter() {
 	if (mouseGrabEnabled && !inGame) {
 		assert(SDL_WM_GrabInput(SDL_GRAB_ON) == SDL_GRAB_ON);
 		SDL_ShowCursor(SDL_DISABLE);
+		SPI_GetMouseDelta(NULL, NULL);
 	}
 	inGame = true;
 }

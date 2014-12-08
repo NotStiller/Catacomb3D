@@ -280,37 +280,82 @@ void SPD_ExtractC3Data() {
 	free(buf);
 	buf = SPD_ParseObj("C3DMHEAD.OBJ", name, &size);
 	SPD_DumpMapfiletype("C3MapHead", buf, size);
+	free(buf);
 }
 
 
-void SPD_ExtractC4Data() {
+int StringEndsOn(const char *Str, const char *End) {
+	int offs = strlen(Str) - strlen(End);
+	if (offs < 0) {
+		return 0;
+	}
+
+	int i;
+	for (i = 0; i < strlen(End); i++) {
+		if (tolower(Str[offs+i]) != tolower(End[i])) {
+			return 0;
+		}
+	}
+	return 1;
+}
+
+int main(int argc, char **argv) {
 	char name[256];
 	long size;
 	uint8_t *buf;
 
-	buf = SPD_ParseObj("ABSADICT.OBJ", name, &size);
-	SPD_DumpDict("C4AudioHuffman", buf, size);
-	free(buf);
-	buf = SPD_ParseObj("ABSEDICT.OBJ", name, &size);
-	SPD_DumpDict("C4GraphHuffman", buf, size);
-	free(buf);
-	buf = SPD_ParseObj("ABSAHEAD.OBJ", name, &size);
-	SPD_DumpChunks("C4Audio", buf, size, 4);
-	free(buf);
-	buf = SPD_ParseObj("ABSEHEAD.OBJ", name, &size);
-	SPD_DumpChunks("C4Graph", buf, size, 3);
-	free(buf);
-	buf = SPD_ParseObj("ABSMHEAD.OBJ", name, &size);
-	SPD_DumpMapfiletype("C4MapHead", buf, size);
-	
-	assert(size > 402+216);
-	printf("uint8_t C4_tile_flags[%i] = {\n", size-402+216);
-	SPD_DumpU8Hex(buf+402+216, size-402-216);
-	printf("};\n");	
-	free(buf);
-}
+	if (argc < 2) {
+		printf("usage: objextract *.OBJ > output\n");
+	}
+	int i;
+	for (i = 1; i < argc; i++) {
+		char *arg = argv[i];
 
-int main(int argc, char **argv) {
-	SPD_ExtractC4Data();
+		if (StringEndsOn(arg, "C3DADICT.OBJ")) {
+			buf = SPD_ParseObj(arg, name, &size);
+			SPD_DumpDict("C3AudioHuffman", buf, size);
+			free(buf);
+		} else if (StringEndsOn(arg, "C3DEDICT.OBJ")) {
+			buf = SPD_ParseObj(arg, name, &size);
+			SPD_DumpDict("C3GraphHuffman", buf, size);
+			free(buf);
+		} else if (StringEndsOn(arg, "C3DAHEAD.OBJ")) {
+			buf = SPD_ParseObj(arg, name, &size);
+			SPD_DumpChunks("C3Audio", buf, size, 4);
+			free(buf);
+		} else if (StringEndsOn(arg, "C3DEHEAD.OBJ")) {
+			buf = SPD_ParseObj(arg, name, &size);
+			SPD_DumpChunks("C3Graph", buf, size, 3);
+			free(buf);
+		} else if (StringEndsOn(arg, "C3DMHEAD.OBJ")) {
+			buf = SPD_ParseObj(arg, name, &size);
+			SPD_DumpMapfiletype("C3MapHead", buf, size);
+			free(buf);
+		} else if (StringEndsOn(arg, "ABSADICT.OBJ")) {
+			buf = SPD_ParseObj(arg, name, &size);
+			SPD_DumpDict("C4AudioHuffman", buf, size);
+			free(buf);
+		} else if (StringEndsOn(arg, "ABSEDICT.OBJ")) {
+			buf = SPD_ParseObj(arg, name, &size);
+			SPD_DumpDict("C4GraphHuffman", buf, size);
+			free(buf);
+		} else if (StringEndsOn(arg, "ABSAHEAD.OBJ")) {
+			buf = SPD_ParseObj(arg, name, &size);
+			SPD_DumpChunks("C4Audio", buf, size, 4);
+			free(buf);
+		} else if (StringEndsOn(arg, "ABSEHEAD.OBJ")) {
+			buf = SPD_ParseObj(arg, name, &size);
+			SPD_DumpChunks("C4Graph", buf, size, 3);
+			free(buf);
+		} else if (StringEndsOn(arg, "ABSMHEAD.OBJ")) {
+			buf = SPD_ParseObj(arg, name, &size);
+			SPD_DumpMapfiletype("C4MapHead", buf, size);
+			assert(size > 402+216);
+			printf("uint8_t C4_tile_flags[%i] = {\n", size-402+216);
+			SPD_DumpU8Hex(buf+402+216, size-402-216);
+			printf("};\n");	
+			free(buf);
+		} 
+	}
 }
 
