@@ -1,0 +1,6 @@
+#!/bin/bash
+
+cmake -DCMAKE_BUILD_TYPE=Debug ..
+make cata4 && gdb --cd=Abyss --command=../gdbscript --args ../cata4 --nograb
+
+
